@@ -1,0 +1,78 @@
+/* 
+  Localizable.strings
+  FamilyMenuPlanner
+
+  Created by Ilya Khokhlov on 20.12.24.
+  
+*/
+
+"lang" = "en";
+
+"This will overwrite the current menu. Are you sure?" = "This will overwrite the current menu. Are you sure?";
+"Menu" = "Menu";
+"Products" = "Products";
+"Dishes" = "Dishes";
+"Shopping List" = "Shopping List";
+"Generate Menu" = "Generate Menu";
+"Error" = "Error";
+"OK" = "OK";
+"Cancel" = "Cancel";
+"Save" = "Save";
+"Close" = "Close";
+"Add Ingredient" = "Add Ingredient";
+"Select Dish" = "Select Dish";
+"Search products..." = "Search products...";
+"Search dishes..." = "Search dishes...";
+"Dish Details" = "Dish Details";
+"Meal Types" = "Meal Types";
+"Ingredients" = "Ingredients";
+"Unnamed Ingredient" = "Unnamed Ingredient";
+"Unnamed Dish" = "Unnamed Dish";
+"Choose a dish" = "Choose a dish";
+"Unnamed Product" = "Unnamed Product";
+"Unit" = "Unit";
+"Breakfast" = "Breakfast";
+"Lunch" = "Lunch";
+"Dinner" = "Dinner";
+"Dishes for Breakfast" = "Dishes for Breakfast";
+"Dishes for Lunch" = "Dishes for Lunch";
+"Dishes for Dinner" = "Dishes for Dinner";
+"kg" = "kg";
+"g" = "g";
+"l" = "l";
+"ml" = "ml";
+"pcs" = "pcs";
+"tbsp" = "tbsp";
+"tsp" = "tsp";
+"Clear Dishes" = "Clear Dishes";
+"Generate New Menu" = "Generate New Menu";
+"Generate" = "Generate";
+"No dishes available to generate a menu." = "No dishes available to generate a menu.";
+"Error generating menu. Please try again." = "Error generating menu. Please try again.";
+"Error clearing mealType. Please try again." = "Error clearing mealType. Please try again.";
+"Error replacing dish. Please try again." = "Error replacing dish. Please try again.";
+"Error loading menu. Please try again." = "Error loading menu. Please try again.";
+"Failed to delete dishes. Please try again." = "Failed to delete dishes. Please try again.";
+"Error deleting product. Please try again." = "Error deleting product. Please try again.";
+"Error adding product. Please try again." = "Error adding product. Please try again.";
+"Product name cannot be empty." = "Product name cannot be empty.";
+"Please select a unit for the product." = "Please select a unit for the product.";
+"Failed to save changes. Please try again." = "Failed to save changes. Please try again.";
+"Other Dishes" = "Other Dishes";
+"Dish name cannot be empty." = "Dish name cannot be empty.";
+"Dish must have at least one ingredient." = "Dish must have at least one ingredient.";
+"Dish must have at least one meal type." = "Dish must have at least one meal type.";
+"Add Product" = "Add Product";
+"Add New Product" = "Add New Product";
+"Product Name" = "Product Name";
+"Product Details" = "Product Details";
+"Edit Product" = "Edit Product";
+"Edit Dish" = "Edit Dish";
+"Dish Name" = "Dish Name";
+"Select Product" = "Select Product";
+"Quantity" = "Quantity";
+"No results found" = "No results found";
+"Select Week" = "Select Week";
+"Today" = "Today";
+"Clear All Day" = "Clear All Day";
+"Add New Dish" = "Add New Dish";

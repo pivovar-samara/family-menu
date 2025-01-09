@@ -1,0 +1,139 @@
+{
+    "units": [
+        { "name": "kg", "sortOrder": 1 },
+        { "name": "g", "sortOrder": 2 },
+        { "name": "l", "sortOrder": 3 },
+        { "name": "ml", "sortOrder": 4 },
+        { "name": "pcs", "sortOrder": 5 },
+        { "name": "tbsp", "sortOrder": 6 },
+        { "name": "tsp", "sortOrder": 7 }
+    ],
+    "products": [
+        { "name": "Картофель", "unit": "kg" },
+        { "name": "Курица", "unit": "kg" },
+        { "name": "Яйца", "unit": "pcs" },
+        { "name": "Рис", "unit": "kg" },
+        { "name": "Морковь", "unit": "g" },
+        { "name": "Молоко", "unit": "l" },
+        { "name": "Мука", "unit": "kg" },
+        { "name": "Сахар", "unit": "g" },
+        { "name": "Масло", "unit": "g" },
+        { "name": "Помидор", "unit": "pcs" },
+        { "name": "Огурец", "unit": "pcs" },
+        { "name": "Сыр", "unit": "g" },
+        { "name": "Соль", "unit": "g" },
+        { "name": "Перец", "unit": "g" },
+        { "name": "Макароны", "unit": "kg" },
+        { "name": "Говядина", "unit": "kg" },
+        { "name": "Лук", "unit": "pcs" },
+        { "name": "Чеснок", "unit": "pcs" },
+        { "name": "Растительное масло", "unit": "ml" },
+        { "name": "Йогурт", "unit": "ml" },
+        { "name": "Вода", "unit": "l" }
+    ],
+    "mealTypes": [
+        {"name": "Breakfast", "sortOrder": 1},
+        {"name": "Lunch", "sortOrder": 2},
+        {"name": "Dinner", "sortOrder": 3}
+    ],
+    "dishes": [
+        {
+            "name": "Картофель с курицей",
+            "details": "Очистите картофель и нарежьте кусочками. Разогрейте масло на сковороде. Добавьте кусочки курицы, посолите, поперчите и обжаривайте до золотистой корочки. Добавьте картофель и готовьте вместе до мягкости.",
+            "mealTypes": ["Lunch", "Dinner"],
+            "ingredients": [
+                { "product": "Картофель", "quantity": 2 },
+                { "product": "Курица", "quantity": 1.5 },
+                { "product": "Соль", "quantity": 10 },
+                { "product": "Перец", "quantity": 5 },
+                { "product": "Растительное масло", "quantity": 50 }
+            ]
+        },
+        {
+            "name": "Рис с яйцами",
+            "details": "Приготовьте рис по инструкции на упаковке. На сковороде растопите масло, взбейте яйца и смешайте их с готовым рисом. Добавьте щепотку соли.",
+            "mealTypes": ["Lunch", "Dinner"],
+            "ingredients": [
+                { "product": "Рис", "quantity": 0.5 },
+                { "product": "Яйца", "quantity": 6 },
+                { "product": "Масло", "quantity": 50 },
+                { "product": "Соль", "quantity": 5 }
+            ]
+        },
+        {
+            "name": "Салат из помидоров",
+            "details": "Нарежьте помидоры, огурцы и лук. Смешайте их в миске. Добавьте соль и растительное масло. Хорошо перемешайте перед подачей.",
+            "mealTypes": ["Lunch", "Dinner"],
+            "ingredients": [
+                { "product": "Помидор", "quantity": 3 },
+                { "product": "Огурец", "quantity": 2 },
+                { "product": "Лук", "quantity": 1 },
+                { "product": "Соль", "quantity": 5 },
+                { "product": "Растительное масло", "quantity": 20 }
+            ]
+        },
+        {
+            "name": "Макароны с сыром",
+            "details": "Сварите макароны по инструкции на упаковке. Растопите масло на сковороде, добавьте макароны, посыпьте тертым сыром и перемешайте до расплавления сыра.",
+            "mealTypes": ["Lunch", "Dinner"],
+            "ingredients": [
+                { "product": "Макароны", "quantity": 0.3 },
+                { "product": "Сыр", "quantity": 100 },
+                { "product": "Соль", "quantity": 10 },
+                { "product": "Масло", "quantity": 30 }
+            ]
+        },
+        {
+            "name": "Тушеная говядина",
+            "details": "Нарежьте говядину кубиками. В большой кастрюле разогрейте масло и обжарьте говядину. Добавьте нарезанный картофель, морковь, лук и чеснок. Посолите, поперчите. Томите до готовности всех ингредиентов.",
+            "mealTypes": ["Lunch", "Dinner"],
+            "ingredients": [
+                { "product": "Говядина", "quantity": 1 },
+                { "product": "Картофель", "quantity": 0.5 },
+                { "product": "Морковь", "quantity": 200 },
+                { "product": "Лук", "quantity": 2 },
+                { "product": "Чеснок", "quantity": 3 },
+                { "product": "Соль", "quantity": 10 },
+                { "product": "Перец", "quantity": 5 },
+                { "product": "Растительное масло", "quantity": 30 }
+            ]
+        },
+        {
+            "name": "Блины",
+            "details": "В миске смешайте муку, молоко, яйца, сахар и растопленное масло. Разогрейте сковороду и жарьте тесто небольшими порциями до золотистой корочки с обеих сторон.",
+            "mealTypes": ["Breakfast"],
+            "ingredients": [
+                { "product": "Мука", "quantity": 0.3 },
+                { "product": "Молоко", "quantity": 0.5 },
+                { "product": "Яйца", "quantity": 3 },
+                { "product": "Сахар", "quantity": 50 },
+                { "product": "Масло", "quantity": 30 }
+            ]
+        },
+        {
+            "name": "Овощной суп",
+            "details": "Нарежьте морковь, картофель, лук и чеснок. В кастрюле разогрейте масло, добавьте овощи и обжарьте. Добавьте воду, соль и перец. Варите до мягкости овощей.",
+            "mealTypes": ["Lunch"],
+            "ingredients": [
+                { "product": "Морковь", "quantity": 150 },
+                { "product": "Картофель", "quantity": 0.3 },
+                { "product": "Лук", "quantity": 1 },
+                { "product": "Чеснок", "quantity": 2 },
+                { "product": "Соль", "quantity": 5 },
+                { "product": "Перец", "quantity": 5 },
+                { "product": "Растительное масло", "quantity": 20 },
+                { "product": "Вода", "quantity": 1 }
+            ]
+        },
+        {
+            "name": "Соус из йогурта",
+            "details": "Смешайте йогурт с измельченным чесноком и щепоткой соли. Хорошо перемешайте и подавайте как соус или дип.",
+            "mealTypes": ["Breakfast", "Lunch", "Dinner"],
+            "ingredients": [
+                { "product": "Йогурт", "quantity": 200 },
+                { "product": "Чеснок", "quantity": 2 },
+                { "product": "Соль", "quantity": 2 }
+            ]
+        }
+    ]
+}

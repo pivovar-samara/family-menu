@@ -1,0 +1,78 @@
+/* 
+  Localizable.strings
+  FamilyMenuPlanner
+
+  Created by Ilya Khokhlov on 20.12.24.
+  
+*/
+
+"lang" = "ru";
+
+"This will overwrite the current menu. Are you sure?" = "Это перезапишет текущее меню. Вы уверены?";
+"Menu" = "Меню";
+"Products" = "Продукты";
+"Dishes" = "Блюда";
+"Shopping List" = "Список покупок";
+"Generate Menu" = "Создать меню";
+"Error" = "Ошибка";
+"OK" = "ОК";
+"Cancel" = "Отмена";
+"Save" = "Сохранить";
+"Close" = "Закрыть";
+"Add Ingredient" = "Добавить ингредиент";
+"Select Dish" = "Выбрать блюдо";
+"Search products..." = "Поиск продуктов...";
+"Search dishes..." = "Поиск блюд...";
+"Dish Details" = "Детали блюда";
+"Meal Types" = "Типы приёма пищи";
+"Ingredients" = "Ингредиенты";
+"Unnamed Ingredient" = "Безымянный ингредиент";
+"Unnamed Dish" = "Безымянное блюдо";
+"Choose a dish" = "Выберите блюдо";
+"Unnamed Product" = "Безымянный продукт";
+"Unit" = "Единица измерения";
+"Breakfast" = "Завтрак";
+"Lunch" = "Обед";
+"Dinner" = "Ужин";
+"Dishes for Breakfast" = "Блюда на завтрак";
+"Dishes for Lunch" = "Блюда на обед";
+"Dishes for Dinner" = "Блюда на ужин";
+"kg" = "кг";
+"g" = "г";
+"l" = "л";
+"ml" = "мл";
+"pcs" = "шт.";
+"tbsp" = "ст. л.";
+"tsp" = "ч. л.";
+"Clear Dishes" = "Удалить блюда";
+"Generate New Menu" = "Создать новое меню";
+"Generate" = "Создать";
+"No dishes available to generate a menu." = "Нет блюд для создания меню.";
+"Error generating menu. Please try again." = "Произошла ошибка при создании меню. Попробуйте ещё раз.";
+"Error clearing mealType. Please try again." = "Произошла ошибка при удалении блюда. Попробуйте ещё раз.";
+"Error replacing dish. Please try again." = "Произошла ошибка при замене блюда. Попробуйте ещё раз.";
+"Error loading menu. Please try again." = "Произошла ошибка при загрузке меню. Попробуйте ещё раз.";
+"Failed to delete dishes. Please try again." = "Произошла ошибка при удалении блюд. Попробуйте ещё раз.";
+"Error deleting product. Please try again." = "Произошла ошибка при удалении продукта. Попробуйте ещё раз.";
+"Error adding product. Please try again." = "Произошла ошибка при добавлении продукта. Попробуйте ещё раз.";
+"Product name cannot be empty." = "Название продукта не может быть пустым.";
+"Please select a unit for the product." = "Выберите единицы измерения продукта.";
+"Failed to save changes. Please try again." = "Невозможно сохранить изменения. Попробуйте ещё раз.";
+"Other Dishes" = "Другие блюда";
+"Dish name cannot be empty." = "Название блюда не может быть пустым.";
+"Dish must have at least one ingredient." = "В блюде должен быть хотя бы один ингредиент.";
+"Dish must have at least one meal type." = "Блюдо должно быть доступно хотя бы для одного типа приёма пищи.";
+"Add Product" = "Добавить продукт";
+"Add New Product" = "Добавить новый продукт";
+"Product Name" = "Название продукта";
+"Product Details" = "Параметры продукта";
+"Edit Product" = "Редактирование продукта";
+"Edit Dish" = "Редактирование блюда";
+"Dish Name" = "Название блюда";
+"Select Product" = "Выберите продукт";
+"Quantity" = "Количество";
+"No results found" = "Ничего не найдено";
+"Select Week" = "Выберите неделю";
+"Today" = "Сегодня";
+"Clear All Day" = "Очистить весь день";
+"Add New Dish" = "Добавить";
