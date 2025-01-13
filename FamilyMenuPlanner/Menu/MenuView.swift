@@ -286,9 +286,15 @@ struct MenuView: View {
             if let menuEntry = results.first {
                 menuEntry.removeFromDishes(menuEntry.dishes ?? NSSet())
                 menuEntry.addToDishes(newDish)
-                try viewContext.save()
-                loadMenu()
+            } else {
+                let newMenuEntry = Menu(context: viewContext)
+                newMenuEntry.day = day
+                newMenuEntry.mealType = mealType
+                newMenuEntry.calendarWeek = Int32(encodedWeek)
+                newMenuEntry.addToDishes(newDish)
             }
+            try viewContext.save()
+            loadMenu()
         } catch {
             initiateAlert(message: "Error replacing dish. Please try again.")
         }
