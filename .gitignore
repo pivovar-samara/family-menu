@@ -33,3 +33,5 @@ fastlane/test_output/
 # Environment files
 .env
 .env.*
+
+.DS_Store
