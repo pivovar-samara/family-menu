@@ -14,7 +14,7 @@ struct PersistenceController {
         let result = PersistenceController(inMemory: true)
         let viewContext = result.container.viewContext
         
-        result.preloadDataIfNeeded(context: viewContext)
+        result.generateInitialData(context: viewContext)
         
         return result
     }()
@@ -55,25 +55,24 @@ struct PersistenceController {
             }
         })
         container.viewContext.automaticallyMergesChangesFromParent = true
-        preloadDataIfNeeded(context: container.viewContext)
     }
     
-    func preloadDataIfNeeded(context: NSManagedObjectContext) {
+    func isDatabaseEmpty(context: NSManagedObjectContext) -> Bool {
         let fetchRequest: NSFetchRequest<Unit> = Unit.fetchRequest()
-        
+        fetchRequest.fetchLimit = 1
+
         do {
             let count = try context.count(for: fetchRequest)
-            if count == 0 {
-                preloadData(from: "preloadData", context: context) 
-            }
+            return count == 0
         } catch {
-            print("Error checking for existing data: \(error)")
+            print("Error checking database: \(error)")
+            return true
         }
     }
     
-    private func preloadData(from fileName: String, context: NSManagedObjectContext) {
-        guard let url = Bundle.main.url(forResource: fileName, withExtension: "json") else {
-            print("Failed to find \(fileName).json in bundle")
+    func generateInitialData(context: NSManagedObjectContext) {
+        guard let url = Bundle.main.url(forResource: "preloadData", withExtension: "json") else {
+            print("Failed to find preloadData.json in bundle")
             return
         }
 
@@ -137,12 +136,36 @@ struct PersistenceController {
 
             // Save all data
             try context.save()
-            print("Data preloaded successfully from \(fileName).json.")
+            print("Data preloaded successfully from preloadData.json.")
         } catch {
             print("Error preloading data: \(error)")
         }
     }
+    
+    func deleteAllData(context: NSManagedObjectContext) {
+        guard let entities = context.persistentStoreCoordinator?.managedObjectModel.entities else { return }
 
+        for entity in entities {
+            guard let entityName = entity.name else { continue }
+
+            let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
+            let batchDeleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
+
+            do {
+                try context.execute(batchDeleteRequest)
+                print("✅ Successfully deleted all data from \(entityName)")
+            } catch {
+                print("❌ Error deleting data from \(entityName): \(error)")
+            }
+        }
+
+        do {
+            try context.save()
+            print("✅ All data deleted successfully.")
+        } catch {
+            print("❌ Error saving context after deletion: \(error)")
+        }
+    }
 }
 
 // MARK: - Codable Structures for JSON

@@ -15,6 +15,9 @@
 		A004ED902D11DC030081DDC0 /* FamilyMenuPlannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A004ED8F2D11DC030081DDC0 /* FamilyMenuPlannerTests.swift */; };
 		A004ED9A2D11DC030081DDC0 /* FamilyMenuPlannerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A004ED992D11DC030081DDC0 /* FamilyMenuPlannerUITests.swift */; };
 		A004ED9C2D11DC030081DDC0 /* FamilyMenuPlannerUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A004ED9B2D11DC030081DDC0 /* FamilyMenuPlannerUITestsLaunchTests.swift */; };
+		A05706402D35157900D4496C /* AppStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A057063F2D35157900D4496C /* AppStateManager.swift */; };
+		A05706412D35157900D4496C /* AppStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A057063F2D35157900D4496C /* AppStateManager.swift */; };
+		A05706422D35157900D4496C /* AppStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A057063F2D35157900D4496C /* AppStateManager.swift */; };
 		A0B998282D11FD7F00248F27 /* ProductListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B998272D11FD7F00248F27 /* ProductListView.swift */; };
 		A0B998292D11FD7F00248F27 /* ProductListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B998272D11FD7F00248F27 /* ProductListView.swift */; };
 		A0B9982A2D11FD7F00248F27 /* ProductListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B998272D11FD7F00248F27 /* ProductListView.swift */; };
@@ -94,6 +97,7 @@
 		A004ED992D11DC030081DDC0 /* FamilyMenuPlannerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyMenuPlannerUITests.swift; sourceTree = "<group>"; };
 		A004ED9B2D11DC030081DDC0 /* FamilyMenuPlannerUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyMenuPlannerUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		A004EDA82D11DC900081DDC0 /* FamilyMenuPlanner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FamilyMenuPlanner.entitlements; sourceTree = "<group>"; };
+		A057063F2D35157900D4496C /* AppStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateManager.swift; sourceTree = "<group>"; };
 		A0B998272D11FD7F00248F27 /* ProductListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductListView.swift; sourceTree = "<group>"; };
 		A0B9982B2D11FEF200248F27 /* MenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuView.swift; sourceTree = "<group>"; };
 		A0B9983B2D12A51200248F27 /* ManageDishesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManageDishesView.swift; sourceTree = "<group>"; };
@@ -169,6 +173,7 @@
 				A0DBD54B2D12E01100C83BFD /* Common */,
 				A004EDA82D11DC900081DDC0 /* FamilyMenuPlanner.entitlements */,
 				A004ED782D11DC000081DDC0 /* FamilyMenuPlannerApp.swift */,
+				A057063F2D35157900D4496C /* AppStateManager.swift */,
 				A004ED7A2D11DC000081DDC0 /* ContentView.swift */,
 				A004ED812D11DC020081DDC0 /* Persistence.swift */,
 				A004ED862D11DC020081DDC0 /* Info.plist */,
@@ -389,6 +394,7 @@
 				A0DBD54D2D12E07D00C83BFD /* AlertHelper.swift in Sources */,
 				A0B9983C2D12A51200248F27 /* ManageDishesView.swift in Sources */,
 				A004ED852D11DC020081DDC0 /* FamilyMenuPlanner.xcdatamodeld in Sources */,
+				A05706402D35157900D4496C /* AppStateManager.swift in Sources */,
 				A0D21ED72D1AD3CD0014AD78 /* CalendarHelper.swift in Sources */,
 				A0DBD5442D12B01C00C83BFD /* EditDishView.swift in Sources */,
 				A004ED7B2D11DC000081DDC0 /* ContentView.swift in Sources */,
@@ -410,6 +416,7 @@
 				A0DBD5522D12E90500C83BFD /* ShoppingListView.swift in Sources */,
 				A0B998292D11FD7F00248F27 /* ProductListView.swift in Sources */,
 				A0DBD54E2D12E07D00C83BFD /* AlertHelper.swift in Sources */,
+				A05706412D35157900D4496C /* AppStateManager.swift in Sources */,
 				A0DBD5492D12C5C400C83BFD /* EditMenuDishView.swift in Sources */,
 				A0D21ECF2D16B4570014AD78 /* NumbersHelper.swift in Sources */,
 				A0DBD5422D12AF9400C83BFD /* EditProductView.swift in Sources */,
@@ -440,6 +447,7 @@
 				A0D21ED92D1AD3CD0014AD78 /* CalendarHelper.swift in Sources */,
 				A0D21EC22D1574E70014AD78 /* LocalizationHelper.swift in Sources */,
 				A0B9983E2D12A51200248F27 /* ManageDishesView.swift in Sources */,
+				A05706422D35157900D4496C /* AppStateManager.swift in Sources */,
 				A004ED9A2D11DC030081DDC0 /* FamilyMenuPlannerUITests.swift in Sources */,
 				A0DBD54A2D12C5C400C83BFD /* EditMenuDishView.swift in Sources */,
 			);
