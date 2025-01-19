@@ -1,0 +1,33 @@
+//
+//  DishSelectionService.swift
+//  FamilyMenuPlanner
+//
+//  Created by Ilya Khokhlov on 18.01.25.
+//
+
+
+import CoreData
+
+class DishSelectionService {
+    private let context: NSManagedObjectContext
+    
+    init(context: NSManagedObjectContext) {
+        self.context = context
+    }
+    
+    func rollback() {
+        context.rollback()
+    }
+    
+    func fetchAllDishes() -> [Dish] {
+        let fetchRequest: NSFetchRequest<Dish> = Dish.fetchRequest()
+
+        do {
+            try context.setQueryGenerationFrom(.current)
+            return try context.fetch(fetchRequest)
+        } catch {
+            print("Error loading dishes: \(error)")
+            return []
+        }
+    }
+}

@@ -23,7 +23,7 @@ struct ContentView: View {
             TabView {
                 // Menu
                 NavigationStack {
-                    MenuView()
+                    MenuCoordinator().createMenuView()
                         .navigationTitle("Menu")
                 }
                 .tabItem {
