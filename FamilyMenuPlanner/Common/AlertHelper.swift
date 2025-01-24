@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct AlertHelper {
-    static func presentAlert(title: LocalizedStringKey, message: LocalizedStringKey) -> Alert {
+    static func presentAlert(title: String, message: String) -> Alert {
         Alert(
             title: Text(title),
             message: Text(message),

@@ -18,10 +18,11 @@ class MenuViewModel: ObservableObject {
     @Published var selectedMealType: String = ""
     @Published var selectedWeekIndex: Int = 0
     @Published var hasScrolledToToday: Bool = false
-    @Published var showAlert: Bool = false
-    @Published var currentAlert: Alert? = nil
+    @Published var currentAlert: AlertItem?
     
     let weekdays: [String] = localizedWeekdayNamesStartingFromMonday()
+    
+    private let alertManager = AlertQueueManager()
 
     var weekOptions: [Date] {
         let calendar = Calendar.current
@@ -34,6 +35,9 @@ class MenuViewModel: ObservableObject {
 
     init(menuService: MenuService) {
         self.menuService = menuService
+        alertManager.$currentAlert
+                    .receive(on: RunLoop.main)
+                    .assign(to: &$currentAlert)
     }
 
     func loadMenu(for weekIndex: Int) {
@@ -57,7 +61,9 @@ class MenuViewModel: ObservableObject {
             try menuService.replaceDish(for: day, mealType: mealType, selectedWeekDate: selectedWeekDate, with: newDish)
             loadMenu(for: selectedWeekIndex)
         } catch {
-            initiateAlert(message: "Error replacing dish. Please try again.")
+            DispatchQueue.main.asyncAfter(deadline: .now()+0.3) {
+                self.enqueueAlert(title: "Error", message: "Error replacing dish. Please try again.")
+            }
         }
     }
 
@@ -67,7 +73,9 @@ class MenuViewModel: ObservableObject {
             try menuService.clearMealType(for: day, selectedWeekDate: selectedWeekDate, mealType: mealType)
             loadMenu(for: selectedWeekIndex)
         } catch {
-            initiateAlert(message: "Error clearing mealType. Please try again.")
+            DispatchQueue.main.asyncAfter(deadline: .now()+0.3) {
+                self.enqueueAlert(title: "Error", message: "Error clearing mealType. Please try again.")
+            }
         }
     }
 
@@ -79,8 +87,8 @@ class MenuViewModel: ObservableObject {
                 for dish in mealDishes {
                     if let ingredientDetails = dish.ingredientDetails as? Set<IngredientDetail> {
                         for detail in ingredientDetails {
-                            let productName = detail.product?.name ?? "Unnamed Product"
-                            let unitName = detail.product?.unit?.name ?? "unit"
+                            let productName = detail.product?.name ?? "Unnamed Product".localized()
+                            let unitName = detail.product?.unit?.name ?? "Unit".localized()
                             shoppingList[productName, default: [:]][unitName, default: 0] += detail.quantity
                         }
                     }
@@ -91,12 +99,13 @@ class MenuViewModel: ObservableObject {
         return shoppingList
     }
 
-    func initiateAlert(message: LocalizedStringKey) {
-        currentAlert = AlertHelper.presentAlert(
-            title: "Error",
-            message: message
-        )
-        showAlert = true
+    func enqueueAlert(title: String, message: String, action: (() -> Void)? = nil) {
+        let alert = AlertItem(title: title.localized(), message: message.localized(), action: action)
+        alertManager.enqueue(alert: alert)
+    }
+    
+    func dismissAlert() {
+        alertManager.dismissCurrentAlert()
     }
 }
 

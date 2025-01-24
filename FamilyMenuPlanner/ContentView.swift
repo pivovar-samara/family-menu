@@ -32,7 +32,7 @@ struct ContentView: View {
 
                 // Products
                 NavigationStack {
-                    ProductListView()
+                    ProductListCoordinator().createProductListView()
                         .navigationTitle("Products")
                 }
                 .tabItem {

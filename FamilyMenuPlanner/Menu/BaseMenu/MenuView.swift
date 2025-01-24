@@ -51,8 +51,17 @@ struct MenuView: View {
                 }
             }
         }
-        .alert(isPresented: $viewModel.showAlert) {
-            viewModel.currentAlert!
+        .alert(item: Binding(
+            get: { viewModel.currentAlert },
+            set: { _ in viewModel.dismissAlert() }
+        )) { alert in
+            Alert(
+                title: Text(alert.title),
+                message: Text(alert.message),
+                dismissButton: .default(Text("OK")) {
+                    alert.action?()
+                }
+            )
         }
         .alert("Generate New Menu", isPresented: $viewModel.showGenerateMenuAlert) {
             Button("Cancel", role: .cancel) {

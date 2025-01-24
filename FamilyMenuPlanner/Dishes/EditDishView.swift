@@ -40,7 +40,7 @@ struct EditDishView: View {
 
     @State private var descriptionText: String = ""
     @State private var selectedMealTypes: Set<MealType> = []
-    @State private var validationError: LocalizedStringKey?
+    @State private var validationError: String?
     @State private var showAlert: Bool = false
     @State private var currentAlert: Alert? = nil
     @State private var showProductSelection = false

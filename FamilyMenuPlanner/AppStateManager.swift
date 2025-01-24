@@ -42,6 +42,7 @@ final class AppStateManager: ObservableObject {
         if isDatabaseEmpty {
             persistence.generateInitialData(context: context)
         }
+//        persistence.deleteAllData(context: context)
         
         isLoading = false
     }
