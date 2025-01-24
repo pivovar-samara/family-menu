@@ -23,6 +23,10 @@ final class AppStateManager: ObservableObject {
             self?.handleCloudKitEvent(notification)
         }
     }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
 
     private func handleCloudKitEvent(_ notification: Notification) {
         if let event = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey] as? NSPersistentCloudKitContainer.Event,
