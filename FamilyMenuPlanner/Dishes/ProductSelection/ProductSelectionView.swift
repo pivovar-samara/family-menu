@@ -9,35 +9,31 @@ import SwiftUI
 
 struct ProductSelectionView: View {
     @Environment(\.dismiss) private var dismiss
-
-    @FetchRequest(
-        entity: Product.entity(),
-        sortDescriptors: [NSSortDescriptor(keyPath: \Product.name, ascending: true)]
-    ) private var products: FetchedResults<Product>
-
-    @State private var searchText: String = ""
-    @State private var selectedProduct: Product?
-    let currentProduct: Product?
-    let onProductSelected: (Product) -> Void
+    
+    @StateObject private var viewModel: ProductSelectionViewModel
+    
+    init(viewModel: ProductSelectionViewModel) {
+        _viewModel = StateObject(wrappedValue: viewModel)
+    }
 
     var body: some View {
         List {
-            if filteredProducts.isEmpty {
+            if viewModel.filteredProducts.isEmpty {
                 Color.clear.emptyState(message: "No results found".localized())
             } else {
-                ForEach(filteredProducts, id: \.self) { product in
+                ForEach(viewModel.filteredProducts, id: \.self) { product in
                     HStack {
                         Text(product.name ?? "Unnamed Product")
                         Spacer()
-                        if product == selectedProduct || product == currentProduct {
+                        if product == viewModel.selectedProduct || product == viewModel.currentProduct {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(Color("AccentColor"))
                         }
                     }
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        selectedProduct = product
-                        onProductSelected(product)
+                        viewModel.selectedProduct = product
+                        viewModel.onProductSelected(product)
                         dismiss()
                     }
                     .listRowBackground(Color("SecondaryBackgroundColor"))
@@ -45,7 +41,7 @@ struct ProductSelectionView: View {
             }
         }
         .navigationTitle("Select Product")
-        .searchable(text: $searchText, prompt: "Search products...")
+        .searchable(text: $viewModel.searchText, prompt: "Search products...")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") {
@@ -56,13 +52,8 @@ struct ProductSelectionView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Color("BackgroundColor"))
-    }
-
-    private var filteredProducts: [Product] {
-        if searchText.isEmpty {
-            return Array(products)
-        } else {
-            return products.filter { $0.name?.localizedCaseInsensitiveContains(searchText) ?? false }
+        .onAppear {
+            viewModel.loadProducts()
         }
     }
 }

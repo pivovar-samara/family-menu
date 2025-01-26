@@ -23,7 +23,7 @@ struct ContentView: View {
             TabView {
                 // Menu
                 NavigationStack {
-                    MenuView()
+                    MenuCoordinator().createMenuView()
                         .navigationTitle("Menu")
                 }
                 .tabItem {
@@ -32,7 +32,7 @@ struct ContentView: View {
 
                 // Products
                 NavigationStack {
-                    ProductListView()
+                    ProductListCoordinator().createProductListView()
                         .navigationTitle("Products")
                 }
                 .tabItem {
@@ -41,7 +41,7 @@ struct ContentView: View {
 
                 // Dishes
                 NavigationStack {
-                    ManageDishesView()
+                    DishListCoordinator().createDishListView()
                         .navigationTitle("Dishes")
                 }
                 .tabItem {

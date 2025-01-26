@@ -1,0 +1,38 @@
+//
+//  EditProductService.swift
+//  FamilyMenuPlanner
+//
+//  Created by Ilya Khokhlov on 20.01.25.
+//
+
+import CoreData
+
+class EditProductService {
+    private let context: NSManagedObjectContext
+    
+    init(context: NSManagedObjectContext) {
+        self.context = context
+    }
+    
+    func fetchAllUnits() -> [Unit] {
+        let fetchRequest: NSFetchRequest<Unit> = Unit.fetchRequest()
+        fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Unit.sortOrder, ascending: true)]
+
+        do {
+            try context.setQueryGenerationFrom(.current)
+            return try context.fetch(fetchRequest)
+        } catch {
+            print("Error loading units: \(error)")
+            return []
+        }
+    }
+    
+    func saveChanges() throws {
+        try context.setQueryGenerationFrom(.current)
+        try context.save()
+    }
+    
+    func rollback() {
+        context.rollback()
+    }
+}

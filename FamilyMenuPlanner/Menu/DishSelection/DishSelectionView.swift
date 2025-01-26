@@ -7,31 +7,24 @@
 
 import SwiftUI
 
-struct EditMenuDishView: View {
-    @Environment(\.managedObjectContext) private var viewContext
+struct DishSelectionView: View {
     @Environment(\.dismiss) private var dismiss
+    
+    @StateObject private var viewModel: DishSelectionViewModel
 
-    @FetchRequest(
-        entity: Dish.entity(),
-        sortDescriptors: [NSSortDescriptor(keyPath: \Dish.name, ascending: true)]
-    ) private var allDishes: FetchedResults<Dish>
-    
-    @State private var searchText: String = ""
-    @State private var selectedDish: Dish?
-    
-    let currentDish: Dish? // Currently selected dish for this day and meal type
-    let mealType: String // Meal type for filtering dishes
-    let onDishSelected: (Dish) -> Void
+    init(viewModel: DishSelectionViewModel) {
+        _viewModel = StateObject(wrappedValue: viewModel)
+    }
     
     var body: some View {
-        let (dishesForMealType, otherDishes) = splitDishes()
+        let (dishesForMealType, otherDishes) = viewModel.splitDishes()
         List {
             if dishesForMealType.isEmpty && otherDishes.isEmpty {
                 Color.clear.emptyState(message: "No results found".localized())
             } else {
                 // Section for dishes matching the selected meal type
                 if !dishesForMealType.isEmpty {
-                    Section(header: Text(("Dishes for \(mealType)").localized())) {
+                    Section(header: Text(("Dishes for \(viewModel.mealType)").localized())) {
                         ForEach(dishesForMealType, id: \.self) { dish in
                             dishRow(dish: dish)
                         }
@@ -49,11 +42,11 @@ struct EditMenuDishView: View {
             }
         }
         .navigationTitle("Select Dish")
-        .searchable(text: $searchText, prompt: "Search dishes...")
+        .searchable(text: $viewModel.searchText, prompt: "Search dishes...")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") {
-                    viewContext.rollback()
+                    viewModel.rollback()
                     dismiss()
                 }
                 .foregroundColor(Color("AccentColor"))
@@ -63,33 +56,11 @@ struct EditMenuDishView: View {
         .background(Color("BackgroundColor"))
     }
     
-    /// Splits dishes into two sections: those matching the meal type and others.
-    private func splitDishes() -> (dishesForMealType: [Dish], otherDishes: [Dish]) {
-        var dishesForMealType: [Dish] = []
-        var otherDishes: [Dish] = []
-
-        for dish in allDishes {
-            // Filter by search text
-            let matchesSearch = searchText.isEmpty || (dish.name?.localizedCaseInsensitiveContains(searchText) ?? false)
-            
-            guard matchesSearch else { continue }
-            
-            // Determine the section based on meal type
-            if let mealTypes = dish.mealTypes as? Set<MealType>, mealTypes.contains(where: { $0.name == mealType }) {
-                dishesForMealType.append(dish)
-            } else {
-                otherDishes.append(dish)
-            }
-        }
-
-        return (dishesForMealType, otherDishes)
-    }
-    
     private func dishRow(dish: Dish) -> some View {
         HStack {
             Text((dish.name ?? "Unnamed Dish").localized())
             Spacer()
-            if dish == selectedDish || dish == currentDish {
+            if dish == viewModel.selectedDish || dish == viewModel.currentDish {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundColor(Color("AccentColor"))
             }
@@ -97,8 +68,8 @@ struct EditMenuDishView: View {
         .listRowBackground(Color("SecondaryBackgroundColor"))
         .contentShape(Rectangle())
         .onTapGesture {
-            selectedDish = dish
-            onDishSelected(dish)
+            viewModel.selectedDish = dish
+            viewModel.onDishSelected(dish)
             dismiss()
         }
     }

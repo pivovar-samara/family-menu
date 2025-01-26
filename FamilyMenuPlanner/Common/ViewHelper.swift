@@ -38,3 +38,11 @@ extension View {
         self.modifier(EmptyStateModifier(message: message))
     }
 }
+
+extension List {
+    func applyStyle() -> some View {
+        return self
+            .scrollContentBackground(.hidden)
+            .background(Color("BackgroundColor"))
+    }
+}
