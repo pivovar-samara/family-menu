@@ -14,42 +14,40 @@ class MenuService {
         self.context = context
     }
 
-    func fetchMenu(for weekIndex: Int) -> [String: [String: [Dish]]] {
+    func fetchMenu(for weekIndex: Int) -> [DailyMenu] {
         let calendar = Calendar.current
         let startOfCurrentWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date()))!
-        guard let selectedWeekDate = calendar.date(byAdding: .weekOfYear, value: weekIndex, to: startOfCurrentWeek) else { return [:] }
+        guard let selectedWeekDate = calendar.date(byAdding: .weekOfYear, value: weekIndex, to: startOfCurrentWeek) else { return [] }
         let selectedWeekComponents = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: selectedWeekDate)
         let encodedWeek = encodeWeek(selectedWeekComponents)
 
-        let fetchRequest: NSFetchRequest<Menu> = Menu.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "calendarWeek == %d", encodedWeek)
-
         do {
             try context.setQueryGenerationFrom(.current)
+            
+            let fetchRequest: NSFetchRequest<Menu> = Menu.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "calendarWeek == %d", encodedWeek)
             let menuEntries = try context.fetch(fetchRequest)
 
-            var initializedMenu: [String: [String: [Dish]]] = [:]
+            var initializedMenu: [DailyMenu] = []
             let weekdays = localizedWeekdayNamesStartingFromMonday()
+            
+            let mealTypeFetchRequest = MealType.fetchRequest()
+            mealTypeFetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \MealType.sortOrder, ascending: true)]
+            let mealTypes = try context.fetch(mealTypeFetchRequest)
 
             for day in weekdays {
-                initializedMenu[day] = [:]
-                for mealType in try context.fetch(MealType.fetchRequest()) as! [MealType] {
-                    initializedMenu[day]?[mealType.name ?? ""] = []
+                var dailyMeals: [DailyMeal] = []
+                for mealType in mealTypes {
+                    let dishes = menuEntries.filter({ $0.day == day && $0.mealType == mealType.name }).first?.dishes?.allObjects as? [Dish] ?? []
+                    dailyMeals.append(DailyMeal(meal: mealType.name ?? "", dishes: dishes))
                 }
-            }
-
-            for entry in menuEntries {
-                if let day = entry.day,
-                   let mealType = entry.mealType,
-                   let dishes = entry.dishes?.allObjects as? [Dish] {
-                    initializedMenu[day]?[mealType] = dishes
-                }
+                initializedMenu.append(DailyMenu(day: day, dailyMeals: dailyMeals))
             }
 
             return initializedMenu
         } catch {
             print("Error loading menu for the selected week: \(error)")
-            return [:]
+            return []
         }
     }
 
@@ -64,7 +62,10 @@ class MenuService {
             try context.setQueryGenerationFrom(.current)
             
             let weekdays = localizedWeekdayNamesStartingFromMonday()
-            let mealTypes = try context.fetch(MealType.fetchRequest()) as! [MealType]
+            
+            let mealTypesFetchRequest = MealType.fetchRequest()
+            mealTypesFetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \MealType.sortOrder, ascending: true)]
+            let mealTypes = try context.fetch(mealTypesFetchRequest)
             
             let weekComponents = Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: weekDate)
             let encodedWeek = encodeWeek(weekComponents)
