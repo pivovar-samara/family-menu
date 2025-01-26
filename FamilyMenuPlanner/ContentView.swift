@@ -41,7 +41,7 @@ struct ContentView: View {
 
                 // Dishes
                 NavigationStack {
-                    ManageDishesView()
+                    DishListCoordinator().createDishListView()
                         .navigationTitle("Dishes")
                 }
                 .tabItem {

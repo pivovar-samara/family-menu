@@ -78,3 +78,4 @@
 "Add New Dish" = "Добавить";
 "Loading..." = "Загрузка данных...";
 "Unit is not selected and no default unit is available." = "Единица измерения не выбрана для продукта.";
+"No Details" = "Рецепт не заполнен";
