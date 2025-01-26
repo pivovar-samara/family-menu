@@ -8,8 +8,18 @@
 import Foundation
 import SwiftUI
 
+struct DailyMenu: Hashable {
+    let day: String
+    let dailyMeals: [DailyMeal]
+}
+
+struct DailyMeal: Hashable {
+    let meal: String
+    let dishes: [Dish]
+}
+
 class MenuViewModel: ObservableObject {
-    @Published var weeklyMenu: [String: [String: [Dish]]] = [:]
+    @Published var weeklyMenu: [DailyMenu] = []
     @Published var isShowingShoppingList: Bool = false
     @Published var showGenerateMenuAlert = false
     @Published var dishes: [Dish] = []
@@ -82,9 +92,9 @@ class MenuViewModel: ObservableObject {
     func generateShoppingList() -> [String: [String: Double]] {
         var shoppingList: [String: [String: Double]] = [:]
         
-        for dailyMenu in weeklyMenu.values {
-            for mealDishes in dailyMenu.values {
-                for dish in mealDishes {
+        for dailyMenu in weeklyMenu {
+            for dailyMeals in dailyMenu.dailyMeals {
+                for dish in dailyMeals.dishes {
                     if let ingredientDetails = dish.ingredientDetails as? Set<IngredientDetail> {
                         for detail in ingredientDetails {
                             let productName = detail.product?.name ?? "Unnamed Product".localized()

@@ -87,12 +87,10 @@ struct MenuView: View {
     }
     
     private var menuList: some View {
-        ForEach(viewModel.weeklyMenu.keys.sorted(), id: \.self) { day in
-            Section(header: Text(sectionHeader(for: day))) {
-                if let meals = viewModel.weeklyMenu[day] {
-                    ForEach(meals.keys.sorted(), id: \.self) { mealType in
-                        mealTypeSection(day: day, mealType: mealType, dishesForMeal: meals[mealType] ?? [])
-                    }
+        ForEach(viewModel.weeklyMenu, id: \.self) { dailyMenu in
+            Section(header: Text(sectionHeader(for: dailyMenu.day))) {
+                ForEach(dailyMenu.dailyMeals, id: \.self) { dailyMeal in
+                    mealTypeSection(day: dailyMenu.day, mealType: dailyMeal.meal, dishesForMeal: dailyMeal.dishes)
                 }
             }
         }
