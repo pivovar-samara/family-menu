@@ -23,7 +23,7 @@ class MenuViewModel: ObservableObject {
     @Published var isShowingShoppingList: Bool = false
     @Published var showGenerateMenuAlert = false
     @Published var dishes: [Dish] = []
-    @Published var editingDish: Dish? = nil
+    @Published var editingDishes: [Dish] = []
     @Published var selectedDay: String = ""
     @Published var selectedMealType: String = ""
     @Published var selectedWeekIndex: Int = 0
@@ -64,11 +64,11 @@ class MenuViewModel: ObservableObject {
         menuService.removeOldWeeks()
     }
     
-    func replaceDish(for day: String, mealType: String, with newDish: Dish) {
+    func replaceDishes(for day: String, mealType: String, with newDishes: [Dish]) {
         let selectedWeekDate = weekOptions[selectedWeekIndex]
         
         do {
-            try menuService.replaceDish(for: day, mealType: mealType, selectedWeekDate: selectedWeekDate, with: newDish)
+            try menuService.replaceDishes(for: day, mealType: mealType, selectedWeekDate: selectedWeekDate, with: newDishes)
             loadMenu(for: selectedWeekIndex)
         } catch {
             DispatchQueue.main.asyncAfter(deadline: .now()+0.3) {

@@ -10,18 +10,17 @@ import SwiftUI
 
 class DishSelectionViewModel: ObservableObject {
     @Published var searchText: String = ""
-    @Published var selectedDish: Dish? = nil
+    @Published var selectedDishes: [Dish] = []
     
-    @Published var currentDish: Dish? // Currently selected dish for this day and meal type
     @Published var mealType: String // Meal type for filtering dishes
-    @Published var onDishSelected: (Dish) -> Void
+    @Published var onDishesSelected: ([Dish]) -> Void
     
     private let dishSelectionService: DishSelectionService
     
-    init(currentDish: Dish?, mealType: String, dishSelectionService: DishSelectionService, onDishSelected: @escaping (Dish) -> Void) {
-        self.currentDish = currentDish
+    init(selectedDishes: [Dish], mealType: String, dishSelectionService: DishSelectionService, onDishesSelected: @escaping ([Dish]) -> Void) {
+        self.selectedDishes = selectedDishes
         self.mealType = mealType
-        self.onDishSelected = onDishSelected
+        self.onDishesSelected = onDishesSelected
         self.dishSelectionService = dishSelectionService
     }
     

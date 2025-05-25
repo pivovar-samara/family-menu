@@ -51,6 +51,12 @@ struct DishSelectionView: View {
                 }
                 .foregroundColor(Color("AccentColor"))
             }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save") {
+                    dismiss()
+                }
+                .foregroundColor(Color("AccentColor"))
+            }
         }
         .scrollContentBackground(.hidden)
         .background(Color("BackgroundColor"))
@@ -60,7 +66,7 @@ struct DishSelectionView: View {
         HStack {
             Text((dish.name ?? "Unnamed Dish").localized())
             Spacer()
-            if dish == viewModel.selectedDish || dish == viewModel.currentDish {
+            if viewModel.selectedDishes.contains(dish) {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundColor(Color("AccentColor"))
             }
@@ -68,9 +74,12 @@ struct DishSelectionView: View {
         .listRowBackground(Color("SecondaryBackgroundColor"))
         .contentShape(Rectangle())
         .onTapGesture {
-            viewModel.selectedDish = dish
-            viewModel.onDishSelected(dish)
-            dismiss()
+            if !viewModel.selectedDishes.contains(dish) {
+                viewModel.selectedDishes.append(dish)
+            } else {
+                viewModel.selectedDishes.removeAll { $0 == dish }
+            }
+            viewModel.onDishesSelected(viewModel.selectedDishes)
         }
     }
 }

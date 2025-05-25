@@ -46,8 +46,8 @@ struct MenuView: View {
             set: { if !$0 { viewModel.selectedMealType = "" } }
         )) {
             NavigationStack {
-                DishSelectionCoordinator().createDishSelectionView(currentDish: viewModel.editingDish, mealType: viewModel.selectedMealType) { newDish in
-                    viewModel.replaceDish(for: viewModel.selectedDay, mealType: viewModel.selectedMealType, with: newDish)
+                DishSelectionCoordinator().createDishSelectionView(currentDishes: viewModel.editingDishes, mealType: viewModel.selectedMealType) { newDishes in
+                    viewModel.replaceDishes(for: viewModel.selectedDay, mealType: viewModel.selectedMealType, with: newDishes)
                 }
             }
         }
@@ -125,9 +125,9 @@ struct MenuView: View {
         .onTapGesture {
             viewModel.selectedDay = day
             if dishesForMeal.isEmpty {
-                viewModel.editingDish = nil
-            } else if let currentDish = dishesForMeal.first {
-                viewModel.editingDish = currentDish
+                viewModel.editingDishes = []
+            } else {
+                viewModel.editingDishes = dishesForMeal
             }
             viewModel.selectedMealType = mealType
         }

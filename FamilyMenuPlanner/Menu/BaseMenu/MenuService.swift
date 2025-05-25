@@ -38,7 +38,9 @@ class MenuService {
             for day in weekdays {
                 var dailyMeals: [DailyMeal] = []
                 for mealType in mealTypes {
-                    let dishes = menuEntries.filter({ $0.day == day && $0.mealType == mealType.name }).first?.dishes?.allObjects as? [Dish] ?? []
+                    var dishes = menuEntries.filter({ $0.day == day && $0.mealType == mealType.name }).first?.dishes?.allObjects as? [Dish] ?? []
+                    // sort dishes by name
+                    dishes.sort { $0.name ?? "" < $1.name ?? "" }
                     dailyMeals.append(DailyMeal(meal: mealType.name ?? "", dishes: dishes))
                 }
                 initializedMenu.append(DailyMenu(day: day, dailyMeals: dailyMeals))
@@ -125,7 +127,7 @@ class MenuService {
         }
     }
     
-    func replaceDish(for day: String, mealType: String, selectedWeekDate: Date, with newDish: Dish) throws {
+    func replaceDishes(for day: String, mealType: String, selectedWeekDate: Date, with newDishes: [Dish]) throws {
         let selectedWeekComponents = Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: selectedWeekDate)
         let encodedWeek = encodeWeek(selectedWeekComponents)
         
@@ -136,13 +138,13 @@ class MenuService {
         let results = try context.fetch(fetchRequest)
         if let menuEntry = results.first {
             menuEntry.removeFromDishes(menuEntry.dishes ?? NSSet())
-            menuEntry.addToDishes(newDish)
+            menuEntry.dishes = NSSet(array: newDishes)
         } else {
             let newMenuEntry = Menu(context: context)
             newMenuEntry.day = day
             newMenuEntry.mealType = mealType
             newMenuEntry.calendarWeek = Int32(encodedWeek)
-            newMenuEntry.addToDishes(newDish)
+            newMenuEntry.dishes = NSSet(array: newDishes)
         }
         try context.save()
     }
