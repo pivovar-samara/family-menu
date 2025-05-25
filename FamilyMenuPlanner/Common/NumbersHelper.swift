@@ -8,7 +8,5 @@
 import Foundation
 
 func formattedDoubleForUnits(_ value: Double) -> String {
-    let formatter = NumberFormatter()
-    formatter.maximumFractionDigits = 2
-    return formatter.string(from: NSNumber(value: value)) ?? ""
+    String(format: "%.2f", value)
 }

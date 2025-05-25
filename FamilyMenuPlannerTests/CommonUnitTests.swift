@@ -12,7 +12,8 @@ final class CommonUnitTests: XCTestCase {
     private let inputDate: Date = Date(timeIntervalSince1970: 1706375822.0)
     private let dateFormatter: DateFormatter = {
         let df = DateFormatter()
-        df.dateFormat = "YYYY-MM-dd HH:mm:ss ZZZ"
+        df.dateFormat = "yyyy-MM-dd HH:mm:ss ZZZ"
+        df.timeZone = TimeZone(secondsFromGMT: 0)
         return df
     }()
     
@@ -45,7 +46,7 @@ final class CommonUnitTests: XCTestCase {
     func testStartOfWeek() throws {
         let startOfWeek = startOfWeek(for: inputDate)
         
-        let correctResult = Date(timeIntervalSince1970: 1705867200.0)
+        let correctResult = Date(timeIntervalSince1970: 1705881600.0)
         
         XCTAssert(startOfWeek == correctResult, "Start of week for \(dateFormatter.string(from: inputDate)) is \(dateFormatter.string(from: correctResult)), not \(startOfWeek)")
     }
