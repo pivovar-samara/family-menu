@@ -7,38 +7,49 @@
 
 import Foundation
 
-func localizedWeekdayNamesStartingFromMonday() -> [String] {
-    let formatter = DateFormatter()
-    formatter.locale = Locale(identifier: "en_US_POSIX")
-    return (2...8).map { weekday in
-        formatter.weekdaySymbols[(weekday - 1) % 7]
-    }
-}
-
-func startOfWeek(for date: Date) -> Date {
-    var calendar = Calendar(identifier: .iso8601)
-    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+func localizedWeekdayNamesStartingFromMonday(locale: Locale = Locale(identifier: "en_US_POSIX")) -> [String] {
+    var calendar = Calendar(identifier: .gregorian)
     calendar.firstWeekday = 2 // Monday
-    return calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date))!
-}
 
-func formattedWeek(_ date: Date) -> String {
-    let calendar = Calendar(identifier: .iso8601)
-    let start = startOfWeek(for: date)
-    let end = calendar.date(byAdding: .day, value: 6, to: start)!
     let formatter = DateFormatter()
-    formatter.dateFormat = "d"
-    formatter.timeZone = TimeZone(secondsFromGMT: 0)
-    let startDay = formatter.string(from: start)
-    let endDay = formatter.string(from: end)
-    formatter.dateFormat = "MMM"
-    let month = formatter.string(from: end)
-    return "\(startDay) - \(endDay) \(month)"
+    formatter.calendar = calendar
+    formatter.locale = locale
+
+    let weekdays = formatter.weekdaySymbols
+    let firstWeekdayIndex = calendar.firstWeekday - 1
+    let reorderedWeekdays = Array((weekdays?[firstWeekdayIndex...] ?? []) + (weekdays?[..<firstWeekdayIndex] ?? []))
+    return reorderedWeekdays
 }
 
-func isSameMonths(for date1: Date, and date2: Date) -> Bool {
-    let calendar = Calendar(identifier: .iso8601)
-    let comp1 = calendar.dateComponents([.year, .month], from: date1)
-    let comp2 = calendar.dateComponents([.year, .month], from: date2)
-    return comp1.year == comp2.year && comp1.month == comp2.month
+func startOfWeek(for date: Date, calendar: Calendar = Calendar(identifier: .gregorian)) -> Date {
+    var calendar = calendar
+    calendar.firstWeekday = 2
+    let components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
+    return calendar.date(from: components) ?? date
+}
+
+func formattedWeek(_ date: Date, calendar: Calendar = Calendar(identifier: .gregorian), locale: Locale = Locale(identifier: "en_US_POSIX")) -> String {
+    let start = startOfWeek(for: date, calendar: calendar)
+    let end = calendar.date(byAdding: .day, value: 6, to: start) ?? start
+
+    let formatterRight = DateFormatter()
+    formatterRight.dateFormat = "d MMM"
+    formatterRight.locale = locale
+    formatterRight.calendar = calendar
+
+    let formatterLeft = DateFormatter()
+    formatterLeft.locale = locale
+    formatterLeft.calendar = calendar
+    if isSameMonths(for: start, and: end, calendar: calendar) {
+        formatterLeft.dateFormat = "d"
+    } else {
+        formatterLeft.dateFormat = "d MMM"
+    }
+    return "\(formatterLeft.string(from: start)) - \(formatterRight.string(from: end))"
+}
+
+func isSameMonths(for date1: Date, and date2: Date, calendar: Calendar = Calendar(identifier: .gregorian)) -> Bool {
+    let components1 = calendar.dateComponents([.month, .year], from: date1)
+    let components2 = calendar.dateComponents([.month, .year], from: date2)
+    return components1.month == components2.month && components1.year == components2.year
 }
