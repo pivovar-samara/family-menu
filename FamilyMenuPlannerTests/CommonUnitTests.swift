@@ -44,9 +44,9 @@ final class CommonUnitTests: XCTestCase {
     }
     
     func testStartOfWeek() throws {
-        let startOfWeek = startOfWeek(for: inputDate)
+        let startOfWeek = startOfWeek(for: inputDate, timezone: .gmt)
         
-        let correctResult = Date(timeIntervalSince1970: 1705881600.0)
+        let correctResult = Date(timeIntervalSince1970: 1705881600.0) // Monday, 2024-01-22 00:00:00 +0000
         
         XCTAssert(startOfWeek == correctResult, "Start of week for \(dateFormatter.string(from: inputDate)) is \(dateFormatter.string(from: correctResult)), not \(startOfWeek)")
     }
