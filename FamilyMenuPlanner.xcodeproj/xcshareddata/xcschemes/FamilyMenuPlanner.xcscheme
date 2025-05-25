@@ -29,13 +29,32 @@
       shouldUseLaunchSchemeArgsEnv = "YES"
       codeCoverageEnabled = "YES">
       <Testables>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "A004ED8A2D11DC030081DDC0"
+               BuildableName = "FamilyMenuPlannerTests.xctest"
+               BlueprintName = "FamilyMenuPlannerTests"
+               ReferencedContainer = "container:FamilyMenuPlanner.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "A004ED942D11DC030081DDC0"
+               BuildableName = "FamilyMenuPlannerUITests.xctest"
+               BlueprintName = "FamilyMenuPlannerUITests"
+               ReferencedContainer = "container:FamilyMenuPlanner.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
-      language = "en"
       launchStyle = "0"
       useCustomWorkingDirectory = "NO"
       ignoresPersistentStateOnLaunch = "NO"
