@@ -24,11 +24,11 @@ class ProductListViewModel: ObservableObject {
     
     var units: [Unit]
     
-    private let productListService: ProductListService
+    private let productListService: ProductListServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     private let alertManager = AlertQueueManager()
 
-    init(productListService: ProductListService) {
+    init(productListService: ProductListServiceProtocol) {
         self.productListService = productListService
         self.units = productListService.fetchAllUnits()
         $searchText

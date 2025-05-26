@@ -8,10 +8,8 @@
 import SwiftUI
 
 class MenuCoordinator {
-    func createMenuView() -> some View {
-        let context = PersistenceController.shared.container.viewContext
-        let service = MenuService(context: context)
-        let viewModel = MenuViewModel(menuService: service)
+    func createMenuView(menuService: MenuServiceProtocol = MenuService(context: PersistenceController.shared.container.viewContext)) -> some View {
+        let viewModel = MenuViewModel(menuService: menuService)
         return MenuView(viewModel: viewModel)
     }
 }

@@ -15,10 +15,10 @@ class DishListViewModel: ObservableObject {
     @Published var currentAlert: AlertItem? = nil
     @Published var dishes: [Dish] = []
     
-    private let dishListService: DishListService
+    private var dishListService: DishListServiceProtocol
     private let alertManager = AlertQueueManager()
 
-    init(dishListService: DishListService) {
+    init(dishListService: DishListServiceProtocol) {
         self.dishListService = dishListService
         self.dishListService.delegate = self
         alertManager.$currentAlert

@@ -7,6 +7,16 @@
 
 import CoreData
 
+protocol MenuServiceProtocol {
+    func fetchMenu(for weekIndex: Int) -> [DailyMenu]
+    func generateMenu(for weekDate: Date)
+    func removeOldWeeks()
+    func replaceDishes(for day: String, mealType: String, selectedWeekDate: Date, with newDishes: [Dish]) throws
+    func clearMealType(for day: String, selectedWeekDate: Date, mealType: String?) throws
+}
+
+extension MenuService: MenuServiceProtocol {}
+
 class MenuService {
     private let context: NSManagedObjectContext
 

@@ -41,9 +41,9 @@ class MenuViewModel: ObservableObject {
         return (0...2).compactMap { calendar.date(byAdding: .weekOfYear, value: $0, to: startOfCurrentWeek) }
     }
 
-    private let menuService: MenuService
+    private let menuService: MenuServiceProtocol
 
-    init(menuService: MenuService) {
+    init(menuService: MenuServiceProtocol) {
         self.menuService = menuService
         alertManager.$currentAlert
                     .receive(on: RunLoop.main)

@@ -17,10 +17,10 @@ class EditProductViewModel: ObservableObject {
     
     var units: [Unit]
     
-    private let editProductService: EditProductService
+    private let editProductService: EditProductServiceProtocol
     private let alertManager = AlertQueueManager()
     
-    init(product: Product, editProductService: EditProductService) {
+    init(product: Product, editProductService: EditProductServiceProtocol) {
         self.product = product
         self.editProductService = editProductService
         self.units = editProductService.fetchAllUnits()

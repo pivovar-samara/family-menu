@@ -8,6 +8,13 @@
 
 import CoreData
 
+protocol DishSelectionServiceProtocol {
+    func fetchAllDishes() -> [Dish]
+    func rollback()
+}
+
+extension DishSelectionService: DishSelectionServiceProtocol {}
+
 class DishSelectionService {
     private let context: NSManagedObjectContext
     

@@ -7,6 +7,18 @@
 
 import CoreData
 
+protocol DishDetailsServiceProtocol {
+    func fetchAllUnits() -> [Unit]
+    func fetchAllMealTypes() -> [MealType]
+    func createDish() throws -> Dish
+    func createIngredient() throws -> IngredientDetail
+    func deleteIngredient(ingredient: IngredientDetail)
+    func saveChanges() throws
+    func rollback()
+}
+
+extension DishDetailsService: DishDetailsServiceProtocol {}
+
 class DishDetailsService {
     private let context: NSManagedObjectContext
     
