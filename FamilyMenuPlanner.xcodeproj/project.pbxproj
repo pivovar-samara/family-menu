@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		4825BC532DE634AA00671D4C /* DishSelectionUnitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4825BC522DE634AA00671D4C /* DishSelectionUnitTests.swift */; };
+		4825BC552DE635CA00671D4C /* ShoppingListUnitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4825BC542DE635BB00671D4C /* ShoppingListUnitTests.swift */; };
 		A004ED792D11DC000081DDC0 /* FamilyMenuPlannerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A004ED782D11DC000081DDC0 /* FamilyMenuPlannerApp.swift */; };
 		A004ED7B2D11DC000081DDC0 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A004ED7A2D11DC000081DDC0 /* ContentView.swift */; };
 		A004ED7D2D11DC020081DDC0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A004ED7C2D11DC020081DDC0 /* Assets.xcassets */; };
@@ -138,6 +140,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		4825BC522DE634AA00671D4C /* DishSelectionUnitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DishSelectionUnitTests.swift; sourceTree = "<group>"; };
+		4825BC542DE635BB00671D4C /* ShoppingListUnitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoppingListUnitTests.swift; sourceTree = "<group>"; };
 		A004ED752D11DC000081DDC0 /* FamilyMenuPlanner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FamilyMenuPlanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A004ED782D11DC000081DDC0 /* FamilyMenuPlannerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyMenuPlannerApp.swift; sourceTree = "<group>"; };
 		A004ED7A2D11DC000081DDC0 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -261,6 +265,8 @@
 		A004ED8E2D11DC030081DDC0 /* FamilyMenuPlannerTests */ = {
 			isa = PBXGroup;
 			children = (
+				4825BC542DE635BB00671D4C /* ShoppingListUnitTests.swift */,
+				4825BC522DE634AA00671D4C /* DishSelectionUnitTests.swift */,
 				A07E938A2D47F29C003940AE /* CommonUnitTests.swift */,
 				A07E93942D47FE87003940AE /* MenuUnitTests.swift */,
 			);
@@ -604,7 +610,9 @@
 				A0D21EC12D1574E70014AD78 /* LocalizationHelper.swift in Sources */,
 				A0A3B4C82D43CB53009E8AE7 /* DishListViewModel.swift in Sources */,
 				A0A3B4DC2D43CEF7009E8AE7 /* DishDetailsService.swift in Sources */,
+				4825BC532DE634AA00671D4C /* DishSelectionUnitTests.swift in Sources */,
 				A057064E2D3677BC00D4496C /* MenuService.swift in Sources */,
+				4825BC552DE635CA00671D4C /* ShoppingListUnitTests.swift in Sources */,
 				A0A3B4B92D3EC51C009E8AE7 /* EditProductService.swift in Sources */,
 				A05706412D35157900D4496C /* AppStateManager.swift in Sources */,
 				A07E938C2D47F405003940AE /* FamilyMenuPlanner.xcdatamodeld in Sources */,
