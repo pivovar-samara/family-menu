@@ -166,4 +166,72 @@ class EditProductIntegrationTests: XCTestCase {
         viewModel.setupSelectedUnit()
         XCTAssertEqual(viewModel.selectedUnit, newUnit)
     }
+    
+    // MARK: - Error Handling Tests
+    
+    func testSaveWithNilName() {
+        // Set name to nil
+        viewModel.product.name = nil
+        
+        // Create expectation for alert
+        let exp = expectation(description: "Alert shown")
+        
+        // Try to save
+        var saveSuccessful = false
+        viewModel.saveChanges {
+            saveSuccessful = true
+        }
+        
+        // Wait a short time for alert to be processed
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            // Verify save failed and alert was shown
+            XCTAssertFalse(saveSuccessful)
+            XCTAssertNotNil(self.viewModel.currentAlert)
+            exp.fulfill()
+        }
+        
+        wait(for: [exp], timeout: 1.0)
+    }
+    
+    func testConcurrentEditing() {
+        // Simulate another context modifying the same product
+        let otherContext = TestCoreDataStack.shared.persistentContainer.newBackgroundContext()
+        let otherProductID = testProduct.objectID
+        
+        otherContext.performAndWait {
+            let otherProduct = otherContext.object(with: otherProductID) as! Product
+            otherProduct.name = "Changed by other context"
+            try? otherContext.save()
+        }
+        
+        // Try to save our changes
+        viewModel.product.name = "Our change"
+        var saveSuccessful = false
+        viewModel.saveChanges {
+            saveSuccessful = true
+        }
+        
+        // Verify save was successful (optimistic locking)
+        XCTAssertTrue(saveSuccessful)
+        
+        // Refresh and verify our change won
+        context.refreshAllObjects()
+        XCTAssertEqual(testProduct.name, "Our change")
+    }
+    
+    func testUnitValidation() {
+        // Remove unit
+        viewModel.product.unit = nil
+        viewModel.selectedUnit = nil
+        
+        // Try to save
+        var saveSuccessful = false
+        viewModel.saveChanges {
+            saveSuccessful = true
+        }
+        
+        // Save should still succeed as unit is optional
+        XCTAssertTrue(saveSuccessful)
+        XCTAssertNil(testProduct.unit)
+    }
 } 

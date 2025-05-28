@@ -50,7 +50,7 @@ class ProductListIntegrationTests: XCTestCase {
     }
     
     // Helper method to create test data
-    private func createTestData() -> ([Product], [Unit]) {
+    private func createTestData(createProducts: Bool = true) -> ([Product], [Unit]) {
         // Create units
         let pieces = Unit(context: context)
         pieces.name = "pcs"
@@ -60,19 +60,25 @@ class ProductListIntegrationTests: XCTestCase {
         grams.name = "g"
         grams.sortOrder = 1
         
-        // Create products
-        let eggs = Product(context: context)
-        eggs.name = "Eggs"
-        eggs.unit = pieces
+        var products: [Product] = []
         
-        let flour = Product(context: context)
-        flour.name = "Flour"
-        flour.unit = grams
+        if createProducts {
+            // Create products
+            let eggs = Product(context: context)
+            eggs.name = "Eggs"
+            eggs.unit = pieces
+            
+            let flour = Product(context: context)
+            flour.name = "Flour"
+            flour.unit = grams
+            
+            products = [eggs, flour]
+        }
         
         try? context.save()
         context.refreshAllObjects()
         
-        return ([eggs, flour], [pieces, grams])
+        return (products, [pieces, grams])
     }
     
     // MARK: - Tests
@@ -206,5 +212,82 @@ class ProductListIntegrationTests: XCTestCase {
         viewModel.newProductName = "Test"
         viewModel.selectedUnit = units[0]
         XCTAssertTrue(viewModel.validateNewProduct())
+    }
+    
+    // MARK: - Edge Cases and Error Handling
+    
+    func testSpecialCharactersInProductName() {
+        let (_, units) = createTestData()
+        
+        // Test product name with special characters
+        viewModel.newProductName = "Product!@#$%^&*()"
+        viewModel.selectedUnit = units[0]
+        viewModel.addProduct()
+        
+        // Verify product was added
+        viewModel.loadProducts()
+        XCTAssertTrue(viewModel.allProducts.contains(where: { $0.name == "Product!@#$%^&*()" }))
+        
+        // Test searching for the product
+        let exp = expectation(description: "Search filtering")
+        viewModel.searchText = "!@#$"
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            XCTAssertEqual(self.viewModel.filteredProducts.count, 1)
+            XCTAssertEqual(self.viewModel.filteredProducts.first?.name, "Product!@#$%^&*()")
+            exp.fulfill()
+        }
+        
+        wait(for: [exp], timeout: 2)
+    }
+    
+    func testBulkOperations() {
+        // First clean up any existing data
+        cleanUpTestData()
+        
+        // Create test data with only units, no products
+        let (_, units) = createTestData(createProducts: false)
+        
+        // Load initial state
+        viewModel.loadProducts()
+        XCTAssertEqual(viewModel.allProducts.count, 0, "Should start with no products")
+        
+        // Add multiple products
+        let productNames = ["Product1", "Product2", "Product3", "Product4", "Product5"]
+        
+        for name in productNames {
+            viewModel.newProductName = name
+            viewModel.selectedUnit = units[0]
+            viewModel.addProduct()
+        }
+        
+        // Verify all products were added
+        viewModel.loadProducts()
+        XCTAssertEqual(viewModel.allProducts.count, 5, "Should have exactly 5 products after adding")
+        
+        // Delete multiple products
+        let indexSet = IndexSet(0..<3)
+        viewModel.deleteProducts(at: indexSet)
+        
+        // Verify products were deleted
+        XCTAssertEqual(viewModel.allProducts.count, 2, "Should have exactly 2 products after deleting 3")
+    }
+    
+    func testProductListPersistence() {
+        let (_, units) = createTestData()
+        
+        // Add a product
+        viewModel.newProductName = "Persistent Product"
+        viewModel.selectedUnit = units[0]
+        viewModel.addProduct()
+        
+        // Create new view model instance
+        let newViewModel = ProductListViewModel(productListService: ProductListService(context: context))
+        
+        // Load products in new view model
+        newViewModel.loadProducts()
+        
+        // Verify product exists in new view model
+        XCTAssertTrue(newViewModel.allProducts.contains(where: { $0.name == "Persistent Product" }))
     }
 } 

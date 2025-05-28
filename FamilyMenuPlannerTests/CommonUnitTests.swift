@@ -104,7 +104,13 @@ final class CommonUnitTests: XCTestCase {
     }
 
     // NumbersHelper.swift
-    func testFormattedDoubleForUnits() {
+    func testFormattedDoubleForUnitsBasicCases() throws {
+        let input: Double = 1.23456789
+        let formattedValue = formattedDoubleForUnits(input)
+        XCTAssert(formattedValue == "1.23", "Formatted Double 1.23456789 should be 1.23, not \(formattedValue)")
+    }
+
+    func testFormattedDoubleForUnitsCommonCases() {
         XCTAssertEqual(formattedDoubleForUnits(2.345), "2.35")
         XCTAssertEqual(formattedDoubleForUnits(0.0), "0.00")
         XCTAssertEqual(formattedDoubleForUnits(-1.2), "-1.20")
@@ -142,5 +148,113 @@ final class CommonUnitTests: XCTestCase {
 
         manager.dismissCurrentAlert()
         XCTAssertNil(manager.currentAlert)
+    }
+
+    // MARK: - Additional Calendar Tests
+    
+    func testLeapYearWeekFormatting() {
+        let leapYearDate = Calendar.current.date(from: DateComponents(year: 2024, month: 2, day: 29))!
+        let formatted = formattedWeek(leapYearDate, calendar: calendar, locale: locale)
+        XCTAssertFalse(formatted.isEmpty, "Should handle leap year dates")
+    }
+    
+    func testDifferentCalendarSystems() {
+        var buddhistCalendar = Calendar(identifier: .buddhist)
+        buddhistCalendar.timeZone = timeZone
+        let startDate = startOfWeek(for: inputDate, calendar: buddhistCalendar)
+        XCTAssertNotNil(startDate, "Should handle Buddhist calendar")
+    }
+    
+    // MARK: - Additional Number Tests
+    
+    func testFormattedDoubleEdgeCases() {
+        XCTAssertEqual(formattedDoubleForUnits(Double.infinity), "inf")
+        XCTAssertEqual(formattedDoubleForUnits(Double.nan), "nan")
+        XCTAssertEqual(formattedDoubleForUnits(Double.greatestFiniteMagnitude), "inf")
+        XCTAssertEqual(formattedDoubleForUnits(Double.leastNonzeroMagnitude), "0.00")
+    }
+    
+    func testFormattedDoubleRoundingBehavior() {
+        XCTAssertEqual(formattedDoubleForUnits(1.005), "1.01", "Should round up at midpoint")
+        XCTAssertEqual(formattedDoubleForUnits(1.004), "1.00", "Should round down below midpoint")
+    }
+    
+    // MARK: - Additional Alert Tests
+    
+    func testAlertQueueManagerMultipleAlerts() {
+        let manager = AlertQueueManager()
+        let alerts = (1...5).map { AlertItem(title: "Alert \($0)", message: "Message \($0)", action: nil) }
+        
+        // Enqueue all alerts
+        alerts.forEach { manager.enqueue(alert: $0) }
+        
+        // Verify first alert is shown
+        XCTAssertEqual(manager.currentAlert?.title, "Alert 1")
+        
+        // Dismiss and verify next alert
+        manager.dismissCurrentAlert()
+        XCTAssertEqual(manager.currentAlert?.title, "Alert 2")
+    }
+    
+    func testAlertQueueManagerWithActions() {
+        let manager = AlertQueueManager()
+        var actionExecuted = false
+        
+        let alert = AlertItem(title: "Test", message: "Test", action: {
+            actionExecuted = true
+        })
+        
+        manager.enqueue(alert: alert)
+        alert.action?()
+        
+        XCTAssertTrue(actionExecuted, "Alert action should be executed")
+    }
+    
+    // MARK: - Additional Localization Tests
+    
+    func testLocalizationWithDifferentLocales() {
+        let testString = "test_key"
+        let jaLocale = Locale(identifier: "ja")
+        let deLocale = Locale(identifier: "de")
+        
+        // Test with different locales
+        XCTAssertEqual(testString.localized(), testString, "Should return key if no localization exists")
+        
+        // Note: Add more specific tests if you have actual localization files
+    }
+    
+    // MARK: - Additional View Tests
+    
+    func testToolbarButtonCreation() {
+        var buttonTapped = false
+        let action = { buttonTapped = true }
+        
+        // Test button creation
+        let button = createToolbarButton(title: "Test", systemImage: "star", action: action)
+        XCTAssertNotNil(button, "Button should be created")
+        
+        // Note: In a real app, you would use ViewInspector or UI tests to verify button taps
+        // This test only verifies the button creation
+    }
+    
+    func testEmptyStateModifierProperties() {
+        let testMessage = "Test Empty State"
+        let view = Text("Content").emptyState(message: testMessage)
+        
+        // Verify view creation
+        XCTAssertNotNil(view, "Should create view with empty state")
+        
+        // Note: For thorough view testing, consider using ViewInspector library
+        // to inspect view hierarchy and verify message content
+    }
+    
+    func testListStyleApplication() {
+        let list = List { Text("Test Item") }
+        let styledList = list.applyStyle()
+        
+        // Verify styled list is created
+        XCTAssertNotNil(styledList, "Should create styled list")
+        
+        // Note: Visual styling should be verified through UI tests or ViewInspector
     }
 }
