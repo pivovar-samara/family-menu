@@ -9,60 +9,31 @@ import XCTest
 import CoreData
 @testable import FamilyMenuPlanner
 
-class MenuIntegrationTests: XCTestCase {
-    var context: NSManagedObjectContext!
+class MenuIntegrationTests: BaseIntegrationTest {
     var menuService: MenuService!
     var viewModel: MenuViewModel!
     
     override func setUp() {
         super.setUp()
-        context = TestCoreDataStack.shared.viewContext
         menuService = MenuService(context: context)
         viewModel = MenuViewModel(menuService: menuService)
-        
-        // Clean up any existing data
-        cleanUpTestData()
     }
     
     override func tearDown() {
-        cleanUpTestData()
-        context = nil
         menuService = nil
         viewModel = nil
         super.tearDown()
     }
     
-    private func cleanUpTestData() {
-        let entities = ["Menu", "Dish", "MealType", "Product", "Unit", "IngredientDetail"]
-        
-        for entityName in entities {
-            let fetchRequest: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: entityName)
-            do {
-                let objects = try context.fetch(fetchRequest)
-                for object in objects {
-                    context.delete(object)
-                }
-            } catch {
-                print("Error cleaning up \(entityName): \(error)")
-            }
-        }
-        
-        do {
-            try context.save()
-        } catch {
-            print("Error saving context after cleanup: \(error)")
-        }
-    }
-    
     // Helper method to create test data
     private func createTestData() {
         // Create meal types
-        let breakfast = createMealType(name: "Breakfast", sortOrder: 0)
+        let breakfast = createMealType(name: "Breakfast")
         let lunch = createMealType(name: "Lunch", sortOrder: 1)
         let dinner = createMealType(name: "Dinner", sortOrder: 2)
         
         // Create units
-        let pieces = createUnit(name: "pcs", sortOrder: 0)
+        let pieces = createUnit(name: "pcs")
         let grams = createUnit(name: "g", sortOrder: 1)
         
         // Create products
@@ -71,44 +42,16 @@ class MenuIntegrationTests: XCTestCase {
         let chicken = createProduct(name: "Chicken", unit: grams)
         
         // Create dishes with ingredients
-        let omelette = createDish(name: "Omelette", mealTypes: [breakfast])
+        let omelette = createDish(name: "Omelette", mealTypes: Set([breakfast]))
         createIngredient(dish: omelette, product: eggs, quantity: 2)
         
-        let sandwich = createDish(name: "Sandwich", mealTypes: [breakfast, lunch])
+        let sandwich = createDish(name: "Sandwich", mealTypes: Set([breakfast, lunch]))
         createIngredient(dish: sandwich, product: bread, quantity: 200)
         
-        let chickenDish = createDish(name: "Grilled Chicken", mealTypes: [lunch, dinner])
+        let chickenDish = createDish(name: "Grilled Chicken", mealTypes: Set([lunch, dinner]))
         createIngredient(dish: chickenDish, product: chicken, quantity: 300)
         
-        try? context.save()
-    }
-    
-    private func createMealType(name: String, sortOrder: Int16) -> MealType {
-        let mealType = MealType(context: context)
-        mealType.name = name
-        mealType.sortOrder = sortOrder
-        return mealType
-    }
-    
-    private func createUnit(name: String, sortOrder: Int16) -> Unit {
-        let unit = Unit(context: context)
-        unit.name = name
-        unit.sortOrder = sortOrder
-        return unit
-    }
-    
-    private func createProduct(name: String, unit: Unit) -> Product {
-        let product = Product(context: context)
-        product.name = name
-        product.unit = unit
-        return product
-    }
-    
-    private func createDish(name: String, mealTypes: [MealType]) -> Dish {
-        let dish = Dish(context: context)
-        dish.name = name
-        dish.mealTypes = NSSet(array: mealTypes)
-        return dish
+        saveContext()
     }
     
     private func createIngredient(dish: Dish, product: Product, quantity: Double) {

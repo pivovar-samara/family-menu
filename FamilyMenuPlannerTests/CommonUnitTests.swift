@@ -214,23 +214,14 @@ final class CommonUnitTests: XCTestCase {
     
     func testLocalizationWithDifferentLocales() {
         let testString = "test_key"
-        let jaLocale = Locale(identifier: "ja")
-        let deLocale = Locale(identifier: "de")
-        
-        // Test with different locales
         XCTAssertEqual(testString.localized(), testString, "Should return key if no localization exists")
-        
-        // Note: Add more specific tests if you have actual localization files
     }
     
     // MARK: - Additional View Tests
     
     func testToolbarButtonCreation() {
-        var buttonTapped = false
-        let action = { buttonTapped = true }
-        
-        // Test button creation
-        let button = createToolbarButton(title: "Test", systemImage: "star", action: action)
+        // Test button creation with empty closure
+        let button = createToolbarButton(title: "Test", systemImage: "star", action: {})
         XCTAssertNotNil(button, "Button should be created")
         
         // Note: In a real app, you would use ViewInspector or UI tests to verify button taps

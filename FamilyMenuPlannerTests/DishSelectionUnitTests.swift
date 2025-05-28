@@ -127,9 +127,9 @@ class DishSelectionUnitTests: XCTestCase {
             dishSelectionService: mockService
         ) { _ in }
         
-        let (forMeal, other) = viewModel.splitDishes()
-        XCTAssertTrue(forMeal.isEmpty)
-        XCTAssertTrue(other.isEmpty)
+        let (dishesForMealType, otherDishes) = viewModel.splitDishes()
+        XCTAssertTrue(dishesForMealType.isEmpty)
+        XCTAssertTrue(otherDishes.isEmpty)
     }
     
     // MARK: - Search Tests
@@ -145,7 +145,7 @@ class DishSelectionUnitTests: XCTestCase {
         ) { _ in }
         
         viewModel.searchText = "&"
-        let (forMeal, other) = viewModel.splitDishes()
+        let (forMeal, _) = viewModel.splitDishes()
         XCTAssertEqual(forMeal.count, 1)
         XCTAssertTrue(forMeal.contains(dish))
     }
@@ -161,7 +161,7 @@ class DishSelectionUnitTests: XCTestCase {
         ) { _ in }
         
         viewModel.searchText = "uppercase"
-        let (forMeal, other) = viewModel.splitDishes()
+        let (forMeal, _) = viewModel.splitDishes()
         XCTAssertEqual(forMeal.count, 1)
         XCTAssertTrue(forMeal.contains(dish))
     }
@@ -181,18 +181,18 @@ class DishSelectionUnitTests: XCTestCase {
             dishSelectionService: mockService
         ) { _ in }
         
-        var (forBreakfast, other) = viewModel.splitDishes()
+        let (forBreakfast, other) = viewModel.splitDishes()
         XCTAssertEqual(forBreakfast.count, 1)
         XCTAssertEqual(other.count, 0)
         
         // Test lunch view
         viewModel.mealType = "Lunch"
-        var (forLunch, _) = viewModel.splitDishes()
+        let (forLunch, _) = viewModel.splitDishes()
         XCTAssertEqual(forLunch.count, 1)
         
         // Test dinner view (dish shouldn't appear)
         viewModel.mealType = "Dinner"
-        var (forDinner, otherMeals) = viewModel.splitDishes()
+        let (forDinner, otherMeals) = viewModel.splitDishes()
         XCTAssertEqual(forDinner.count, 0)
         XCTAssertEqual(otherMeals.count, 1)
     }
@@ -210,9 +210,9 @@ class DishSelectionUnitTests: XCTestCase {
         ) { _ in }
         
         viewModel.searchText = "any"
-        let (forMeal, other) = viewModel.splitDishes()
+        let (forMeal, otherDishes) = viewModel.splitDishes()
         XCTAssertTrue(forMeal.isEmpty)
-        XCTAssertTrue(other.isEmpty)
+        XCTAssertTrue(otherDishes.isEmpty)
     }
     
     func testEmptyMealTypeString() {
@@ -225,7 +225,7 @@ class DishSelectionUnitTests: XCTestCase {
             dishSelectionService: mockService
         ) { _ in }
         
-        let (forMeal, other) = viewModel.splitDishes()
+        let (forMeal, _) = viewModel.splitDishes()
         XCTAssertEqual(forMeal.count, 1)
         XCTAssertTrue(forMeal.contains(dish))
     }

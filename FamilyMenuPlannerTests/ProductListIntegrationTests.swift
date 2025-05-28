@@ -9,75 +9,39 @@ import XCTest
 import CoreData
 @testable import FamilyMenuPlanner
 
-class ProductListIntegrationTests: XCTestCase {
-    var context: NSManagedObjectContext!
+class ProductListIntegrationTests: BaseIntegrationTest {
     var productListService: ProductListService!
     var viewModel: ProductListViewModel!
     
     override func setUp() {
         super.setUp()
-        context = TestCoreDataStack.shared.viewContext
         productListService = ProductListService(context: context)
         viewModel = ProductListViewModel(productListService: productListService)
-        
-        cleanUpTestData()
     }
     
     override func tearDown() {
-        cleanUpTestData()
-        context = nil
         productListService = nil
         viewModel = nil
         super.tearDown()
     }
     
-    private func cleanUpTestData() {
-        let entities = ["Product", "Unit"]
-        
-        for entityName in entities {
-            let fetchRequest: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: entityName)
-            do {
-                let objects = try context.fetch(fetchRequest)
-                for object in objects {
-                    context.delete(object)
-                }
-            } catch {
-                print("Error cleaning up \(entityName): \(error)")
-            }
-        }
-        
-        try? context.save()
-    }
-    
     // Helper method to create test data
     private func createTestData(createProducts: Bool = true) -> ([Product], [Unit]) {
         // Create units
-        let pieces = Unit(context: context)
-        pieces.name = "pcs"
-        pieces.sortOrder = 0
-        
-        let grams = Unit(context: context)
-        grams.name = "g"
-        grams.sortOrder = 1
+        let pieces = createUnit(name: "pcs")
+        let grams = createUnit(name: "g", sortOrder: 1)
         
         var products: [Product] = []
         
         if createProducts {
             // Create products
-            let eggs = Product(context: context)
-            eggs.name = "Eggs"
-            eggs.unit = pieces
-            
-            let flour = Product(context: context)
-            flour.name = "Flour"
-            flour.unit = grams
-            
-            products = [eggs, flour]
+            products = [
+                createProduct(name: "Eggs", unit: pieces),
+                createProduct(name: "Flour", unit: grams)
+            ]
         }
         
-        try? context.save()
         context.refreshAllObjects()
-        
         return (products, [pieces, grams])
     }
     

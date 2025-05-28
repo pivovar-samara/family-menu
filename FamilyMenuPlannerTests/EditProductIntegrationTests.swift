@@ -9,63 +9,30 @@ import XCTest
 import CoreData
 @testable import FamilyMenuPlanner
 
-class EditProductIntegrationTests: XCTestCase {
-    var context: NSManagedObjectContext!
+class EditProductIntegrationTests: BaseIntegrationTest {
     var editProductService: EditProductService!
     var viewModel: EditProductViewModel!
     var testProduct: Product!
     
     override func setUp() {
         super.setUp()
-        context = TestCoreDataStack.shared.viewContext
-        cleanUpTestData()
         setupTestData()
     }
     
     override func tearDown() {
-        cleanUpTestData()
-        context = nil
         editProductService = nil
         viewModel = nil
         testProduct = nil
         super.tearDown()
     }
     
-    private func cleanUpTestData() {
-        let entities = ["Product", "Unit"]
-        
-        for entityName in entities {
-            let fetchRequest: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: entityName)
-            do {
-                let objects = try context.fetch(fetchRequest)
-                for object in objects {
-                    context.delete(object)
-                }
-            } catch {
-                print("Error cleaning up \(entityName): \(error)")
-            }
-        }
-        
-        try? context.save()
-    }
-    
     private func setupTestData() {
         // Create units
-        let pieces = Unit(context: context)
-        pieces.name = "pcs"
-        pieces.sortOrder = 0
-        
-        let grams = Unit(context: context)
-        grams.name = "g"
-        grams.sortOrder = 1
+        let pieces = createUnit(name: "pcs")
+        _ = createUnit(name: "g", sortOrder: 1)  // Create but don't need to reference
         
         // Create test product
-        testProduct = Product(context: context)
-        testProduct.name = "Test Product"
-        testProduct.unit = pieces
-        
-        try? context.save()
-        context.refreshAllObjects()
+        testProduct = createProduct(name: "Test Product", unit: pieces)
         
         // Initialize service and view model
         editProductService = EditProductService(context: context)
@@ -194,29 +161,46 @@ class EditProductIntegrationTests: XCTestCase {
     }
     
     func testConcurrentEditing() {
+        // Create expectation for async operations
+        let exp = expectation(description: "Concurrent editing")
+        
         // Simulate another context modifying the same product
         let otherContext = TestCoreDataStack.shared.persistentContainer.newBackgroundContext()
         let otherProductID = testProduct.objectID
         
+        // First, modify in background context
         otherContext.performAndWait {
             let otherProduct = otherContext.object(with: otherProductID) as! Product
             otherProduct.name = "Changed by other context"
             try? otherContext.save()
         }
         
-        // Try to save our changes
+        // Ensure main context is refreshed to see the changes
+        context.refreshAllObjects()
+        
+        // Now try to save our changes
         viewModel.product.name = "Our change"
         var saveSuccessful = false
         viewModel.saveChanges {
             saveSuccessful = true
+            exp.fulfill()
         }
         
-        // Verify save was successful (optimistic locking)
+        wait(for: [exp], timeout: 1.0)
+        
+        // Verify save was successful (last write wins)
         XCTAssertTrue(saveSuccessful)
         
-        // Refresh and verify our change won
+        // Refresh and verify our change won (last write wins)
         context.refreshAllObjects()
         XCTAssertEqual(testProduct.name, "Our change")
+        
+        // Verify the change is also visible in the other context
+        otherContext.performAndWait {
+            otherContext.refreshAllObjects()
+            let otherProduct = otherContext.object(with: otherProductID) as! Product
+            XCTAssertEqual(otherProduct.name, "Our change")
+        }
     }
     
     func testUnitValidation() {

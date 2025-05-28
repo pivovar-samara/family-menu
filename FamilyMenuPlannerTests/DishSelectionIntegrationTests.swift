@@ -9,136 +9,43 @@ import XCTest
 import CoreData
 @testable import FamilyMenuPlanner
 
-class TestCoreDataStack {
-    static let shared = TestCoreDataStack()
-    
-    lazy var persistentContainer: NSPersistentContainer = {
-        let modelName = "FamilyMenuPlanner"
-        
-        guard let modelURL = Bundle(for: type(of: self)).url(forResource: modelName, withExtension: "momd"),
-              let model = NSManagedObjectModel(contentsOf: modelURL) else {
-            fatalError("Failed to load Core Data model")
-        }
-        
-        let container = NSPersistentContainer(name: modelName, managedObjectModel: model)
-        let description = NSPersistentStoreDescription()
-        description.type = NSInMemoryStoreType
-        description.shouldAddStoreAsynchronously = false
-        container.persistentStoreDescriptions = [description]
-        
-        container.loadPersistentStores { _, error in
-            if let error = error as NSError? {
-                fatalError("Failed to load store: \(error)")
-            }
-        }
-        
-        return container
-    }()
-    
-    var viewContext: NSManagedObjectContext {
-        return persistentContainer.viewContext
-    }
-}
-
-class DishSelectionIntegrationTests: XCTestCase {
-    var context: NSManagedObjectContext!
+class DishSelectionIntegrationTests: BaseIntegrationTest {
     var dishSelectionService: DishSelectionService!
     var viewModel: DishSelectionViewModel!
     
     override func setUp() {
         super.setUp()
-        
-        // Get the context from our test stack
-        context = TestCoreDataStack.shared.viewContext
         dishSelectionService = DishSelectionService(context: context)
-        
-        // Clean up any existing data
-        cleanUpTestData()
     }
     
     override func tearDown() {
-        cleanUpTestData()
-        context = nil
         dishSelectionService = nil
         viewModel = nil
         super.tearDown()
     }
     
-    private func cleanUpTestData() {
-        let entities = ["Dish", "MealType", "Menu", "Product", "Unit", "IngredientDetail"]
-        
-        for entityName in entities {
-            let fetchRequest: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: entityName)
-            do {
-                let objects = try context.fetch(fetchRequest)
-                for object in objects {
-                    context.delete(object)
-                }
-            } catch {
-                print("Error cleaning up \(entityName): \(error)")
-            }
-        }
-        
-        do {
-            try context.save()
-        } catch {
-            print("Error saving context after cleanup: \(error)")
-        }
-    }
-    
     // Helper method to create a dish with complete relationships
-    func createDish(name: String, details: String? = nil, mealTypeNames: [String] = []) -> Dish {
-        let dish = NSEntityDescription.insertNewObject(forEntityName: "Dish", into: context) as! Dish
-        dish.name = name
-        dish.details = details
-        
-        // Create and associate meal types
-        let mealTypes = NSMutableSet()
-        for typeName in mealTypeNames {
-            let mealType = createOrFetchMealType(name: typeName)
-            mealTypes.add(mealType)
-        }
-        dish.mealTypes = mealTypes
-        
-        saveContext()
-        return dish
+    private func createDishWithMealTypes(name: String, details: String? = nil, mealTypeNames: [String] = []) -> Dish {
+        let mealTypes = Set(mealTypeNames.map { createOrFetchMealType(name: $0) })
+        return createDish(name: name, details: details, mealTypes: mealTypes)
     }
     
     // Helper method to create or fetch a meal type
     private func createOrFetchMealType(name: String) -> MealType {
-        let fetchRequest: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: "MealType")
+        let fetchRequest: NSFetchRequest<MealType> = MealType.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "name == %@", name)
         
-        do {
-            if let existingMealType = try context.fetch(fetchRequest).first as? MealType {
-                return existingMealType
-            }
-            
-            let mealType = NSEntityDescription.insertNewObject(forEntityName: "MealType", into: context) as! MealType
-            mealType.name = name
-            mealType.sortOrder = 0
-            saveContext()
-            return mealType
-        } catch {
-            fatalError("Failed to fetch or create MealType: \(error)")
+        if let existingMealType = try? context.fetch(fetchRequest).first {
+            return existingMealType
         }
-    }
-    
-    private func saveContext() {
-        guard context.hasChanges else { return }
         
-        do {
-            try context.save()
-        } catch {
-            print("Error saving context: \(error)")
-            context.rollback()
-        }
+        return createMealType(name: name)
     }
     
     func testFetchAllDishesWithRealCoreData() {
         // Create test dishes with relationships
-        let dish1 = createDish(name: "Omelette", details: "Classic breakfast", mealTypeNames: ["Breakfast"])
-        let dish2 = createDish(name: "Soup", details: "Hot lunch", mealTypeNames: ["Lunch"])
+        let dish1 = createDishWithMealTypes(name: "Omelette", details: "Classic breakfast", mealTypeNames: ["Breakfast"])
+        let dish2 = createDishWithMealTypes(name: "Soup", details: "Hot lunch", mealTypeNames: ["Lunch"])
         
         // Test fetching
         let fetchedDishes = dishSelectionService.fetchAllDishes()
@@ -150,8 +57,8 @@ class DishSelectionIntegrationTests: XCTestCase {
     func testCoreDataRelationships() {
         // Create dishes with shared meal type
         let breakfast = createOrFetchMealType(name: "Breakfast")
-        let dish1 = createDish(name: "Pancakes", mealTypeNames: ["Breakfast"])
-        let dish2 = createDish(name: "Waffles", mealTypeNames: ["Breakfast"])
+        let dish1 = createDishWithMealTypes(name: "Pancakes", mealTypeNames: ["Breakfast"])
+        let dish2 = createDishWithMealTypes(name: "Waffles", mealTypeNames: ["Breakfast"])
         
         // Verify relationships
         XCTAssertEqual(breakfast.dishes?.count, 2)
@@ -161,7 +68,7 @@ class DishSelectionIntegrationTests: XCTestCase {
     
     func testCascadeDeletion() {
         // Create a dish with meal types
-        let dish = createDish(name: "Test Dish", mealTypeNames: ["Breakfast", "Lunch"])
+        let dish = createDishWithMealTypes(name: "Test Dish", mealTypeNames: ["Breakfast", "Lunch"])
         let mealTypeCount = (try? context.count(for: MealType.fetchRequest())) ?? 0
         
         // Delete the dish
@@ -175,7 +82,7 @@ class DishSelectionIntegrationTests: XCTestCase {
     
     func testContextSaveAndRollback() {
         // Create initial state
-        let dish = createDish(name: "Original Name", mealTypeNames: ["Breakfast"])
+        let dish = createDishWithMealTypes(name: "Original Name", mealTypeNames: ["Breakfast"])
         let originalMealTypes = dish.mealTypes?.count ?? 0
         
         // Modify dish
@@ -219,7 +126,7 @@ class DishSelectionIntegrationTests: XCTestCase {
     func testBatchOperations() {
         // Create multiple dishes
         let dishes = (1...5).map { i in
-            createDish(name: "Dish \(i)", mealTypeNames: ["Breakfast"])
+            createDishWithMealTypes(name: "Dish \(i)", mealTypeNames: ["Breakfast"])
         }
         
         // Perform updates in a batch using performAndWait
@@ -249,7 +156,7 @@ class DishSelectionIntegrationTests: XCTestCase {
     func testBulkDeletion() {
         // Create multiple dishes
         for i in 1...5 {
-            _ = createDish(name: "Dish \(i)", mealTypeNames: ["Breakfast"])
+            _ = createDishWithMealTypes(name: "Dish \(i)", mealTypeNames: ["Breakfast"])
         }
         
         // Delete all dishes
@@ -270,7 +177,7 @@ class DishSelectionIntegrationTests: XCTestCase {
     func testBulkFetch() {
         // Create a large number of dishes
         for i in 1...20 {
-            _ = createDish(name: String(format: "Dish %02d", i), mealTypeNames: ["Breakfast"])
+            _ = createDishWithMealTypes(name: String(format: "Dish %02d", i), mealTypeNames: ["Breakfast"])
         }
         
         // Test fetching in batches
@@ -295,7 +202,7 @@ class DishSelectionIntegrationTests: XCTestCase {
         // Create dishes with different names
         let names = ["Zebra Cake", "Apple Pie", "Banana Bread"]
         for name in names {
-            _ = createDish(name: name, mealTypeNames: ["Dessert"])
+            _ = createDishWithMealTypes(name: name, mealTypeNames: ["Dessert"])
         }
         
         // Create sorted fetch request
@@ -314,8 +221,8 @@ class DishSelectionIntegrationTests: XCTestCase {
     
     func testDishSelectionWithRealViewModel() {
         // Create test dishes
-        let dish1 = createDish(name: "Omelette", mealTypeNames: ["Breakfast"])
-        let dish2 = createDish(name: "Pancakes", mealTypeNames: ["Breakfast"])
+        let dish1 = createDishWithMealTypes(name: "Omelette", mealTypeNames: ["Breakfast"])
+        _ = createDishWithMealTypes(name: "Pancakes", mealTypeNames: ["Breakfast"]) // Create but don't need to reference
         
         var selectedDishes: [Dish] = []
         viewModel = DishSelectionViewModel(
@@ -340,9 +247,9 @@ class DishSelectionIntegrationTests: XCTestCase {
     
     func testSearchFunctionalityWithRealObjects() {
         // Create test dishes
-        let breakfast1 = createDish(name: "Omelette", mealTypeNames: ["Breakfast"])
-        let breakfast2 = createDish(name: "Pancakes", mealTypeNames: ["Breakfast"])
-        let lunch = createDish(name: "Soup", mealTypeNames: ["Lunch"])
+        let breakfast1 = createDishWithMealTypes(name: "Omelette", mealTypeNames: ["Breakfast"])
+        _ = createDishWithMealTypes(name: "Pancakes", mealTypeNames: ["Breakfast"]) // Create but don't need to reference
+        _ = createDishWithMealTypes(name: "Soup", mealTypeNames: ["Lunch"]) // Create but don't need to reference
         
         viewModel = DishSelectionViewModel(
             selectedDishes: [],
@@ -360,8 +267,8 @@ class DishSelectionIntegrationTests: XCTestCase {
     
     func testMealTypeFilteringWithRealObjects() {
         // Create test dishes with multiple meal types
-        let versatileDish = createDish(name: "Eggs Benedict", mealTypeNames: ["Breakfast", "Brunch"])
-        let lunchDish = createDish(name: "Sandwich", mealTypeNames: ["Lunch"])
+        let versatileDish = createDishWithMealTypes(name: "Eggs Benedict", mealTypeNames: ["Breakfast", "Brunch"])
+        let lunchDish = createDishWithMealTypes(name: "Sandwich", mealTypeNames: ["Lunch"])
         
         viewModel = DishSelectionViewModel(
             selectedDishes: [],
@@ -378,7 +285,7 @@ class DishSelectionIntegrationTests: XCTestCase {
     
     func testRollbackFunctionality() {
         // Create initial state
-        let dish = createDish(name: "Test Dish", mealTypeNames: ["Breakfast"])
+        let dish = createDishWithMealTypes(name: "Test Dish", mealTypeNames: ["Breakfast"])
         
         // Modify dish
         dish.name = "Modified Name"
@@ -392,8 +299,8 @@ class DishSelectionIntegrationTests: XCTestCase {
     
     func testPersistenceOfSelections() {
         // Create test dishes
-        let dish1 = createDish(name: "Dish 1", mealTypeNames: ["Breakfast"])
-        let dish2 = createDish(name: "Dish 2", mealTypeNames: ["Breakfast"])
+        let dish1 = createDishWithMealTypes(name: "Dish 1", mealTypeNames: ["Breakfast"])
+        let dish2 = createDishWithMealTypes(name: "Dish 2", mealTypeNames: ["Breakfast"])
         
         var selectedDishes: [Dish] = []
         viewModel = DishSelectionViewModel(

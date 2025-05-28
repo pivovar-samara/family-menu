@@ -17,6 +17,7 @@
 		48355B252DE767DC00209255 /* ProductListIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48355B232DE767DC00209255 /* ProductListIntegrationTests.swift */; };
 		48355B282DE7688E00209255 /* EditProductUnitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48355B262DE7688E00209255 /* EditProductUnitTests.swift */; };
 		48355B292DE7688E00209255 /* ProductListUnitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48355B272DE7688E00209255 /* ProductListUnitTests.swift */; };
+		48355B2B2DE77C5F00209255 /* TestUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48355B2A2DE77C5F00209255 /* TestUtilities.swift */; };
 		A004ED792D11DC000081DDC0 /* FamilyMenuPlannerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A004ED782D11DC000081DDC0 /* FamilyMenuPlannerApp.swift */; };
 		A004ED7B2D11DC000081DDC0 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A004ED7A2D11DC000081DDC0 /* ContentView.swift */; };
 		A004ED7D2D11DC020081DDC0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A004ED7C2D11DC020081DDC0 /* Assets.xcassets */; };
@@ -157,6 +158,7 @@
 		48355B232DE767DC00209255 /* ProductListIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductListIntegrationTests.swift; sourceTree = "<group>"; };
 		48355B262DE7688E00209255 /* EditProductUnitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditProductUnitTests.swift; sourceTree = "<group>"; };
 		48355B272DE7688E00209255 /* ProductListUnitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductListUnitTests.swift; sourceTree = "<group>"; };
+		48355B2A2DE77C5F00209255 /* TestUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestUtilities.swift; sourceTree = "<group>"; };
 		A004ED752D11DC000081DDC0 /* FamilyMenuPlanner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FamilyMenuPlanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A004ED782D11DC000081DDC0 /* FamilyMenuPlannerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyMenuPlannerApp.swift; sourceTree = "<group>"; };
 		A004ED7A2D11DC000081DDC0 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -279,6 +281,7 @@
 		A004ED8E2D11DC030081DDC0 /* FamilyMenuPlannerTests */ = {
 			isa = PBXGroup;
 			children = (
+				48355B2A2DE77C5F00209255 /* TestUtilities.swift */,
 				A07E938A2D47F29C003940AE /* CommonUnitTests.swift */,
 				48355B162DE744DC00209255 /* MenuUnitTests.swift */,
 				48355B1E2DE7586400209255 /* MenuIntegrationTests.swift */,
@@ -638,6 +641,7 @@
 				4825BC532DE634AA00671D4C /* DishSelectionUnitTests.swift in Sources */,
 				A057064E2D3677BC00D4496C /* MenuService.swift in Sources */,
 				4825BC552DE635CA00671D4C /* ShoppingListUnitTests.swift in Sources */,
+				48355B2B2DE77C5F00209255 /* TestUtilities.swift in Sources */,
 				48355B1D2DE74C1000209255 /* DishSelectionIntegrationTests.swift in Sources */,
 				A0A3B4B92D3EC51C009E8AE7 /* EditProductService.swift in Sources */,
 				A05706412D35157900D4496C /* AppStateManager.swift in Sources */,

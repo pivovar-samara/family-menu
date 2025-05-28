@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// A formatter configured for consistent number formatting with 2 decimal places
 private let formatter: NumberFormatter = {
     let f = NumberFormatter()
     f.numberStyle = .decimal
@@ -17,12 +18,16 @@ private let formatter: NumberFormatter = {
     return f
 }()
 
+/// Formats a double value with exactly 2 decimal places using "half up" rounding
+/// - Parameter value: The double value to format
+/// - Returns: A string representation of the number with 2 decimal places, or "inf"/"nan" for special values
 func formattedDoubleForUnits(_ value: Double) -> String {
-    if value.isInfinite || value == Double.greatestFiniteMagnitude {
+    switch value {
+    case _ where value.isInfinite, Double.greatestFiniteMagnitude:
         return "inf"
-    }
-    if value.isNaN {
+    case _ where value.isNaN:
         return "nan"
+    default:
+        return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.2f", value)
     }
-    return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.2f", value)
 }

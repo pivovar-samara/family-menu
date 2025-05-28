@@ -9,75 +9,37 @@ import XCTest
 import CoreData
 @testable import FamilyMenuPlanner
 
-class ShoppingListIntegrationTests: XCTestCase {
-    var context: NSManagedObjectContext!
+class ShoppingListIntegrationTests: BaseIntegrationTest {
     var menuService: MenuService!
     var viewModel: MenuViewModel!
     
     override func setUp() {
         super.setUp()
-        context = TestCoreDataStack.shared.viewContext
         menuService = MenuService(context: context)
         viewModel = MenuViewModel(menuService: menuService)
-        
-        cleanUpTestData()
     }
     
     override func tearDown() {
-        cleanUpTestData()
-        context = nil
         menuService = nil
         viewModel = nil
         super.tearDown()
     }
     
-    private func cleanUpTestData() {
-        let entities = ["Menu", "Dish", "MealType", "Product", "Unit", "IngredientDetail"]
-        
-        for entityName in entities {
-            let fetchRequest: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: entityName)
-            do {
-                let objects = try context.fetch(fetchRequest)
-                for object in objects {
-                    context.delete(object)
-                }
-            } catch {
-                print("Error cleaning up \(entityName): \(error)")
-            }
-        }
-        
-        try? context.save()
-    }
-    
     // Helper method to create test data with specific quantities
     private func createTestDataWithKnownQuantities() -> ([Product], [Unit], [Dish]) {
         // Create units
-        let pieces = Unit(context: context)
-        pieces.name = "pcs"
-        pieces.sortOrder = 0
-        
-        let grams = Unit(context: context)
-        grams.name = "g"
-        grams.sortOrder = 1
+        let pieces = createUnit(name: "pcs")
+        let grams = createUnit(name: "g", sortOrder: 1)
         
         // Create products
-        let eggs = Product(context: context)
-        eggs.name = "Eggs"
-        eggs.unit = pieces
-        
-        let flour = Product(context: context)
-        flour.name = "Flour"
-        flour.unit = grams
+        let eggs = createProduct(name: "Eggs", unit: pieces)
+        let flour = createProduct(name: "Flour", unit: grams)
         
         // Create meal type
-        let breakfast = MealType(context: context)
-        breakfast.name = "Breakfast"
-        breakfast.sortOrder = 0
+        let breakfast = createMealType(name: "Breakfast")
         
         // Create dishes with known quantities
-        let pancakes = Dish(context: context)
-        pancakes.name = "Pancakes"
-        pancakes.mealTypes = NSSet(array: [breakfast])
+        let pancakes = createDish(name: "Pancakes", mealTypes: Set([breakfast]))
         
         let ingredient1 = IngredientDetail(context: context)
         ingredient1.dish = pancakes
@@ -89,7 +51,7 @@ class ShoppingListIntegrationTests: XCTestCase {
         ingredient2.product = flour
         ingredient2.quantity = 200
         
-        try? context.save()
+        saveContext()
         
         return ([eggs, flour], [pieces, grams], [pancakes])
     }
