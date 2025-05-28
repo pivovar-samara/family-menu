@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="21513" systemVersion="21H1320" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="YES" userDefinedModelVersionIdentifier="">
-    <entity name="Dish" representedClassName="Dish" syncable="YES" codeGenerationType="class">
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23788" systemVersion="24F74" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="YES" userDefinedModelVersionIdentifier="">
+    <entity name="Dish" representedClassName=".Dish" syncable="YES" codeGenerationType="class">
         <attribute name="details" optional="YES" attributeType="String"/>
         <attribute name="name" optional="YES" attributeType="String"/>
         <relationship name="ingredientDetails" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="IngredientDetail" inverseName="dish" inverseEntity="IngredientDetail"/>
@@ -8,32 +8,32 @@
         <relationship name="menus" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Menu" inverseName="dishes" inverseEntity="Menu"/>
         <relationship name="products" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Product" inverseName="dishes" inverseEntity="Product"/>
     </entity>
-    <entity name="IngredientDetail" representedClassName="IngredientDetail" syncable="YES" codeGenerationType="class">
+    <entity name="IngredientDetail" representedClassName=".IngredientDetail" syncable="YES" codeGenerationType="class">
         <attribute name="quantity" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="sortOrder" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
         <relationship name="dish" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Dish" inverseName="ingredientDetails" inverseEntity="Dish"/>
         <relationship name="product" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Product" inverseName="ingredientDetails" inverseEntity="Product"/>
     </entity>
-    <entity name="MealType" representedClassName="MealType" syncable="YES" codeGenerationType="class">
+    <entity name="MealType" representedClassName=".MealType" syncable="YES" codeGenerationType="class">
         <attribute name="name" optional="YES" attributeType="String"/>
         <attribute name="sortOrder" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
         <relationship name="dishes" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Dish" inverseName="mealTypes" inverseEntity="Dish"/>
     </entity>
-    <entity name="Menu" representedClassName="Menu" syncable="YES" codeGenerationType="class">
+    <entity name="Menu" representedClassName=".Menu" syncable="YES" codeGenerationType="class">
         <attribute name="calendarWeek" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="day" optional="YES" attributeType="String"/>
         <attribute name="mealType" optional="YES" attributeType="String"/>
         <relationship name="dishes" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Dish" inverseName="menus" inverseEntity="Dish"/>
     </entity>
-    <entity name="Product" representedClassName="Product" syncable="YES" codeGenerationType="class">
+    <entity name="Product" representedClassName=".Product" syncable="YES" codeGenerationType="class">
         <attribute name="isSelected" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="name" optional="YES" attributeType="String"/>
         <relationship name="dishes" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Dish" inverseName="products" inverseEntity="Dish"/>
         <relationship name="ingredientDetails" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="IngredientDetail" inverseName="product" inverseEntity="IngredientDetail"/>
         <relationship name="unit" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Unit" inverseName="products" inverseEntity="Unit"/>
     </entity>
-    <entity name="Unit" representedClassName="Unit" syncable="YES" codeGenerationType="class">
+    <entity name="Unit" representedClassName=".Unit" syncable="YES" codeGenerationType="class">
         <attribute name="name" optional="YES" attributeType="String"/>
         <attribute name="sortOrder" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
         <relationship name="products" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Product" inverseName="unit" inverseEntity="Product"/>
