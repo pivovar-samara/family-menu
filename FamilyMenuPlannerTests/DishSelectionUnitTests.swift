@@ -8,41 +8,6 @@
 import XCTest
 @testable import FamilyMenuPlanner
 
-// MARK: - Mock Models
-class MockMealType: Hashable {
-    let name: String
-    let sortOrder: Int16
-    init(name: String, sortOrder: Int16 = 0) {
-        self.name = name
-        self.sortOrder = sortOrder
-    }
-    static func == (lhs: MockMealType, rhs: MockMealType) -> Bool {
-        lhs.name == rhs.name && lhs.sortOrder == rhs.sortOrder
-    }
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(name)
-        hasher.combine(sortOrder)
-    }
-}
-
-class MockDish: Hashable {
-    let name: String?
-    let details: String?
-    var mealTypes: Set<MockMealType>
-    init(name: String?, details: String? = nil, mealTypes: Set<MockMealType> = []) {
-        self.name = name
-        self.details = details
-        self.mealTypes = mealTypes
-    }
-    static func == (lhs: MockDish, rhs: MockDish) -> Bool {
-        lhs.name == rhs.name && lhs.mealTypes == rhs.mealTypes
-    }
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(name)
-        hasher.combine(mealTypes)
-    }
-}
-
 // MARK: - Mock Service
 protocol MockDishSelectionServiceProtocol {
     func fetchAllDishes() -> [MockDish]
