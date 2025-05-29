@@ -189,3 +189,10 @@ class MockProduct: Hashable {
         hasher.combine(unit)
     }
 }
+
+class MockIngredientDetail {
+    var dish: MockDish?
+    var product: MockProduct?
+    var quantity: Double = 0.0
+    var sortOrder: Int16 = 0
+}
