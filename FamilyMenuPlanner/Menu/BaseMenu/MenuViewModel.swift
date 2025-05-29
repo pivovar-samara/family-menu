@@ -41,9 +41,9 @@ class MenuViewModel: ObservableObject {
         return (0...2).compactMap { calendar.date(byAdding: .weekOfYear, value: $0, to: startOfCurrentWeek) }
     }
 
-    private let menuService: MenuService
+    private let menuService: MenuServiceProtocol
 
-    init(menuService: MenuService) {
+    init(menuService: MenuServiceProtocol) {
         self.menuService = menuService
         alertManager.$currentAlert
                     .receive(on: RunLoop.main)
@@ -93,13 +93,14 @@ class MenuViewModel: ObservableObject {
         var shoppingList: [String: [String: Double]] = [:]
         
         for dailyMenu in weeklyMenu {
-            for dailyMeals in dailyMenu.dailyMeals {
-                for dish in dailyMeals.dishes {
+            for dailyMeal in dailyMenu.dailyMeals {
+                for dish in dailyMeal.dishes {
                     if let ingredientDetails = dish.ingredientDetails as? Set<IngredientDetail> {
                         for detail in ingredientDetails {
-                            let productName = detail.product?.name ?? "Unnamed Product".localized()
-                            let unitName = detail.product?.unit?.name ?? "Unit".localized()
-                            shoppingList[productName, default: [:]][unitName, default: 0] += detail.quantity
+                            if let productName = detail.product?.name,
+                               let unitName = detail.product?.unit?.name {
+                                shoppingList[productName, default: [:]][unitName, default: 0] += detail.quantity
+                            }
                         }
                     }
                 }

@@ -15,9 +15,9 @@ class DishSelectionViewModel: ObservableObject {
     @Published var mealType: String // Meal type for filtering dishes
     @Published var onDishesSelected: ([Dish]) -> Void
     
-    private let dishSelectionService: DishSelectionService
+    private let dishSelectionService: DishSelectionServiceProtocol
     
-    init(selectedDishes: [Dish], mealType: String, dishSelectionService: DishSelectionService, onDishesSelected: @escaping ([Dish]) -> Void) {
+    init(selectedDishes: [Dish], mealType: String, dishSelectionService: DishSelectionServiceProtocol, onDishesSelected: @escaping ([Dish]) -> Void) {
         self.selectedDishes = selectedDishes
         self.mealType = mealType
         self.onDishesSelected = onDishesSelected

@@ -7,6 +7,15 @@
 
 import CoreData
 
+protocol DishListServiceProtocol {
+    func fetchAllDishes()
+    func deleteDishes(dishes: [Dish]) throws
+    
+    var delegate: DishListServiceDelegate? { get set }
+}
+
+extension DishListService: DishListServiceProtocol {}
+
 protocol DishListServiceDelegate {
     func serviceDidChangeContent(_ dishes: [Dish])
 }

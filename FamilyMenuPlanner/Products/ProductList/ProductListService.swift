@@ -7,6 +7,15 @@
 
 import CoreData
 
+protocol ProductListServiceProtocol {
+    func fetchAllProducts() -> [Product]
+    func fetchAllUnits() -> [Unit]
+    func deleteProducts(products: [Product]) throws
+    func addProduct(name: String, unit: Unit) throws
+}
+
+extension ProductListService: ProductListServiceProtocol {}
+
 class ProductListService {
     private let context: NSManagedObjectContext
 

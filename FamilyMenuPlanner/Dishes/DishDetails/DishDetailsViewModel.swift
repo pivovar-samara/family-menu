@@ -22,10 +22,10 @@ class DishDetailsViewModel: ObservableObject {
     @Published var isAddingIngredient: Bool = false
     @Published var dish: Dish?
     
-    private let dishDetailsService: DishDetailsService
+    private let dishDetailsService: DishDetailsServiceProtocol
     private let alertManager = AlertQueueManager()
     
-    init(dishDetailsService: DishDetailsService, dish: Dish? = nil) {
+    init(dishDetailsService: DishDetailsServiceProtocol, dish: Dish? = nil) {
         self.dishDetailsService = dishDetailsService
         self.dish = dish
         self.units = dishDetailsService.fetchAllUnits()

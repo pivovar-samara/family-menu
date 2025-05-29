@@ -17,10 +17,10 @@ class EditProductViewModel: ObservableObject {
     
     var units: [Unit]
     
-    private let editProductService: EditProductService
+    private let editProductService: EditProductServiceProtocol
     private let alertManager = AlertQueueManager()
     
-    init(product: Product, editProductService: EditProductService) {
+    init(product: Product, editProductService: EditProductServiceProtocol) {
         self.product = product
         self.editProductService = editProductService
         self.units = editProductService.fetchAllUnits()
@@ -40,9 +40,8 @@ class EditProductViewModel: ObservableObject {
     func saveChanges(onSuccess: ()->Void) {
         do {
             guard let name = product.name, !name.isEmpty else {
-                throw NSError(domain: "com.familymenuplanner.error",
-                              code: 2,
-                              userInfo: [NSLocalizedDescriptionKey: "Product name cannot be empty."])
+                enqueueAlert(title: "Error", message: "Product name cannot be empty.")
+                return
             }
             try editProductService.saveChanges()
             onSuccess()

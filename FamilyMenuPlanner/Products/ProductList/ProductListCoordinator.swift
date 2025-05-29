@@ -8,10 +8,8 @@
 import SwiftUI
 
 class ProductListCoordinator {
-    func createProductListView() -> some View {
-        let context = PersistenceController.shared.container.viewContext
-        let service = ProductListService(context: context)
-        let viewModel = ProductListViewModel(productListService: service)
+    func createProductListView(productListService: ProductListServiceProtocol = ProductListService(context: PersistenceController.shared.container.viewContext)) -> some View {
+        let viewModel = ProductListViewModel(productListService: productListService)
         return ProductListView(viewModel: viewModel)
     }
 }

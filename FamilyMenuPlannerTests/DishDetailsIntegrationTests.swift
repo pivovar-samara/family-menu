@@ -1,0 +1,259 @@
+import XCTest
+import CoreData
+@testable import FamilyMenuPlanner
+
+class DishDetailsIntegrationTests: BaseIntegrationTest {
+    var dishDetailsService: DishDetailsService!
+    var viewModel: DishDetailsViewModel!
+    
+    override func setUp() {
+        super.setUp()
+        dishDetailsService = DishDetailsService(context: context)
+        viewModel = DishDetailsViewModel(dishDetailsService: dishDetailsService)
+    }
+    
+    override func tearDown() {
+        dishDetailsService = nil
+        viewModel = nil
+        super.tearDown()
+    }
+    
+    // Helper method to create test data
+    private func createTestData() -> (dish: Dish, product: Product, mealType: MealType, unit: Unit) {
+        // Create unit
+        let unit = Unit(context: context)
+        unit.name = "pcs"
+        unit.sortOrder = 0
+        
+        // Create product
+        let product = Product(context: context)
+        product.name = "Test Product"
+        product.unit = unit
+        
+        // Create meal type
+        let mealType = MealType(context: context)
+        mealType.name = "Breakfast"
+        mealType.sortOrder = 0
+        
+        // Create dish
+        let dish = Dish(context: context)
+        dish.name = "Test Dish"
+        dish.details = "Test Details"
+        
+        try? context.save()
+        context.refreshAllObjects()
+        return (dish, product, mealType, unit)
+    }
+    
+    // MARK: - Tests
+    
+    func testCreateNewDish() {
+        // Create test data for validation requirements
+        let (_, product, mealType, _) = createTestData()
+        
+        // Load new dish
+        viewModel.loadDish()
+        
+        // Verify dish was created
+        XCTAssertNotNil(viewModel.dish)
+        
+        // Set dish properties
+        viewModel.dish?.name = "New Dish"
+        viewModel.descriptionText = "New Description"
+        // Manually sync description text to dish details (normally done by view's onChange)
+        viewModel.dish?.details = viewModel.descriptionText
+        
+        // Add required data for validation to pass
+        viewModel.addIngredient(for: product)
+        viewModel.toggleMealTypeSelection(mealType)
+        
+        // Save changes
+        var successCalled = false
+        viewModel.saveChanges {
+            successCalled = true
+        }
+        
+        // Verify changes were saved
+        XCTAssertTrue(successCalled)
+        
+        // Verify dish exists in database
+        let fetchRequest: NSFetchRequest<Dish> = Dish.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "name == %@", "New Dish")
+        
+        do {
+            let dishes = try context.fetch(fetchRequest)
+            XCTAssertEqual(dishes.count, 1)
+            XCTAssertEqual(dishes.first?.details, "New Description")
+        } catch {
+            XCTFail("Failed to fetch dish: \(error)")
+        }
+    }
+    
+    func testLoadExistingDish() {
+        let (dish, _, _, _) = createTestData()
+        
+        // Create view model with existing dish
+        viewModel = DishDetailsViewModel(dishDetailsService: dishDetailsService, dish: dish)
+        
+        // Load dish data
+        viewModel.loadDish()
+        viewModel.loadIngredients()
+        viewModel.loadSelectedMealTypes()
+        
+        // Verify dish data was loaded
+        XCTAssertEqual(viewModel.dish?.name, "Test Dish")
+        XCTAssertEqual(viewModel.dish?.details, "Test Details")
+    }
+    
+    func testAddIngredient() {
+        let (dish, product, _, _) = createTestData()
+        
+        // Create view model with existing dish
+        viewModel = DishDetailsViewModel(dishDetailsService: dishDetailsService, dish: dish)
+        
+        // Add ingredient
+        viewModel.addIngredient(for: product)
+        
+        // Save changes
+        viewModel.saveChanges {}
+        
+        // Verify ingredient was added
+        if let ingredients = dish.ingredientDetails as? Set<IngredientDetail> {
+            XCTAssertEqual(ingredients.count, 1)
+            XCTAssertEqual(ingredients.first?.product?.name, "Test Product")
+            XCTAssertEqual(ingredients.first?.quantity, 1.0)
+        } else {
+            XCTFail("No ingredients found")
+        }
+    }
+    
+    func testDeleteIngredient() {
+        let (dish, product, mealType, _) = createTestData()
+        
+        // Create view model with existing dish
+        viewModel = DishDetailsViewModel(dishDetailsService: dishDetailsService, dish: dish)
+        
+        // Add meal type first so validation will pass
+        viewModel.toggleMealTypeSelection(mealType)
+        
+        // Add two ingredients so we can delete one without violating validation
+        viewModel.addIngredient(for: product)
+        viewModel.addIngredient(for: product)
+        
+        // Load ingredients to sync selectedIngredients with Core Data relationship
+        viewModel.loadIngredients()
+        
+        // Verify both ingredients were added
+        XCTAssertEqual(viewModel.selectedIngredients.count, 2)
+        
+        // Delete first ingredient
+        viewModel.deleteIngredient(at: IndexSet(integer: 0))
+        
+        // Verify one ingredient was removed from selectedIngredients
+        XCTAssertEqual(viewModel.selectedIngredients.count, 1)
+        
+        // Ensure dish has a name for validation
+        if dish.name?.isEmpty ?? true {
+            dish.name = "Test Dish"
+        }
+        
+        // Save changes
+        var successCalled = false
+        viewModel.saveChanges {
+            successCalled = true
+        }
+        
+        // Verify save was successful
+        XCTAssertTrue(successCalled, "Save should have succeeded")
+        
+        // Refresh context to see updated relationships
+        context.refreshAllObjects()
+        
+        // Verify only one ingredient remains in Core Data
+        if let ingredients = dish.ingredientDetails as? Set<IngredientDetail> {
+            XCTAssertEqual(ingredients.count, 1, "Should have exactly one ingredient remaining after deletion")
+        }
+    }
+    
+    func testToggleMealType() {
+        let (dish, _, mealType, _) = createTestData()
+        
+        // Create view model with existing dish
+        viewModel = DishDetailsViewModel(dishDetailsService: dishDetailsService, dish: dish)
+        
+        // Toggle meal type
+        viewModel.toggleMealTypeSelection(mealType)
+        
+        // Save changes
+        viewModel.saveChanges {}
+        
+        // Verify meal type was added
+        if let mealTypes = dish.mealTypes as? Set<MealType> {
+            XCTAssertEqual(mealTypes.count, 1)
+            XCTAssertEqual(mealTypes.first?.name, "Breakfast")
+        } else {
+            XCTFail("No meal types found")
+        }
+        
+        // Toggle meal type again
+        viewModel.toggleMealTypeSelection(mealType)
+        
+        // Save changes
+        viewModel.saveChanges {}
+        
+        // Verify meal type was removed
+        if let mealTypes = dish.mealTypes as? Set<MealType> {
+            XCTAssertTrue(mealTypes.isEmpty)
+        }
+    }
+    
+    func testValidationWithRealData() {
+        let (dish, product, mealType, _) = createTestData()
+        
+        // Create view model with existing dish
+        viewModel = DishDetailsViewModel(dishDetailsService: dishDetailsService, dish: dish)
+        
+        // Test empty name
+        viewModel.dish?.name = ""
+        var successCalled = false
+        viewModel.saveChanges { successCalled = true }
+        XCTAssertFalse(successCalled)
+        XCTAssertNotNil(viewModel.validationError)
+        
+        // Test with name but no ingredients and meal types
+        viewModel.dish?.name = "Test Dish"
+        successCalled = false
+        viewModel.saveChanges { successCalled = true }
+        XCTAssertFalse(successCalled)
+        XCTAssertNotNil(viewModel.validationError)
+        
+        // Add ingredient
+        viewModel.addIngredient(for: product)
+        
+        // Add meal type
+        viewModel.toggleMealTypeSelection(mealType)
+        
+        // Test with all required fields
+        successCalled = false
+        viewModel.saveChanges { successCalled = true }
+        XCTAssertTrue(successCalled)
+        XCTAssertNil(viewModel.validationError)
+    }
+    
+    func testRollback() {
+        let (dish, _, _, _) = createTestData()
+        
+        // Create view model with existing dish
+        viewModel = DishDetailsViewModel(dishDetailsService: dishDetailsService, dish: dish)
+        
+        // Modify dish
+        let originalName = dish.name
+        viewModel.dish?.name = "Modified Name"
+        
+        // Rollback changes
+        viewModel.rollback()
+        
+        // Verify changes were rolled back
+        XCTAssertEqual(dish.name, originalName)
+    }
+} 

@@ -8,10 +8,12 @@
 import SwiftUI
 
 class ProductSelectionCoordinator {
-    func createProductSelectionView(currentProduct: Product?, onProductSelected: @escaping (Product) -> Void) -> some View {
-        let context = PersistenceController.shared.container.viewContext
-        let service = ProductSelectionService(context: context)
-        let viewModel = ProductSelectionViewModel(productSelectionService: service, currentProduct: currentProduct, onProductSelected: onProductSelected)
+    func createProductSelectionView(currentProduct: Product?, productSelectionService: ProductSelectionServiceProtocol = ProductSelectionService(context: PersistenceController.shared.container.viewContext), onProductSelected: @escaping (Product) -> Void) -> some View {
+        let viewModel = ProductSelectionViewModel(
+            productSelectionService: productSelectionService,
+            currentProduct: currentProduct,
+            onProductSelected: onProductSelected
+        )
         return ProductSelectionView(viewModel: viewModel)
     }
 }

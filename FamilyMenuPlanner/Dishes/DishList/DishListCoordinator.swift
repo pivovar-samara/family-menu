@@ -8,10 +8,8 @@
 import SwiftUI
 
 class DishListCoordinator {
-    func createDishListView() -> some View {
-        let context = PersistenceController.shared.container.viewContext
-        let service = DishListService(context: context)
-        let viewModel = DishListViewModel(dishListService: service)
+    func createDishListView(dishListService: DishListServiceProtocol = DishListService(context: PersistenceController.shared.container.viewContext)) -> some View {
+        let viewModel = DishListViewModel(dishListService: dishListService)
         return DishListView(viewModel: viewModel)
     }
 }

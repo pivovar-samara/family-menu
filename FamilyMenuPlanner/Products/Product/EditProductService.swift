@@ -7,6 +7,14 @@
 
 import CoreData
 
+protocol EditProductServiceProtocol {
+    func fetchAllUnits() -> [Unit]
+    func saveChanges() throws
+    func rollback()
+}
+
+extension EditProductService: EditProductServiceProtocol {}
+
 class EditProductService {
     private let context: NSManagedObjectContext
     

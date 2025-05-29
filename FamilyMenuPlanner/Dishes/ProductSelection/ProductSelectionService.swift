@@ -7,6 +7,12 @@
 
 import CoreData
 
+protocol ProductSelectionServiceProtocol {
+    func fetchAllProducts() -> [Product]
+}
+
+extension ProductSelectionService: ProductSelectionServiceProtocol {}
+
 class ProductSelectionService {
     private let context: NSManagedObjectContext
     

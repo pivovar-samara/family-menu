@@ -8,10 +8,13 @@
 import SwiftUI
 
 class DishSelectionCoordinator {
-    func createDishSelectionView(currentDishes: [Dish], mealType: String, onDishesSelected: @escaping ([Dish]) -> Void) -> some View {
-        let context = PersistenceController.shared.container.viewContext
-        let service = DishSelectionService(context: context)
-        let viewModel = DishSelectionViewModel(selectedDishes: currentDishes, mealType: mealType, dishSelectionService: service, onDishesSelected: onDishesSelected)
+    func createDishSelectionView(currentDishes: [Dish], mealType: String, dishSelectionService: DishSelectionServiceProtocol = DishSelectionService(context: PersistenceController.shared.container.viewContext), onDishesSelected: @escaping ([Dish]) -> Void) -> some View {
+        let viewModel = DishSelectionViewModel(
+            selectedDishes: currentDishes,
+            mealType: mealType,
+            dishSelectionService: dishSelectionService,
+            onDishesSelected: onDishesSelected
+        )
         return DishSelectionView(viewModel: viewModel)
     }
 }

@@ -17,10 +17,10 @@ class ProductSelectionViewModel: ObservableObject {
     let currentProduct: Product?
     let onProductSelected: (Product) -> Void
     
-    private let productSelectionService: ProductSelectionService
+    private let productSelectionService: ProductSelectionServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     
-    init(productSelectionService: ProductSelectionService, currentProduct: Product?, onProductSelected: @escaping (Product) -> Void) {
+    init(productSelectionService: ProductSelectionServiceProtocol, currentProduct: Product?, onProductSelected: @escaping (Product) -> Void) {
         self.productSelectionService = productSelectionService
         self.currentProduct = currentProduct
         self.onProductSelected = onProductSelected
