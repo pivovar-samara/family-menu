@@ -83,9 +83,9 @@ class ProductSelectionIntegrationTests: BaseIntegrationTest {
     func testServiceFetchProductsSorting() {
         // Create products in different order
         let unit = createUnit(name: "pcs")
-        let zebra = createProduct(name: "Zebra Product", unit: unit)
-        let apple = createProduct(name: "Apple", unit: unit)
-        let banana = createProduct(name: "Banana", unit: unit)
+        _ = createProduct(name: "Zebra Product", unit: unit)
+        _ = createProduct(name: "Apple", unit: unit)
+        _ = createProduct(name: "Banana", unit: unit)
         
         context.refreshAllObjects()
         
@@ -102,7 +102,7 @@ class ProductSelectionIntegrationTests: BaseIntegrationTest {
     // MARK: - ViewModel Loading Tests
     
     func testViewModelLoadProducts() {
-        let (products, _) = createTestData()
+        let (_, _) = createTestData()
         
         // Load products through view model
         viewModel.loadProducts()
@@ -226,7 +226,7 @@ class ProductSelectionIntegrationTests: BaseIntegrationTest {
     // MARK: - Integration Flow Tests
     
     func testCompleteProductSelectionFlow() {
-        let (products, _) = createTestData()
+        let (_, _) = createTestData()
         
         // 1. Load products
         viewModel.loadProducts()
@@ -314,9 +314,9 @@ class ProductSelectionIntegrationTests: BaseIntegrationTest {
     func testProductsWithSpecialCharacters() {
         // Create products with special characters
         let unit = createUnit(name: "pcs")
-        let specialProduct1 = createProduct(name: "Product!@#$%", unit: unit)
-        let specialProduct2 = createProduct(name: "Ñandú", unit: unit)
-        let specialProduct3 = createProduct(name: "Café", unit: unit)
+        _ = createProduct(name: "Product!@#$%", unit: unit)
+        _ = createProduct(name: "Ñandú", unit: unit)
+        _ = createProduct(name: "Café", unit: unit)
         
         context.refreshAllObjects()
         
@@ -341,7 +341,7 @@ class ProductSelectionIntegrationTests: BaseIntegrationTest {
         // Create large number of products
         let unit = createUnit(name: "pcs")
         for i in 1...100 {
-            createProduct(name: "Product \(i)", unit: unit)
+            _ = createProduct(name: "Product \(i)", unit: unit)
         }
         
         context.refreshAllObjects()

@@ -293,14 +293,14 @@
 		A004ED8E2D11DC030081DDC0 /* FamilyMenuPlannerTests */ = {
 			isa = PBXGroup;
 			children = (
-				480520892DE889D9006555CE /* ProductSelectionIntegrationTests.swift */,
-				4805208A2DE889D9006555CE /* ProductSelectionUnitTests.swift */,
 				48355B2A2DE77C5F00209255 /* TestUtilities.swift */,
+				A07E938A2D47F29C003940AE /* CommonUnitTests.swift */,
 				480520822DE7A739006555CE /* DishListUnitTests.swift */,
 				480520812DE7A739006555CE /* DishListIntegrationTests.swift */,
 				480520862DE7AA5E006555CE /* DishDetailsUnitTests.swift */,
 				480520852DE7AA5E006555CE /* DishDetailsIntegrationTests.swift */,
-				A07E938A2D47F29C003940AE /* CommonUnitTests.swift */,
+				4805208A2DE889D9006555CE /* ProductSelectionUnitTests.swift */,
+				480520892DE889D9006555CE /* ProductSelectionIntegrationTests.swift */,
 				48355B162DE744DC00209255 /* MenuUnitTests.swift */,
 				48355B1E2DE7586400209255 /* MenuIntegrationTests.swift */,
 				4825BC542DE635BB00671D4C /* ShoppingListUnitTests.swift */,
