@@ -36,6 +36,22 @@ struct DishDetailsView: View {
             }
             .listRowBackground(Color("SecondaryBackgroundColor"))
             
+            // Dish Category Section
+            Section(header: Text("Dish Category")) {
+                Picker("Category", selection: $viewModel.selectedCategory) {
+                    Text("No Category").tag(nil as DishCategory?)
+                    ForEach(viewModel.allDishCategories, id: \.self) { category in
+                        Text((category.name ?? "").localized())
+                            .tag(category as DishCategory?)
+                    }
+                }
+                .pickerStyle(MenuPickerStyle())
+                .onChange(of: viewModel.selectedCategory) { newCategory in
+                    viewModel.setDishCategory(newCategory)
+                }
+            }
+            .listRowBackground(Color("SecondaryBackgroundColor"))
+            
             // Meal type
             Section(header: Text("Meal Types")) {
                 ForEach(viewModel.allMealTypes, id: \.self) { mealType in
@@ -145,6 +161,7 @@ struct DishDetailsView: View {
             viewModel.loadDish()
             viewModel.loadIngredients()
             viewModel.loadSelectedMealTypes()
+            viewModel.loadSelectedCategory()
         }
         .alert(item: Binding(
             get: { viewModel.currentAlert },

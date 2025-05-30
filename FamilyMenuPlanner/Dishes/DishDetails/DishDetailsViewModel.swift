@@ -12,6 +12,8 @@ import Combine
 class DishDetailsViewModel: ObservableObject {
     @Published var units: [Unit]
     @Published var allMealTypes: [MealType]
+    @Published var allDishCategories: [DishCategory] = []
+    @Published var selectedCategory: DishCategory?
     @Published var descriptionText: String = ""
     @Published var selectedMealTypes: Set<MealType> = []
     @Published var validationError: String?
@@ -30,6 +32,7 @@ class DishDetailsViewModel: ObservableObject {
         self.dish = dish
         self.units = dishDetailsService.fetchAllUnits()
         self.allMealTypes = dishDetailsService.fetchAllMealTypes()
+        self.allDishCategories = dishDetailsService.fetchAllDishCategories()
         alertManager.$currentAlert
                     .receive(on: RunLoop.main)
                     .assign(to: &$currentAlert)
@@ -55,6 +58,15 @@ class DishDetailsViewModel: ObservableObject {
         if let mealTypes = dish?.mealTypes as? Set<MealType> {
             selectedMealTypes = mealTypes
         }
+    }
+    
+    func loadSelectedCategory() {
+        selectedCategory = dish?.category
+    }
+    
+    func setDishCategory(_ category: DishCategory?) {
+        selectedCategory = category
+        dish?.category = category
     }
 
     func addIngredient(for product: Product) {

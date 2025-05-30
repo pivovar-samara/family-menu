@@ -10,6 +10,7 @@ import CoreData
 protocol DishDetailsServiceProtocol {
     func fetchAllUnits() -> [Unit]
     func fetchAllMealTypes() -> [MealType]
+    func fetchAllDishCategories() -> [DishCategory]
     func createDish() throws -> Dish
     func createIngredient() throws -> IngredientDetail
     func deleteIngredient(ingredient: IngredientDetail)
@@ -48,6 +49,19 @@ class DishDetailsService {
             return try context.fetch(fetchRequest)
         } catch {
             print("Error loading meal types: \(error)")
+            return []
+        }
+    }
+    
+    func fetchAllDishCategories() -> [DishCategory] {
+        let fetchRequest: NSFetchRequest<DishCategory> = DishCategory.fetchRequest()
+        fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \DishCategory.sortOrder, ascending: true)]
+
+        do {
+            try context.setQueryGenerationFrom(.current)
+            return try context.fetch(fetchRequest)
+        } catch {
+            print("Error loading dish categories: \(error)")
             return []
         }
     }

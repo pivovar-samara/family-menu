@@ -98,6 +98,15 @@ struct PersistenceController {
                 mealType.sortOrder = mealTypeData.sortOrder
                 mealTypeMap[mealTypeData.name] = mealType
             }
+            
+            // Create Dish Categories
+            var dishCategoryMap: [String: DishCategory] = [:]
+            for categoryData in jsonData.dishCategories {
+                let category = DishCategory(context: context)
+                category.name = categoryData.name
+                category.sortOrder = categoryData.sortOrder
+                dishCategoryMap[categoryData.name] = category
+            }
 
             // Create Products
             var productMap: [String: Product] = [:]
@@ -113,6 +122,12 @@ struct PersistenceController {
                 let dish = Dish(context: context)
                 dish.name = dishData.name
                 dish.details = dishData.details
+                
+                // Set category
+                if let categoryName = dishData.category,
+                   let category = dishCategoryMap[categoryName] {
+                    dish.category = category
+                }
 
                 for ingredientData in dishData.ingredients {
                     if let product = productMap[ingredientData.product] {
@@ -174,6 +189,7 @@ struct PreloadedData: Codable {
     let products: [ProductData]
     let dishes: [DishData]
     let mealTypes: [MealTypeData]
+    let dishCategories: [DishCategoryData]
 }
 
 struct UnitData: Codable {
@@ -189,6 +205,7 @@ struct ProductData: Codable {
 struct DishData: Codable {
     let name: String
     let details: String
+    let category: String?
     let ingredients: [IngredientData]
     let mealTypes: [String]?
 }
@@ -199,6 +216,11 @@ struct IngredientData: Codable {
 }
 
 struct MealTypeData: Codable {
+    let name: String
+    let sortOrder: Int16
+}
+
+struct DishCategoryData: Codable {
     let name: String
     let sortOrder: Int16
 }

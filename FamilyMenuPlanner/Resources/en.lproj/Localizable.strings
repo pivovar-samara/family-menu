@@ -79,3 +79,12 @@
 "Loading..." = "Loading...";
 "Unit is not selected and no default unit is available." = "Unit is not selected and no default unit is available.";
 "No Details" = "Recipe is empty";
+
+// Dish Category localization
+"Dish Category" = "Dish Category";
+"No Category" = "No Category";
+"Main Course" = "Main Course";
+"Garnish" = "Garnish";
+"Dessert" = "Dessert";
+"Appetizer" = "Appetizer";
+"Sauce" = "Sauce";
