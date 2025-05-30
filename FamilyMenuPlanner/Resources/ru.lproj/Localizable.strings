@@ -79,3 +79,12 @@
 "Loading..." = "Загрузка данных...";
 "Unit is not selected and no default unit is available." = "Единица измерения не выбрана для продукта.";
 "No Details" = "Рецепт не заполнен";
+
+// Dish Category localization
+"Dish Category" = "Категория блюда";
+"No Category" = "Без категории";
+"Main Course" = "Основное блюдо";
+"Garnish" = "Гарнир";
+"Dessert" = "Десерт";
+"Appetizer" = "Закуска";
+"Sauce" = "Соус";

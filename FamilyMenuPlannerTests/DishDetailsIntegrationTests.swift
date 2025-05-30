@@ -8,6 +8,7 @@ class DishDetailsIntegrationTests: BaseIntegrationTest {
     
     override func setUp() {
         super.setUp()
+        // Use real service with Core Data context for integration testing
         dishDetailsService = DishDetailsService(context: context)
         viewModel = DishDetailsViewModel(dishDetailsService: dishDetailsService)
     }
@@ -19,7 +20,7 @@ class DishDetailsIntegrationTests: BaseIntegrationTest {
     }
     
     // Helper method to create test data
-    private func createTestData() -> (dish: Dish, product: Product, mealType: MealType, unit: Unit) {
+    private func createTestData() -> (dish: Dish, product: Product, mealType: MealType, unit: Unit, category: DishCategory) {
         // Create unit
         let unit = Unit(context: context)
         unit.name = "pcs"
@@ -35,6 +36,11 @@ class DishDetailsIntegrationTests: BaseIntegrationTest {
         mealType.name = "Breakfast"
         mealType.sortOrder = 0
         
+        // Create dish category
+        let category = DishCategory(context: context)
+        category.name = "Main Course"
+        category.sortOrder = 1
+        
         // Create dish
         let dish = Dish(context: context)
         dish.name = "Test Dish"
@@ -42,14 +48,14 @@ class DishDetailsIntegrationTests: BaseIntegrationTest {
         
         try? context.save()
         context.refreshAllObjects()
-        return (dish, product, mealType, unit)
+        return (dish, product, mealType, unit, category)
     }
     
     // MARK: - Tests
     
     func testCreateNewDish() {
         // Create test data for validation requirements
-        let (_, product, mealType, _) = createTestData()
+        let (_, product, mealType, _, _) = createTestData()
         
         // Load new dish
         viewModel.loadDish()
@@ -90,7 +96,7 @@ class DishDetailsIntegrationTests: BaseIntegrationTest {
     }
     
     func testLoadExistingDish() {
-        let (dish, _, _, _) = createTestData()
+        let (dish, _, _, _, _) = createTestData()
         
         // Create view model with existing dish
         viewModel = DishDetailsViewModel(dishDetailsService: dishDetailsService, dish: dish)
@@ -99,14 +105,58 @@ class DishDetailsIntegrationTests: BaseIntegrationTest {
         viewModel.loadDish()
         viewModel.loadIngredients()
         viewModel.loadSelectedMealTypes()
+        viewModel.loadSelectedCategory()
         
         // Verify dish data was loaded
         XCTAssertEqual(viewModel.dish?.name, "Test Dish")
         XCTAssertEqual(viewModel.dish?.details, "Test Details")
     }
     
+    func testFetchDishCategories() {
+        let (_, _, _, _, _) = createTestData()
+        
+        // Fetch categories using service
+        let categories = dishDetailsService.fetchAllDishCategories()
+        
+        // Verify category was fetched
+        XCTAssertEqual(categories.count, 1)
+        XCTAssertEqual(categories.first?.name, "Main Course")
+    }
+    
+    func testSetDishCategory() {
+        let (dish, product, mealType, _, category) = createTestData()
+        
+        // Create view model with existing dish
+        viewModel = DishDetailsViewModel(dishDetailsService: dishDetailsService, dish: dish)
+        
+        // Load dish data
+        viewModel.loadDish()
+        viewModel.loadSelectedCategory()
+        
+        // Set category
+        viewModel.selectedCategory = category
+        dish.category = category
+        
+        // Add required data for validation
+        viewModel.addIngredient(for: product)
+        viewModel.toggleMealTypeSelection(mealType)
+        
+        // Save changes
+        var successCalled = false
+        viewModel.saveChanges {
+            successCalled = true
+        }
+        
+        // Verify changes were saved
+        XCTAssertTrue(successCalled)
+        
+        // Refresh and verify category relationship
+        context.refreshAllObjects()
+        XCTAssertEqual(dish.category?.name, "Main Course")
+    }
+    
     func testAddIngredient() {
-        let (dish, product, _, _) = createTestData()
+        let (dish, product, _, _, _) = createTestData()
         
         // Create view model with existing dish
         viewModel = DishDetailsViewModel(dishDetailsService: dishDetailsService, dish: dish)
@@ -128,7 +178,7 @@ class DishDetailsIntegrationTests: BaseIntegrationTest {
     }
     
     func testDeleteIngredient() {
-        let (dish, product, mealType, _) = createTestData()
+        let (dish, product, mealType, _, _) = createTestData()
         
         // Create view model with existing dish
         viewModel = DishDetailsViewModel(dishDetailsService: dishDetailsService, dish: dish)
@@ -176,7 +226,7 @@ class DishDetailsIntegrationTests: BaseIntegrationTest {
     }
     
     func testToggleMealType() {
-        let (dish, _, mealType, _) = createTestData()
+        let (dish, _, mealType, _, _) = createTestData()
         
         // Create view model with existing dish
         viewModel = DishDetailsViewModel(dishDetailsService: dishDetailsService, dish: dish)
@@ -208,7 +258,7 @@ class DishDetailsIntegrationTests: BaseIntegrationTest {
     }
     
     func testValidationWithRealData() {
-        let (dish, product, mealType, _) = createTestData()
+        let (dish, product, mealType, _, _) = createTestData()
         
         // Create view model with existing dish
         viewModel = DishDetailsViewModel(dishDetailsService: dishDetailsService, dish: dish)
@@ -241,7 +291,7 @@ class DishDetailsIntegrationTests: BaseIntegrationTest {
     }
     
     func testRollback() {
-        let (dish, _, _, _) = createTestData()
+        let (dish, _, _, _, _) = createTestData()
         
         // Create view model with existing dish
         viewModel = DishDetailsViewModel(dishDetailsService: dishDetailsService, dish: dish)
