@@ -22,8 +22,24 @@ struct DishListView: View {
                 ForEach(viewModel.dishes, id: \.self) { dish in
                     HStack {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text(dish.name ?? "Unnamed Dish".localized())
-                                .font(.headline)
+                            HStack {
+                                Text(dish.name ?? "Unnamed Dish".localized())
+                                    .font(.headline)
+                                
+                                // Show category badge if available
+                                if let categoryName = dish.category?.name {
+                                    Text(categoryName.localized())
+                                        .font(.caption)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 2)
+                                        .background(categoryColor(for: categoryName))
+                                        .foregroundColor(.white)
+                                        .cornerRadius(8)
+                                }
+                                
+                                Spacer()
+                            }
+                            
                             Text(dish.details ?? "No Details".localized())
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
@@ -80,5 +96,22 @@ struct DishListView: View {
         }
     }
     
+    // Helper function to get color for different categories
+    private func categoryColor(for categoryName: String) -> Color {
+        switch categoryName {
+        case "Main Course":
+            return Color.blue
+        case "Garnish":
+            return Color.green
+        case "Dessert":
+            return Color.orange
+        case "Appetizer":
+            return Color.purple
+        case "Sauce":
+            return Color.red
+        default:
+            return Color.gray
+        }
+    }
 }
 

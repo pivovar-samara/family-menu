@@ -20,14 +20,25 @@ class DishListIntegrationTests: BaseIntegrationTest {
     
     // Helper method to create test data
     private func createTestDishes() -> [Dish] {
+        // Create categories
+        let mainCourseCategory = DishCategory(context: context)
+        mainCourseCategory.name = "Main Course"
+        mainCourseCategory.sortOrder = 1
+        
+        let garnishCategory = DishCategory(context: context)
+        garnishCategory.name = "Garnish"
+        garnishCategory.sortOrder = 2
+        
         // Create dishes
         let dish1 = Dish(context: context)
         dish1.name = "Spaghetti Carbonara"
         dish1.details = "Classic Italian pasta dish"
+        dish1.category = mainCourseCategory
         
         let dish2 = Dish(context: context)
         dish2.name = "Caesar Salad"
         dish2.details = "Fresh salad with croutons"
+        dish2.category = garnishCategory
         
         try? context.save()
         context.refreshAllObjects()

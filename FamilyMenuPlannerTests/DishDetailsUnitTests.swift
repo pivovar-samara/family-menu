@@ -5,6 +5,7 @@ import XCTest
 class MockDishDetailsService: DishDetailsServiceProtocol {
     var units: [Unit] = []
     var mealTypes: [MealType] = []
+    var dishCategories: [DishCategory] = []
     var error: Error?
     var saveChangesCalled = false
     var rollbackCalled = false
@@ -26,6 +27,14 @@ class MockDishDetailsService: DishDetailsServiceProtocol {
             return []
         }
         return mealTypes
+    }
+    
+    func fetchAllDishCategories() -> [DishCategory] {
+        if let error = error {
+            print("Error fetching dish categories: \(error)")
+            return []
+        }
+        return dishCategories
     }
     
     func createDish() throws -> Dish {
@@ -67,6 +76,8 @@ class MockDishDetailsViewModel {
     private(set) var dish: MockDish?
     var descriptionText: String = ""
     var selectedMealTypes: Set<MockMealType> = []
+    var selectedCategory: MockDishCategory?
+    var allDishCategories: [MockDishCategory] = []
     var selectedIngredients: [MockIngredientDetail] = []
     var validationError: String?
     var currentAlert: AlertItem?
@@ -76,6 +87,8 @@ class MockDishDetailsViewModel {
     init(dishDetailsService: MockDishDetailsService, dish: MockDish? = nil) {
         self.dishDetailsService = dishDetailsService
         self.dish = dish
+        // Don't convert Core Data objects - mock categories will be set directly by the test
+        self.allDishCategories = []
     }
     
     func loadDish() {
@@ -84,7 +97,16 @@ class MockDishDetailsViewModel {
     }
     
     func setDishName(_ name: String) {
-        dish = MockDish(name: name, details: dish?.details)
+        dish = MockDish(name: name, details: dish?.details, mealTypes: dish?.mealTypes ?? [], category: dish?.category)
+    }
+    
+    func loadSelectedCategory() {
+        selectedCategory = dish?.category
+    }
+    
+    func setDishCategory(_ category: MockDishCategory?) {
+        selectedCategory = category
+        dish = MockDish(name: dish?.name, details: dish?.details, mealTypes: dish?.mealTypes ?? [], category: category)
     }
     
     func loadIngredients() {
@@ -173,7 +195,19 @@ class DishDetailsUnitTests: XCTestCase {
     override func setUp() {
         super.setUp()
         mockService = MockDishDetailsService()
+        
+        // Set up mock test categories (no Core Data objects in unit tests)
+        let mockCategory1 = MockDishCategory(name: "Main Course", sortOrder: 1)
+        let mockCategory2 = MockDishCategory(name: "Dessert", sortOrder: 2)
+        
+        // For the mock service, we can keep the dishCategories array empty 
+        // since the mock view model will use mock categories directly
+        mockService.dishCategories = []
+        
         viewModel = MockDishDetailsViewModel(dishDetailsService: mockService)
+        
+        // Set mock categories directly on the view model
+        viewModel.allDishCategories = [mockCategory1, mockCategory2]
     }
     
     override func tearDown() {
@@ -194,16 +228,25 @@ class DishDetailsUnitTests: XCTestCase {
     
     func testLoadExistingDish() {
         // Create an existing mock dish
-        let existingDish = MockDish(name: "Test Dish")
+        let category = MockDishCategory(name: "Main Course")
+        let existingDish = MockDish(name: "Test Dish", category: category)
         
         // Create view model with existing dish
         viewModel = MockDishDetailsViewModel(dishDetailsService: mockService, dish: existingDish)
         
-        // Load dish
-        viewModel.loadDish()
+        // Load existing dish data
+        viewModel.loadSelectedCategory()
         
-        // Verify existing dish wasn't replaced
+        // Verify dish data was loaded
         XCTAssertEqual(viewModel.dish?.name, "Test Dish")
+        XCTAssertEqual(viewModel.selectedCategory?.name, "Main Course")
+    }
+    
+    func testLoadCategories() {
+        // Verify categories were loaded
+        XCTAssertEqual(viewModel.allDishCategories.count, 2)
+        XCTAssertEqual(viewModel.allDishCategories[0].name, "Main Course")
+        XCTAssertEqual(viewModel.allDishCategories[1].name, "Dessert")
     }
     
     // MARK: - Ingredient Tests
@@ -290,6 +333,61 @@ class DishDetailsUnitTests: XCTestCase {
         
         // Verify meal type was removed
         XCTAssertFalse(viewModel.selectedMealTypes.contains(mealType))
+    }
+    
+    // MARK: - Category Tests
+    
+    func testSetDishCategory() {
+        // Create a dish
+        viewModel.loadDish()
+        
+        // Get a category
+        let category = viewModel.allDishCategories.first!
+        
+        // Set category
+        viewModel.setDishCategory(category)
+        
+        // Verify category was set
+        XCTAssertEqual(viewModel.selectedCategory?.name, "Main Course")
+        XCTAssertEqual(viewModel.dish?.category?.name, "Main Course")
+    }
+    
+    func testSetNilCategory() {
+        // Create a dish with category
+        let category = MockDishCategory(name: "Dessert")
+        let dish = MockDish(name: "Test Dish", category: category)
+        viewModel = MockDishDetailsViewModel(dishDetailsService: mockService, dish: dish)
+        viewModel.loadSelectedCategory()
+        
+        // Verify category is set
+        XCTAssertNotNil(viewModel.selectedCategory)
+        
+        // Clear category
+        viewModel.setDishCategory(nil)
+        
+        // Verify category was cleared
+        XCTAssertNil(viewModel.selectedCategory)
+        XCTAssertNil(viewModel.dish?.category)
+    }
+    
+    func testCategoryOptional() {
+        // Create a dish without category
+        viewModel.loadDish()
+        viewModel.setDishName("Test Dish")
+        
+        // Add required fields for validation
+        let ingredient = MockIngredientDetail()
+        viewModel.selectedIngredients = [ingredient]
+        let mealType = MockMealType(name: "Breakfast")
+        viewModel.selectedMealTypes.insert(mealType)
+        
+        // Save without category should work (category is optional)
+        var successCalled = false
+        viewModel.saveChanges { successCalled = true }
+        
+        // Verify save succeeded even without category
+        XCTAssertTrue(successCalled)
+        XCTAssertNil(viewModel.validationError)
     }
     
     // MARK: - Validation Tests

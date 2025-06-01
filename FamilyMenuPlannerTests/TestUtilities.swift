@@ -50,7 +50,7 @@ class BaseIntegrationTest: XCTestCase {
         super.tearDown()
     }
     
-    func cleanUpTestData(entities: [String] = ["Dish", "MealType", "Menu", "Product", "Unit", "IngredientDetail"]) {
+    func cleanUpTestData(entities: [String] = ["Dish", "MealType", "DishCategory", "Menu", "Product", "Unit", "IngredientDetail"]) {
         for entityName in entities {
             let fetchRequest: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: entityName)
             do {
@@ -91,6 +91,14 @@ extension BaseIntegrationTest {
         return mealType
     }
     
+    func createDishCategory(name: String, sortOrder: Int16 = 0) -> DishCategory {
+        let category = DishCategory(context: context)
+        category.name = name
+        category.sortOrder = sortOrder
+        saveContext()
+        return category
+    }
+    
     func createUnit(name: String, sortOrder: Int16 = 0) -> Unit {
         let unit = Unit(context: context)
         unit.name = name
@@ -107,11 +115,12 @@ extension BaseIntegrationTest {
         return product
     }
     
-    func createDish(name: String, details: String? = nil, mealTypes: Set<MealType> = []) -> Dish {
+    func createDish(name: String, details: String? = nil, mealTypes: Set<MealType> = [], category: DishCategory? = nil) -> Dish {
         let dish = Dish(context: context)
         dish.name = name
         dish.details = details
         dish.mealTypes = mealTypes as NSSet
+        dish.category = category
         saveContext()
         return dish
     }
@@ -134,21 +143,40 @@ class MockMealType: Hashable {
     }
 }
 
+class MockDishCategory: Hashable {
+    let name: String
+    let sortOrder: Int16
+    init(name: String, sortOrder: Int16 = 0) {
+        self.name = name
+        self.sortOrder = sortOrder
+    }
+    static func == (lhs: MockDishCategory, rhs: MockDishCategory) -> Bool {
+        lhs.name == rhs.name && lhs.sortOrder == rhs.sortOrder
+    }
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(name)
+        hasher.combine(sortOrder)
+    }
+}
+
 class MockDish: Hashable {
     let name: String?
     let details: String?
     var mealTypes: Set<MockMealType>
-    init(name: String?, details: String? = nil, mealTypes: Set<MockMealType> = []) {
+    var category: MockDishCategory?
+    init(name: String?, details: String? = nil, mealTypes: Set<MockMealType> = [], category: MockDishCategory? = nil) {
         self.name = name
         self.details = details
         self.mealTypes = mealTypes
+        self.category = category
     }
     static func == (lhs: MockDish, rhs: MockDish) -> Bool {
-        lhs.name == rhs.name && lhs.mealTypes == rhs.mealTypes
+        lhs.name == rhs.name && lhs.mealTypes == rhs.mealTypes && lhs.category == rhs.category
     }
     func hash(into hasher: inout Hasher) {
         hasher.combine(name)
         hasher.combine(mealTypes)
+        hasher.combine(category)
     }
 }
 
