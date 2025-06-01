@@ -88,3 +88,23 @@
 "Dessert" = "Dessert";
 "Appetizer" = "Appetizer";
 "Sauce" = "Sauce";
+
+// Error Handling and Recovery
+"Failed to load data store: %@" = "Failed to load data store: %@";
+"Failed to recover data store: %@" = "Failed to recover data store: %@";
+"Failed to migrate data: %@" = "Failed to migrate data: %@";
+"Insufficient disk space to load the app" = "Insufficient disk space to load the app";
+"Permission denied to access data" = "Permission denied to access data";
+"An unexpected error occurred: %@" = "An unexpected error occurred: %@";
+"Unable to recover from the error. Please restart the app or contact support if the problem persists." = "Unable to recover from the error. Please restart the app or contact support if the problem persists.";
+"Setting up your data..." = "Setting up your data...";
+"Data Loading Error" = "Data Loading Error";
+"An unexpected error occurred while loading your data." = "An unexpected error occurred while loading your data.";
+"Try Again" = "Try Again";
+"Retrying..." = "Retrying...";
+"Restart App" = "Restart App";
+"What you can try:" = "What you can try:";
+"Restart the app" = "Restart the app";
+"Check your internet connection" = "Check your internet connection";
+"Verify iCloud is enabled" = "Verify iCloud is enabled";
+"Ensure sufficient storage space" = "Ensure sufficient storage space";

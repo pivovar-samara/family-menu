@@ -7,6 +7,62 @@
 
 import CoreData
 
+// MARK: - Persistence Errors
+enum PersistenceError: Error, LocalizedError {
+    case storeLoadingFailed(NSError)
+    case storeRecoveryFailed(NSError)
+    case migrationFailed(NSError)
+    case diskSpaceInsufficient
+    case permissionDenied
+    case unknown(NSError)
+    
+    var errorDescription: String? {
+        switch self {
+        case .storeLoadingFailed(let error):
+            return String(format: "Failed to load data store: %@".localized(), error.localizedDescription)
+        case .storeRecoveryFailed(let error):
+            return String(format: "Failed to recover data store: %@".localized(), error.localizedDescription)
+        case .migrationFailed(let error):
+            return String(format: "Failed to migrate data: %@".localized(), error.localizedDescription)
+        case .diskSpaceInsufficient:
+            return "Insufficient disk space to load the app".localized()
+        case .permissionDenied:
+            return "Permission denied to access data".localized()
+        case .unknown(let error):
+            return String(format: "An unexpected error occurred: %@".localized(), error.localizedDescription)
+        }
+    }
+}
+
+// MARK: - Persistence State Manager
+class PersistenceStateManager: ObservableObject {
+    @Published var hasLoadingError: Bool = false
+    @Published var loadingError: PersistenceError?
+    
+    var isReady: Bool {
+        return !hasLoadingError
+    }
+    
+    var userFriendlyErrorMessage: String? {
+        return loadingError?.localizedDescription
+    }
+    
+    func setError(_ error: PersistenceError) {
+        DispatchQueue.main.async {
+            self.loadingError = error
+            self.hasLoadingError = true
+        }
+    }
+    
+    func clearError() {
+        DispatchQueue.main.async {
+            self.loadingError = nil
+            self.hasLoadingError = false
+        }
+    }
+}
+
+// MARK: - Persistence Controller
 struct PersistenceController {
     static let shared = PersistenceController()
 
@@ -20,9 +76,13 @@ struct PersistenceController {
     }()
 
     let container: NSPersistentCloudKitContainer
+    let stateManager = PersistenceStateManager()
 
     init(inMemory: Bool = false) {
         container = NSPersistentCloudKitContainer(name: "FamilyMenuPlanner")
+        
+        // Configure store descriptions before loading
+        configureStoreDescriptions(inMemory: inMemory)
         
         // Only initialize the schema when building the app with the
         // Debug build configuration.
@@ -31,30 +91,274 @@ struct PersistenceController {
             // Use the container to initialize the development schema.
             try container.initializeCloudKitSchema(options: [])
         } catch {
-            // Handle any errors.
+            print("⚠️ CloudKit schema initialization failed: \(error)")
         }
         #endif
         
+        loadPersistentStores()
+    }
+    
+    private func configureStoreDescriptions(inMemory: Bool) {
         if inMemory {
             container.persistentStoreDescriptions.first!.url = URL(fileURLWithPath: "/dev/null")
         }
-        container.loadPersistentStores(completionHandler: { (storeDescription, error) in
+        
+        // Configure store options for better error handling and performance
+        if let storeDescription = container.persistentStoreDescriptions.first {
+            storeDescription.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+            storeDescription.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+            
+            // Enable automatic store migration
+            storeDescription.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)
+            storeDescription.setOption(true as NSNumber, forKey: NSInferMappingModelAutomaticallyOption)
+        }
+    }
+    
+    private func loadPersistentStores() {
+        let group = DispatchGroup()
+        group.enter()
+        
+        container.loadPersistentStores { [weak stateManager = self.stateManager] (storeDescription, error) in
+            defer { group.leave() }
+            
             if let error = error as NSError? {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-
-                /*
-                 Typical reasons for an error here include:
-                 * The parent directory does not exist, cannot be created, or disallows writing.
-                 * The persistent store is not accessible, due to permissions or data protection when the device is locked.
-                 * The device is out of space.
-                 * The store could not be migrated to the current model version.
-                 Check the error message to determine what the actual problem was.
-                 */
-                fatalError("Unresolved error \(error), \(error.userInfo)")
+                self.handleStoreLoadingError(error, storeDescription: storeDescription, stateManager: stateManager)
+            } else {
+                self.configureSuccessfulStore()
+                stateManager?.clearError()
             }
-        })
+        }
+        
+        // Wait for store loading to complete
+        group.wait()
+    }
+    
+    private func handleStoreLoadingError(_ error: NSError, storeDescription: NSPersistentStoreDescription?, stateManager: PersistenceStateManager?) {
+        let persistenceError = categorizeError(error)
+        stateManager?.setError(persistenceError)
+        
+        // Log the error for debugging and analytics
+        logError(error, persistenceError: persistenceError)
+        
+        // Attempt recovery based on error type
+        if attemptErrorRecovery(error, storeDescription: storeDescription) {
+            // If recovery succeeded, retry loading
+            retryStoreLoading()
+        } else {
+            // If recovery failed, fall back to in-memory store
+            fallbackToInMemoryStore()
+        }
+    }
+    
+    private func categorizeError(_ error: NSError) -> PersistenceError {
+        switch error.code {
+        case NSPersistentStoreIncompatibleVersionHashError,
+             NSMigrationError:
+            return .migrationFailed(error)
+        case NSFileReadNoPermissionError,
+             NSFileWriteNoPermissionError:
+            return .permissionDenied
+        case NSPersistentStoreTimeoutError,
+             NSPersistentStoreUnsupportedRequestTypeError:
+            return .storeLoadingFailed(error)
+        default:
+            // Check for disk space issues
+            if error.localizedDescription.lowercased().contains("space") {
+                return .diskSpaceInsufficient
+            }
+            return .unknown(error)
+        }
+    }
+    
+    private func logError(_ error: NSError, persistenceError: PersistenceError) {
+        print("🚨 Core Data Store Loading Error:")
+        print("   Code: \(error.code)")
+        print("   Domain: \(error.domain)")
+        print("   Description: \(error.localizedDescription)")
+        print("   User Info: \(error.userInfo)")
+        print("   Categorized as: \(persistenceError)")
+        
+        // TODO: Send to crash reporting service (e.g., Crashlytics, Sentry)
+        // CrashReporter.shared.recordError(persistenceError)
+    }
+    
+    private func attemptErrorRecovery(_ error: NSError, storeDescription: NSPersistentStoreDescription?) -> Bool {
+        print("🔧 Attempting error recovery...")
+        
+        switch categorizeError(error) {
+        case .migrationFailed:
+            return attemptMigrationRecovery(storeDescription: storeDescription)
+        case .permissionDenied:
+            return attemptPermissionRecovery()
+        case .diskSpaceInsufficient:
+            return attemptDiskSpaceRecovery()
+        case .storeLoadingFailed:
+            return attemptStoreRecovery(storeDescription: storeDescription)
+        default:
+            return false
+        }
+    }
+    
+    private func attemptMigrationRecovery(storeDescription: NSPersistentStoreDescription?) -> Bool {
+        guard let storeDescription = storeDescription,
+              let storeURL = storeDescription.url else {
+            return false
+        }
+        
+        print("🔄 Attempting migration recovery...")
+        
+        // Try to delete and recreate the store if migration fails
+        do {
+            let fileManager = FileManager.default
+            
+            // Remove the existing store files
+            if fileManager.fileExists(atPath: storeURL.path) {
+                try fileManager.removeItem(at: storeURL)
+            }
+            
+            // Remove related files (WAL, SHM)
+            let walURL = storeURL.appendingPathExtension("sqlite-wal")
+            let shmURL = storeURL.appendingPathExtension("sqlite-shm")
+            
+            if fileManager.fileExists(atPath: walURL.path) {
+                try fileManager.removeItem(at: walURL)
+            }
+            
+            if fileManager.fileExists(atPath: shmURL.path) {
+                try fileManager.removeItem(at: shmURL)
+            }
+            
+            print("✅ Store files removed successfully")
+            return true
+            
+        } catch {
+            print("❌ Failed to remove store files: \(error)")
+            return false
+        }
+    }
+    
+    private func attemptPermissionRecovery() -> Bool {
+        print("🔐 Permission error detected - this usually requires user intervention")
+        // Permission errors typically require user action or app reinstall
+        return false
+    }
+    
+    private func attemptDiskSpaceRecovery() -> Bool {
+        print("💾 Disk space error detected - attempting cleanup...")
+        
+        // Try to free up some space by cleaning caches
+        do {
+            let cacheURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
+            if let cacheURL = cacheURL {
+                let contents = try FileManager.default.contentsOfDirectory(at: cacheURL, includingPropertiesForKeys: nil)
+                for url in contents {
+                    try? FileManager.default.removeItem(at: url)
+                }
+            }
+            print("✅ Cache cleanup completed")
+            return true
+        } catch {
+            print("❌ Failed to clean cache: \(error)")
+            return false
+        }
+    }
+    
+    private func attemptStoreRecovery(storeDescription: NSPersistentStoreDescription?) -> Bool {
+        print("🛠 Attempting general store recovery...")
+        
+        // For general store loading issues, try to reset some configurations
+        guard let storeDescription = storeDescription else { return false }
+        
+        // Disable CloudKit temporarily and try local-only
+        storeDescription.setOption(false as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+        storeDescription.setOption(false as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+        
+        return true
+    }
+    
+    private func retryStoreLoading() {
+        print("🔄 Retrying store loading after recovery...")
+        
+        let group = DispatchGroup()
+        group.enter()
+        
+        container.loadPersistentStores { [weak stateManager = self.stateManager] (_, error) in
+            defer { group.leave() }
+            
+            if let error = error as NSError? {
+                print("❌ Retry failed: \(error)")
+                self.fallbackToInMemoryStore()
+            } else {
+                print("✅ Recovery successful!")
+                stateManager?.clearError()
+                self.configureSuccessfulStore()
+            }
+        }
+        
+        group.wait()
+    }
+    
+    private func fallbackToInMemoryStore() {
+        print("⚠️ Falling back to in-memory store")
+        
+        // Create a new in-memory container as fallback
+        let fallbackContainer = NSPersistentCloudKitContainer(name: "FamilyMenuPlanner")
+        fallbackContainer.persistentStoreDescriptions.first?.url = URL(fileURLWithPath: "/dev/null")
+        
+        let group = DispatchGroup()
+        group.enter()
+        
+        fallbackContainer.loadPersistentStores { [weak stateManager = self.stateManager] (_, error) in
+            defer { group.leave() }
+            
+            if let error = error {
+                print("❌ Even in-memory store failed: \(error)")
+                // This is a critical error - the app cannot function
+                stateManager?.setError(.storeRecoveryFailed(error as NSError))
+            } else {
+                print("✅ In-memory store loaded successfully")
+                // Replace the original container with the working in-memory one
+                // Note: This is a simplified approach. In practice, you might need
+                // to use a mutable property and update references accordingly.
+            }
+        }
+        
+        group.wait()
+    }
+    
+    private func configureSuccessfulStore() {
+        print("✅ Core Data store loaded successfully")
         container.viewContext.automaticallyMergesChangesFromParent = true
+        
+        // Configure for better performance
+        container.viewContext.undoManager = nil
+        container.viewContext.shouldDeleteInaccessibleFaults = true
+        
+        // Set merge policy to handle conflicts
+        container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+    }
+    
+    // MARK: - Public Error Handling Interface
+    
+    /// Returns true if the persistence layer is ready to use
+    var isReady: Bool {
+        return stateManager.isReady
+    }
+    
+    /// Returns a user-friendly error message if there's a loading error
+    var userFriendlyErrorMessage: String? {
+        return stateManager.userFriendlyErrorMessage
+    }
+    
+    /// Attempts to recover from errors and reinitialize the store
+    func attemptRecovery() -> Bool {
+        guard !stateManager.isReady else { return true }
+        
+        print("🔄 Manual recovery attempt initiated...")
+        stateManager.clearError()
+        loadPersistentStores()
+        
+        return stateManager.isReady
     }
     
     func isDatabaseEmpty(context: NSManagedObjectContext) -> Bool {

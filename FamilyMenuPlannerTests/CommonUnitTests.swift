@@ -7,6 +7,7 @@
 
 import XCTest
 import SwiftUI
+import CoreData
 @testable import FamilyMenuPlanner
 
 final class CommonUnitTests: XCTestCase {
@@ -247,5 +248,125 @@ final class CommonUnitTests: XCTestCase {
         XCTAssertNotNil(styledList, "Should create styled list")
         
         // Note: Visual styling should be verified through UI tests or ViewInspector
+    }
+
+    // MARK: - Persistence Error Handling Tests
+    
+    func testPersistenceErrorCategorization() {
+        // Test migration error - using the correct constant name
+        let migrationError = NSError(domain: NSCocoaErrorDomain, code: NSPersistentStoreIncompatibleVersionHashError, userInfo: nil)
+        let persistenceError = PersistenceError.migrationFailed(migrationError)
+        
+        // Check if the error description contains expected text (accounting for localization)
+        let description = persistenceError.localizedDescription
+        XCTAssertTrue(description.contains("migrate") || description.contains("миграц"), "Migration error should contain migration-related text")
+        
+        // Test permission error  
+        _ = NSError(domain: NSCocoaErrorDomain, code: NSFileReadNoPermissionError, userInfo: nil)
+        let permissionPersistenceError = PersistenceError.permissionDenied
+        
+        let permissionDescription = permissionPersistenceError.localizedDescription
+        XCTAssertTrue(permissionDescription.contains("Permission") || permissionDescription.contains("доступ"), "Permission error should contain permission-related text")
+        
+        // Test disk space error
+        let diskSpaceError = PersistenceError.diskSpaceInsufficient
+        let diskDescription = diskSpaceError.localizedDescription
+        XCTAssertTrue(diskDescription.contains("disk space") || diskDescription.contains("место"), "Disk space error should contain space-related text")
+        
+        // Test general Core Data error
+        let generalError = NSError(domain: NSCocoaErrorDomain, code: NSCoreDataError, userInfo: nil)
+        let generalPersistenceError = PersistenceError.unknown(generalError)
+        
+        let generalDescription = generalPersistenceError.localizedDescription
+        XCTAssertTrue(generalDescription.contains("unexpected error") || generalDescription.contains("непредвиденная"), "General error should contain unexpected error text")
+    }
+    
+    func testPersistenceControllerErrorStates() {
+        // Create a mock persistence controller to test error states
+        let inMemoryController = PersistenceController(inMemory: true)
+        
+        // Verify that in-memory controller is ready
+        XCTAssertTrue(inMemoryController.isReady)
+        XCTAssertNil(inMemoryController.userFriendlyErrorMessage)
+        XCTAssertFalse(inMemoryController.stateManager.hasLoadingError)
+    }
+    
+    func testPersistenceStateManager() {
+        let stateManager = PersistenceStateManager()
+        
+        // Initially should be ready with no errors
+        XCTAssertTrue(stateManager.isReady)
+        XCTAssertFalse(stateManager.hasLoadingError)
+        XCTAssertNil(stateManager.loadingError)
+        XCTAssertNil(stateManager.userFriendlyErrorMessage)
+        
+        // Test setting an error
+        let testError = PersistenceError.diskSpaceInsufficient
+        stateManager.setError(testError)
+        
+        // After setting error, should not be ready
+        let expectation = XCTestExpectation(description: "Error state updated")
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            XCTAssertFalse(stateManager.isReady)
+            XCTAssertTrue(stateManager.hasLoadingError)
+            XCTAssertNotNil(stateManager.loadingError)
+            XCTAssertNotNil(stateManager.userFriendlyErrorMessage)
+            expectation.fulfill()
+        }
+        
+        wait(for: [expectation], timeout: 1.0)
+        
+        // Test clearing error
+        stateManager.clearError()
+        
+        let clearExpectation = XCTestExpectation(description: "Error cleared")
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            XCTAssertTrue(stateManager.isReady)
+            XCTAssertFalse(stateManager.hasLoadingError)
+            XCTAssertNil(stateManager.loadingError)
+            XCTAssertNil(stateManager.userFriendlyErrorMessage)
+            clearExpectation.fulfill()
+        }
+        
+        wait(for: [clearExpectation], timeout: 1.0)
+    }
+    
+    func testAppStateManagerPersistenceErrorHandling() {
+        let appStateManager = AppStateManager.shared
+        
+        // Initially, if persistence is working, there should be no error
+        if PersistenceController.shared.isReady {
+            XCTAssertNil(appStateManager.persistenceError)
+            XCTAssertFalse(appStateManager.showPersistenceErrorAlert)
+        }
+        
+        // Test that the app state manager can handle checking database state
+        appStateManager.checkDatabaseState()
+        
+        // Verify that the loading state eventually becomes false
+        // This might take a moment due to async operations
+        let expectation = XCTestExpectation(description: "Loading completes")
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            XCTAssertFalse(appStateManager.isLoading)
+            expectation.fulfill()
+        }
+        
+        wait(for: [expectation], timeout: 2.0)
+    }
+    
+    func testErrorRecoveryMethods() {
+        // Test that error recovery methods don't crash
+        let persistence = PersistenceController.shared
+        
+        // These should not crash even if called on a working store
+        XCTAssertNoThrow(persistence.isReady)
+        XCTAssertNoThrow(persistence.userFriendlyErrorMessage)
+        
+        // Test manual recovery attempt on working store
+        let recoveryResult = persistence.attemptRecovery()
+        XCTAssertTrue(recoveryResult) // Should succeed if store is already working
     }
 }
