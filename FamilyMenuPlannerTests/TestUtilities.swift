@@ -14,10 +14,21 @@ class TestCoreDataStack {
             fatalError("Failed to load Core Data model")
         }
         
+        // Always use NSPersistentContainer (not CloudKit version) for tests
         let container = NSPersistentContainer(name: modelName, managedObjectModel: model)
         let description = NSPersistentStoreDescription()
         description.type = NSInMemoryStoreType
         description.shouldAddStoreAsynchronously = false
+        
+        // Ensure CloudKit is completely disabled for tests
+        description.cloudKitContainerOptions = nil
+        
+        // Configure for test environment
+        description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+        description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+        description.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)
+        description.setOption(true as NSNumber, forKey: NSInferMappingModelAutomaticallyOption)
+        
         container.persistentStoreDescriptions = [description]
         
         container.loadPersistentStores { _, error in
@@ -26,11 +37,53 @@ class TestCoreDataStack {
             }
         }
         
+        // Configure view context for tests
+        container.viewContext.automaticallyMergesChangesFromParent = true
+        container.viewContext.undoManager = nil
+        container.viewContext.shouldDeleteInaccessibleFaults = true
+        container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        
         return container
     }()
     
     var viewContext: NSManagedObjectContext {
         return persistentContainer.viewContext
+    }
+    
+    /// Creates a new background context for concurrent testing
+    func newBackgroundContext() -> NSManagedObjectContext {
+        let context = persistentContainer.newBackgroundContext()
+        context.automaticallyMergesChangesFromParent = true
+        context.undoManager = nil
+        context.shouldDeleteInaccessibleFaults = true
+        context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        return context
+    }
+    
+    /// Clears all data from the test database
+    func clearDatabase() {
+        let context = viewContext
+        
+        let entities = persistentContainer.managedObjectModel.entities
+        
+        for entity in entities {
+            guard let entityName = entity.name else { continue }
+            
+            let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
+            let batchDeleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
+            
+            do {
+                try context.execute(batchDeleteRequest)
+            } catch {
+                print("Failed to clear \(entityName): \(error)")
+            }
+        }
+        
+        do {
+            try context.save()
+        } catch {
+            print("Failed to save after clearing database: \(error)")
+        }
     }
 }
 

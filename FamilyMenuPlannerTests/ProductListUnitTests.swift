@@ -15,6 +15,8 @@ class MockProductListService: ProductListServiceProtocol {
     var error: Error?
     var deleteProductsCalled = false
     var addProductCalled = false
+    var lastAddedProductName: String?
+    var lastAddedUnitName: String?
     
     func fetchAllProducts() -> [Product] {
         if let error = error {
@@ -46,6 +48,18 @@ class MockProductListService: ProductListServiceProtocol {
             throw error
         }
         addProductCalled = true
+        lastAddedProductName = name
+        lastAddedUnitName = unit.name
+    }
+    
+    // Additional method for unit testing that doesn't require Core Data entities
+    func addProductWithMockData(name: String, unitName: String) throws {
+        if let error = error {
+            throw error
+        }
+        addProductCalled = true
+        lastAddedProductName = name
+        lastAddedUnitName = unitName
     }
 }
 
@@ -86,7 +100,13 @@ class MockProductListViewModel {
     
     func addProduct() throws {
         guard validateNewProduct() else { return }
-        try productListService.addProduct(name: newProductName, unit: Unit())
+        
+        // Create a mock unit for testing instead of a real Core Data entity
+        let mockUnit = MockUnit(name: selectedUnit?.name ?? "", sortOrder: selectedUnit?.sortOrder ?? 0)
+        
+        // For unit testing, we need to simulate the service call without creating real entities
+        // The service expects a Unit entity, so we'll modify the service to accept mock data
+        try productListService.addProductWithMockData(name: newProductName, unitName: mockUnit.name)
     }
     
     func validateNewProduct() -> Bool {

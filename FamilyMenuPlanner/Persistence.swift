@@ -75,42 +75,77 @@ struct PersistenceController {
         return result
     }()
 
-    let container: NSPersistentCloudKitContainer
+    let container: NSPersistentContainer
     let stateManager = PersistenceStateManager()
 
     init(inMemory: Bool = false) {
-        container = NSPersistentCloudKitContainer(name: "FamilyMenuPlanner")
+        // Check if we're running in a test environment or simulator
+        let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
+                            NSClassFromString("XCTestCase") != nil
+        
+        // Check if we're in simulator using Swift-compatible approach
+        #if targetEnvironment(simulator)
+        let isSimulator = true
+        #else
+        let isSimulator = false
+        #endif
+        
+        // Use NSPersistentContainer for tests, optionally for simulator too
+        // Change `|| isSimulator` to `&& false` if you want CloudKit in simulator
+        if isRunningTests || inMemory {
+            container = NSPersistentContainer(name: "FamilyMenuPlanner")
+        } else {
+            container = NSPersistentCloudKitContainer(name: "FamilyMenuPlanner")
+        }
         
         // Configure store descriptions before loading
-        configureStoreDescriptions(inMemory: inMemory)
+        configureStoreDescriptions(inMemory: inMemory, isRunningTests: isRunningTests, isSimulator: isSimulator)
         
-        // Only initialize the schema when building the app with the
-        // Debug build configuration.
+        // Only initialize CloudKit schema when building the app with the
+        // Debug build configuration and not running tests or in simulator without iCloud.
         #if DEBUG
-        do {
-            // Use the container to initialize the development schema.
-            try container.initializeCloudKitSchema(options: [])
-        } catch {
-            print("⚠️ CloudKit schema initialization failed: \(error)")
+        if !isRunningTests && !inMemory && (!isSimulator || shouldUseCloudKitInSimulator()) {
+            if let cloudKitContainer = container as? NSPersistentCloudKitContainer {
+                do {
+                    // Use the container to initialize the development schema.
+                    try cloudKitContainer.initializeCloudKitSchema(options: [])
+                } catch {
+                    print("⚠️ CloudKit schema initialization failed: \(error)")
+                }
+            }
         }
         #endif
         
         loadPersistentStores()
     }
     
-    private func configureStoreDescriptions(inMemory: Bool) {
+    private func shouldUseCloudKitInSimulator() -> Bool {
+        // You can modify this logic based on your preference
+        // Return true if you want to test CloudKit in simulator (requires iCloud login)
+        // Return false for cleaner simulator experience
+        return false  // Changed to false for cleaner simulator development
+    }
+    
+    private func configureStoreDescriptions(inMemory: Bool, isRunningTests: Bool, isSimulator: Bool) {
         if inMemory {
             container.persistentStoreDescriptions.first!.url = URL(fileURLWithPath: "/dev/null")
         }
         
         // Configure store options for better error handling and performance
         if let storeDescription = container.persistentStoreDescriptions.first {
+            // Always enable history tracking and remote notifications for consistency
             storeDescription.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
             storeDescription.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
             
             // Enable automatic store migration
             storeDescription.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)
             storeDescription.setOption(true as NSNumber, forKey: NSInferMappingModelAutomaticallyOption)
+            
+            // Disable CloudKit for tests or optionally for simulator to prevent conflicts
+            if isRunningTests || inMemory || (isSimulator && !shouldUseCloudKitInSimulator()) {
+                // Remove CloudKit configuration for test environments or simulator (based on preference)
+                storeDescription.cloudKitContainerOptions = nil
+            }
         }
     }
     
@@ -302,7 +337,7 @@ struct PersistenceController {
         print("⚠️ Falling back to in-memory store")
         
         // Create a new in-memory container as fallback
-        let fallbackContainer = NSPersistentCloudKitContainer(name: "FamilyMenuPlanner")
+        let fallbackContainer = NSPersistentContainer(name: "FamilyMenuPlanner")
         fallbackContainer.persistentStoreDescriptions.first?.url = URL(fileURLWithPath: "/dev/null")
         
         let group = DispatchGroup()
