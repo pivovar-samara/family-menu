@@ -26,6 +26,9 @@ class ProductListService {
     func fetchAllProducts() -> [Product] {
         let fetchRequest: NSFetchRequest<Product> = Product.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Product.name, ascending: true)]
+        
+        // Configure batch fetching for better performance
+        CoreDataFetchHelper.configure(fetchRequest, batchSize: CoreDataFetchHelper.standardBatchSize)
 
         do {
             return try context.fetch(fetchRequest)
@@ -38,6 +41,9 @@ class ProductListService {
     func fetchAllUnits() -> [Unit] {
         let fetchRequest: NSFetchRequest<Unit> = Unit.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Unit.sortOrder, ascending: true)]
+        
+        // Units are typically small datasets, use smaller batch size
+        CoreDataFetchHelper.configureForSmallList(fetchRequest)
 
         do {
             return try context.fetch(fetchRequest)

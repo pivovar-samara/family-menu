@@ -34,6 +34,10 @@ class MenuService {
         do {
             let fetchRequest: NSFetchRequest<Menu> = Menu.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "calendarWeek == %d", encodedWeek)
+            
+            // Configure batch fetching for menu entries
+            CoreDataFetchHelper.configureForSmallList(fetchRequest)
+            
             let menuEntries = try context.fetch(fetchRequest)
 
             var initializedMenu: [DailyMenu] = []
@@ -41,6 +45,10 @@ class MenuService {
             
             let mealTypeFetchRequest = MealType.fetchRequest()
             mealTypeFetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \MealType.sortOrder, ascending: true)]
+            
+            // Meal types are typically small datasets, use smaller batch size
+            CoreDataFetchHelper.configureForSmallList(mealTypeFetchRequest)
+            
             let mealTypes = try context.fetch(mealTypeFetchRequest)
 
             for day in weekdays {
@@ -63,8 +71,13 @@ class MenuService {
 
     func generateMenu(for weekDate: Date) {
         do {
-            guard let dishes = try context.fetch(Dish.fetchRequest()) as? [Dish],
-                  !dishes.isEmpty else {
+            let dishFetchRequest = Dish.fetchRequest()
+            
+            // Configure batch fetching for dishes
+            CoreDataFetchHelper.configure(dishFetchRequest, batchSize: CoreDataFetchHelper.standardBatchSize)
+            
+            let dishes = try context.fetch(dishFetchRequest)
+            guard !dishes.isEmpty else {
                 print("No dishes available to generate a menu.")
                 return
             }
@@ -73,6 +86,10 @@ class MenuService {
             
             let mealTypesFetchRequest = MealType.fetchRequest()
             mealTypesFetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \MealType.sortOrder, ascending: true)]
+            
+            // Meal types are typically small datasets, use smaller batch size
+            CoreDataFetchHelper.configureForSmallList(mealTypesFetchRequest)
+            
             let mealTypes = try context.fetch(mealTypesFetchRequest)
             
             let weekComponents = Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: weekDate)
@@ -80,6 +97,9 @@ class MenuService {
 
             let fetchRequest: NSFetchRequest<Menu> = Menu.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "calendarWeek == %d", encodedWeek)
+            
+            // Configure batch fetching for existing menu entries
+            CoreDataFetchHelper.configureForSmallList(fetchRequest)
 
             let existingEntries = try context.fetch(fetchRequest)
             for entry in existingEntries {
@@ -119,6 +139,10 @@ class MenuService {
     func removeOldWeeks() {
         let currentWeek = Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date())
         let fetchRequest: NSFetchRequest<Menu> = Menu.fetchRequest()
+        
+        // Configure batch fetching for bulk operations
+        CoreDataFetchHelper.configureForLargeDataset(fetchRequest)
+        
         do {
             let allMenuEntries = try context.fetch(fetchRequest)
             for menu in allMenuEntries {
@@ -138,6 +162,9 @@ class MenuService {
         
         let fetchRequest: NSFetchRequest<Menu> = Menu.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "day == %@ AND mealType == %@ AND calendarWeek == %d", day, mealType, encodedWeek)
+        
+        // Small specific query, use smaller batch size
+        CoreDataFetchHelper.configureForSmallList(fetchRequest)
         
         let results = try context.fetch(fetchRequest)
         if let menuEntry = results.first {
@@ -163,6 +190,9 @@ class MenuService {
         } else {
             fetchRequest.predicate = NSPredicate(format: "day == %@ AND calendarWeek == %d", day, encodedWeek)
         }
+        
+        // Small specific query, use smaller batch size
+        CoreDataFetchHelper.configureForSmallList(fetchRequest)
         
         let results = try context.fetch(fetchRequest)
         results.forEach { menuEntry in

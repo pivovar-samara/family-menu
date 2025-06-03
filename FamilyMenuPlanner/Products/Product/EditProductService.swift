@@ -25,6 +25,9 @@ class EditProductService {
     func fetchAllUnits() -> [Unit] {
         let fetchRequest: NSFetchRequest<Unit> = Unit.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Unit.sortOrder, ascending: true)]
+        
+        // Units are typically small datasets, use smaller batch size
+        CoreDataFetchHelper.configureForSmallList(fetchRequest)
 
         do {
             return try context.fetch(fetchRequest)

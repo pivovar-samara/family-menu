@@ -28,6 +28,10 @@ class DishSelectionService {
     
     func fetchAllDishes() -> [Dish] {
         let fetchRequest: NSFetchRequest<Dish> = Dish.fetchRequest()
+        fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Dish.name, ascending: true)]
+        
+        // Configure batch fetching for better performance
+        CoreDataFetchHelper.configure(fetchRequest, batchSize: CoreDataFetchHelper.standardBatchSize)
 
         do {
             return try context.fetch(fetchRequest)

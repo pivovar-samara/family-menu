@@ -51,7 +51,7 @@ class PersistencePerformanceTests: BaseIntegrationTest {
     func testServiceOperationsWithoutExplicitQueryGeneration() {
         // Create test data using helper methods in the BaseIntegrationTest context
         let unit = createUnit(name: "pcs", sortOrder: 1)
-        let product = createProduct(name: "Test Product", unit: unit)
+        _ = createProduct(name: "Test Product", unit: unit)
         
         // Test that services work without explicit setQueryGenerationFrom calls
         let productListService = ProductListService(context: context)
@@ -63,7 +63,7 @@ class PersistencePerformanceTests: BaseIntegrationTest {
     
     func testDishServiceOperations() {
         // Create test data using helper methods
-        let dish = createDish(name: "Test Dish", details: "Test details")
+        _ = createDish(name: "Test Dish", details: "Test details")
         
         // Test that dish services work correctly
         let dishSelectionService = DishSelectionService(context: context)
@@ -93,10 +93,10 @@ class PersistencePerformanceTests: BaseIntegrationTest {
     func testMultipleServiceOperationsWork() {
         // Create comprehensive test data
         let unit = createUnit(name: "kg")
-        let product = createProduct(name: "Flour", unit: unit)
+        _ = createProduct(name: "Flour", unit: unit)
         let mealType = createMealType(name: "Breakfast")
         let category = createDishCategory(name: "Main Course")
-        let dish = createDish(name: "Pancakes", details: "Delicious pancakes", mealTypes: [mealType], category: category)
+        _ = createDish(name: "Pancakes", details: "Delicious pancakes", mealTypes: [mealType], category: category)
         
         // Test various services
         let productListService = ProductListService(context: context)

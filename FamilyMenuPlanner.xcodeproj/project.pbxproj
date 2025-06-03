@@ -26,6 +26,10 @@
 		48355B2B2DE77C5F00209255 /* TestUtilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48355B2A2DE77C5F00209255 /* TestUtilities.swift */; };
 		483986262DE9D79C00B15F16 /* DishCategoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 483986252DE9D79C00B15F16 /* DishCategoryTests.swift */; };
 		4891315B2DEEE31C00BFDAA6 /* PersistencePerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4891315A2DEEE31C00BFDAA6 /* PersistencePerformanceTests.swift */; };
+		4891315D2DEEE98C00BFDAA6 /* CoreDataFetchHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4891315C2DEEE98C00BFDAA6 /* CoreDataFetchHelper.swift */; };
+		4891315E2DEEE98C00BFDAA6 /* CoreDataFetchHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4891315C2DEEE98C00BFDAA6 /* CoreDataFetchHelper.swift */; };
+		4891315F2DEEE98C00BFDAA6 /* CoreDataFetchHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4891315C2DEEE98C00BFDAA6 /* CoreDataFetchHelper.swift */; };
+		489131612DEEE99500BFDAA6 /* CoreDataFetchHelperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 489131602DEEE99500BFDAA6 /* CoreDataFetchHelperTests.swift */; };
 		A004ED792D11DC000081DDC0 /* FamilyMenuPlannerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A004ED782D11DC000081DDC0 /* FamilyMenuPlannerApp.swift */; };
 		A004ED7B2D11DC000081DDC0 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A004ED7A2D11DC000081DDC0 /* ContentView.swift */; };
 		A004ED7D2D11DC020081DDC0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A004ED7C2D11DC020081DDC0 /* Assets.xcassets */; };
@@ -175,6 +179,8 @@
 		48355B2A2DE77C5F00209255 /* TestUtilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestUtilities.swift; sourceTree = "<group>"; };
 		483986252DE9D79C00B15F16 /* DishCategoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DishCategoryTests.swift; sourceTree = "<group>"; };
 		4891315A2DEEE31C00BFDAA6 /* PersistencePerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistencePerformanceTests.swift; sourceTree = "<group>"; };
+		4891315C2DEEE98C00BFDAA6 /* CoreDataFetchHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataFetchHelper.swift; sourceTree = "<group>"; };
+		489131602DEEE99500BFDAA6 /* CoreDataFetchHelperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataFetchHelperTests.swift; sourceTree = "<group>"; };
 		A004ED752D11DC000081DDC0 /* FamilyMenuPlanner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FamilyMenuPlanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A004ED782D11DC000081DDC0 /* FamilyMenuPlannerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyMenuPlannerApp.swift; sourceTree = "<group>"; };
 		A004ED7A2D11DC000081DDC0 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -297,6 +303,7 @@
 		A004ED8E2D11DC030081DDC0 /* FamilyMenuPlannerTests */ = {
 			isa = PBXGroup;
 			children = (
+				489131602DEEE99500BFDAA6 /* CoreDataFetchHelperTests.swift */,
 				48355B2A2DE77C5F00209255 /* TestUtilities.swift */,
 				A07E938A2D47F29C003940AE /* CommonUnitTests.swift */,
 				483986252DE9D79C00B15F16 /* DishCategoryTests.swift */,
@@ -461,6 +468,7 @@
 				A0D21EC32D1575240014AD78 /* ViewHelper.swift */,
 				A0D21EBF2D1574E70014AD78 /* LocalizationHelper.swift */,
 				A0D21ECD2D16B4570014AD78 /* NumbersHelper.swift */,
+				4891315C2DEEE98C00BFDAA6 /* CoreDataFetchHelper.swift */,
 				A0D21ED62D1AD3CD0014AD78 /* CalendarHelper.swift */,
 				A07F69F42D3D890200ECE326 /* AlertQueueManager.swift */,
 			);
@@ -605,6 +613,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A0A3B4BC2D3EC52F009E8AE7 /* EditProductCoordinator.swift in Sources */,
+				4891315D2DEEE98C00BFDAA6 /* CoreDataFetchHelper.swift in Sources */,
 				A0DBD5402D12AF8F00C83BFD /* EditProductView.swift in Sources */,
 				A07F69E92D3D061C00ECE326 /* ProductListViewModel.swift in Sources */,
 				A004ED822D11DC020081DDC0 /* Persistence.swift in Sources */,
@@ -687,10 +696,12 @@
 				4805208C2DE889D9006555CE /* ProductSelectionUnitTests.swift in Sources */,
 				480520832DE7A739006555CE /* DishListUnitTests.swift in Sources */,
 				480520842DE7A739006555CE /* DishListIntegrationTests.swift in Sources */,
+				4891315F2DEEE98C00BFDAA6 /* CoreDataFetchHelper.swift in Sources */,
 				480520872DE7AA5E006555CE /* DishDetailsUnitTests.swift in Sources */,
 				480520882DE7AA5E006555CE /* DishDetailsIntegrationTests.swift in Sources */,
 				A07E938B2D47F29C003940AE /* CommonUnitTests.swift in Sources */,
 				A057064A2D36779800D4496C /* MenuViewModel.swift in Sources */,
+				489131612DEEE99500BFDAA6 /* CoreDataFetchHelperTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -735,6 +746,7 @@
 				A07F69F32D3D065500ECE326 /* ProductListCoordinator.swift in Sources */,
 				A07E938F2D47F414003940AE /* Persistence.swift in Sources */,
 				A0DBD54A2D12C5C400C83BFD /* DishSelectionView.swift in Sources */,
+				4891315E2DEEE98C00BFDAA6 /* CoreDataFetchHelper.swift in Sources */,
 				A0A3B4DD2D43CEF7009E8AE7 /* DishDetailsService.swift in Sources */,
 				A0A3B4BA2D3EC51C009E8AE7 /* EditProductService.swift in Sources */,
 				A0A3B4D12D43CB73009E8AE7 /* DishListCoordinator.swift in Sources */,

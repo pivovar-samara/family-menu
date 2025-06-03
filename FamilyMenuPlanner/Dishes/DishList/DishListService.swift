@@ -29,6 +29,10 @@ class DishListService: NSObject {
         self.context = context
         let fetchRequest: NSFetchRequest<Dish> = Dish.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Dish.name, ascending: true)]
+        
+        // Configure batch fetching for better performance
+        CoreDataFetchHelper.configure(fetchRequest, batchSize: CoreDataFetchHelper.standardBatchSize)
+        
         self.fetchedResultsController = NSFetchedResultsController(
             fetchRequest: fetchRequest,
             managedObjectContext: context,
