@@ -27,7 +27,6 @@ class EditProductService {
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Unit.sortOrder, ascending: true)]
 
         do {
-            try context.setQueryGenerationFrom(.current)
             return try context.fetch(fetchRequest)
         } catch {
             print("Error loading units: \(error)")
@@ -36,7 +35,6 @@ class EditProductService {
     }
     
     func saveChanges() throws {
-        try context.setQueryGenerationFrom(.current)
         try context.save()
     }
     

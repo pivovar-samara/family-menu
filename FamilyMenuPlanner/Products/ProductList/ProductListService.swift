@@ -28,7 +28,6 @@ class ProductListService {
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Product.name, ascending: true)]
 
         do {
-            try context.setQueryGenerationFrom(.current)
             return try context.fetch(fetchRequest)
         } catch {
             print("Error loading products: \(error)")
@@ -41,7 +40,6 @@ class ProductListService {
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Unit.sortOrder, ascending: true)]
 
         do {
-            try context.setQueryGenerationFrom(.current)
             return try context.fetch(fetchRequest)
         } catch {
             print("Error loading units: \(error)")
@@ -51,7 +49,6 @@ class ProductListService {
     
     // Delete products from Core Data
     func deleteProducts(products: [Product]) throws {
-        try context.setQueryGenerationFrom(.current)
         for product in products {
             context.delete(product)
         }
@@ -59,8 +56,6 @@ class ProductListService {
     }
     
     func addProduct(name: String, unit: Unit) throws {
-        try context.setQueryGenerationFrom(.current)
-        
         let newProduct = Product(context: context)
         newProduct.name = name
         newProduct.unit = unit

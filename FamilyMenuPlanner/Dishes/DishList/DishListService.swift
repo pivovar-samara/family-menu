@@ -43,7 +43,6 @@ class DishListService: NSObject {
     
     func fetchAllDishes() {
         do {
-            try context.setQueryGenerationFrom(.current)
             try fetchedResultsController.performFetch()
             self.delegate?.serviceDidChangeContent(fetchedResultsController.fetchedObjects ?? [])
         } catch {
@@ -53,7 +52,6 @@ class DishListService: NSObject {
     }
     
     func deleteDishes(dishes: [Dish]) throws {
-        try context.setQueryGenerationFrom(.current)
         for dish in dishes {
             context.delete(dish)
         }

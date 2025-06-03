@@ -25,7 +25,6 @@ class ProductSelectionService {
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Product.name, ascending: true)]
 
         do {
-            try context.setQueryGenerationFrom(.current)
             return try context.fetch(fetchRequest)
         } catch {
             print("Error loading products: \(error)")

@@ -371,6 +371,9 @@ struct PersistenceController {
         
         // Set merge policy to handle conflicts
         container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        
+        // Set query generation only if supported (not for in-memory stores)
+        setQueryGenerationIfSupported(for: container.viewContext)
     }
     
     // MARK: - Public Error Handling Interface
@@ -518,6 +521,48 @@ struct PersistenceController {
             print("✅ All data deleted successfully.")
         } catch {
             print("❌ Error saving context after deletion: \(error)")
+        }
+    }
+    
+    // MARK: - Context Management
+    
+    /// Creates a properly configured background context
+    func newBackgroundContext() -> NSManagedObjectContext {
+        let context = container.newBackgroundContext()
+        context.automaticallyMergesChangesFromParent = true
+        context.undoManager = nil
+        context.shouldDeleteInaccessibleFaults = true
+        context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        
+        // Set query generation only if supported
+        setQueryGenerationIfSupported(for: context)
+        
+        return context
+    }
+    
+    /// Sets query generation for a context if supported by the store configuration
+    private func setQueryGenerationIfSupported(for context: NSManagedObjectContext) {
+        // Check if this is an in-memory store or other configuration that doesn't support query generation
+        guard let storeDescription = container.persistentStoreDescriptions.first,
+              let storeURL = storeDescription.url else {
+            return
+        }
+        
+        // Skip query generation for in-memory stores (used in tests)
+        let isInMemoryStore = storeURL.path == "/dev/null" || storeDescription.type == NSInMemoryStoreType
+        
+        guard !isInMemoryStore else {
+            print("🔄 Skipping query generation for in-memory store")
+            return
+        }
+        
+        // Set query generation for supported stores
+        do {
+            try context.setQueryGenerationFrom(.current)
+            print("✅ Query generation configured for context")
+        } catch {
+            print("⚠️ Failed to set query generation: \(error)")
+            // This is not a fatal error - the app can continue without query generation
         }
     }
 }

@@ -32,8 +32,6 @@ class MenuService {
         let encodedWeek = encodeWeek(selectedWeekComponents)
 
         do {
-            try context.setQueryGenerationFrom(.current)
-            
             let fetchRequest: NSFetchRequest<Menu> = Menu.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "calendarWeek == %d", encodedWeek)
             let menuEntries = try context.fetch(fetchRequest)
@@ -70,8 +68,6 @@ class MenuService {
                 print("No dishes available to generate a menu.")
                 return
             }
-            
-            try context.setQueryGenerationFrom(.current)
             
             let weekdays = localizedWeekdayNamesStartingFromMonday()
             
@@ -124,7 +120,6 @@ class MenuService {
         let currentWeek = Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date())
         let fetchRequest: NSFetchRequest<Menu> = Menu.fetchRequest()
         do {
-            try context.setQueryGenerationFrom(.current)
             let allMenuEntries = try context.fetch(fetchRequest)
             for menu in allMenuEntries {
                 if menu.calendarWeek < Int32(encodeWeek(currentWeek)) {
@@ -144,7 +139,6 @@ class MenuService {
         let fetchRequest: NSFetchRequest<Menu> = Menu.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "day == %@ AND mealType == %@ AND calendarWeek == %d", day, mealType, encodedWeek)
         
-        try context.setQueryGenerationFrom(.current)
         let results = try context.fetch(fetchRequest)
         if let menuEntry = results.first {
             menuEntry.removeFromDishes(menuEntry.dishes ?? NSSet())
@@ -170,7 +164,6 @@ class MenuService {
             fetchRequest.predicate = NSPredicate(format: "day == %@ AND calendarWeek == %d", day, encodedWeek)
         }
         
-        try context.setQueryGenerationFrom(.current)
         let results = try context.fetch(fetchRequest)
         results.forEach { menuEntry in
             menuEntry.dishes = nil

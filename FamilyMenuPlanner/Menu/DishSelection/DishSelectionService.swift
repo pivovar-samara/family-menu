@@ -30,7 +30,6 @@ class DishSelectionService {
         let fetchRequest: NSFetchRequest<Dish> = Dish.fetchRequest()
 
         do {
-            try context.setQueryGenerationFrom(.current)
             return try context.fetch(fetchRequest)
         } catch {
             print("Error loading dishes: \(error)")

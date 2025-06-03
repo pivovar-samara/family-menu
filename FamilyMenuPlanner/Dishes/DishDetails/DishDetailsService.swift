@@ -32,7 +32,6 @@ class DishDetailsService {
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Unit.sortOrder, ascending: true)]
 
         do {
-            try context.setQueryGenerationFrom(.current)
             return try context.fetch(fetchRequest)
         } catch {
             print("Error loading units: \(error)")
@@ -45,7 +44,6 @@ class DishDetailsService {
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \MealType.sortOrder, ascending: true)]
 
         do {
-            try context.setQueryGenerationFrom(.current)
             return try context.fetch(fetchRequest)
         } catch {
             print("Error loading meal types: \(error)")
@@ -58,7 +56,6 @@ class DishDetailsService {
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \DishCategory.sortOrder, ascending: true)]
 
         do {
-            try context.setQueryGenerationFrom(.current)
             return try context.fetch(fetchRequest)
         } catch {
             print("Error loading dish categories: \(error)")
@@ -67,12 +64,10 @@ class DishDetailsService {
     }
     
     func createDish() throws -> Dish {
-        try context.setQueryGenerationFrom(.current)
         return Dish(context: context)
     }
     
     func createIngredient() throws -> IngredientDetail {
-        try context.setQueryGenerationFrom(.current)
         return IngredientDetail(context: context)
     }
     
@@ -81,7 +76,6 @@ class DishDetailsService {
     }
     
     func saveChanges() throws {
-        try context.setQueryGenerationFrom(.current)
         try context.save()
     }
     
