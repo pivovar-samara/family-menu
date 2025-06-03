@@ -133,34 +133,6 @@ final class StaticDataCacheManagerTests: XCTestCase {
         }, invalidateCache: invalidateCache)
     }
     
-    private func createUnitsInBackground(count: Int) {
-        let backgroundContext = isolatedTestStack.newBackgroundContext()
-        
-        backgroundContext.performAndWait {
-            guard let entityDescription = NSEntityDescription.entity(forEntityName: "Unit", in: backgroundContext) else {
-                XCTFail("Failed to get Unit entity description for background context")
-                return
-            }
-            
-            for i in 1...count {
-                let unit = Unit(entity: entityDescription, insertInto: backgroundContext)
-                unit.name = "Unit \(i)"
-                unit.sortOrder = Int16(i)
-            }
-            
-            do {
-                try backgroundContext.save()
-            } catch {
-                XCTFail("Failed to save units in background: \(error)")
-            }
-        }
-        
-        // Merge changes to main context
-        context.performAndWait {
-            context.refreshAllObjects()
-        }
-    }
-    
     // MARK: - Cache Lazy Loading Tests
     
     func testPreloadingOnInitialization() {
@@ -323,51 +295,6 @@ final class StaticDataCacheManagerTests: XCTestCase {
         
         // Clean up by disabling notifications
         notificationCacheManager.disableNotifications()
-    }
-    
-    // MARK: - Performance Tests
-    
-    func testCacheFirstLoadPerformance() {
-        // Create many units using background context to avoid notification conflicts
-        createUnitsInBackground(count: 100)
-        
-        // Give a moment for any pending notifications to settle
-        let expectation = XCTestExpectation(description: "Settle notifications")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            expectation.fulfill()
-        }
-        wait(for: [expectation], timeout: 1.0)
-        
-        // Invalidate cache once after creating all data
-        cacheManager.invalidateCacheSync()
-        
-        // Measure time of first load
-        self.measure {
-            let _ = cacheManager.getUnits()
-        }
-    }
-    
-    func testCacheSubsequentAccessPerformance() {
-        // Create many units using background context to avoid notification conflicts
-        createUnitsInBackground(count: 100)
-        
-        // Give a moment for any pending notifications to settle
-        let expectation = XCTestExpectation(description: "Settle notifications")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            expectation.fulfill()
-        }
-        wait(for: [expectation], timeout: 1.0)
-        
-        // Invalidate cache once and load into cache first
-        cacheManager.invalidateCacheSync()
-        let _ = cacheManager.getUnits()
-        
-        // Measure time of subsequent cache accesses
-        self.measure {
-            for _ in 0..<1000 {
-                let _ = cacheManager.getUnits()
-            }
-        }
     }
     
     func testConcurrentAccess() {

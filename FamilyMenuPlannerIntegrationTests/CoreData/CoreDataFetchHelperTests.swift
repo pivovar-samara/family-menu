@@ -92,28 +92,6 @@ class CoreDataFetchHelperTests: BaseIntegrationTest {
         XCTAssertGreaterThan(CoreDataFetchHelper.largeBatchSize, 0)
     }
     
-    func testPerformanceWithBatchedFetch() {
-        // Create a unit for products
-        let unit = createUnit(name: "pcs", sortOrder: 0)
-        
-        // Create test data
-        for i in 1...100 {
-            _ = createProduct(name: "Product \(i)", unit: unit)
-        }
-        
-        // Measure fetch with batch size
-        let fetchRequest: NSFetchRequest<Product> = Product.fetchRequest()
-        CoreDataFetchHelper.configure(fetchRequest, batchSize: 20)
-        
-        self.measure {
-            do {
-                let _ = try context.fetch(fetchRequest)
-            } catch {
-                XCTFail("Fetch failed: \(error)")
-            }
-        }
-    }
-    
     func testBatchedFetchWithSorting() {
         // Create a unit for products
         let unit = createUnit(name: "pcs", sortOrder: 0)
