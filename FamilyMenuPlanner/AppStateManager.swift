@@ -64,6 +64,23 @@ final class AppStateManager: ObservableObject {
     }
 
     private func checkICloudAccountStatus() {
+        // Enhanced test environment detection - same as in PersistenceController
+        let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
+                            NSClassFromString("XCTestCase") != nil ||
+                            ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] != nil ||
+                            ProcessInfo.processInfo.environment["CI"] != nil ||
+                            ProcessInfo.processInfo.arguments.contains("test")
+        
+        // Skip CloudKit checks in test/CI environments
+        if isRunningTests {
+            print("🧪 Running in test/CI environment - skipping iCloud account status check")
+            DispatchQueue.main.async {
+                self.isICloudAvailable = false
+            }
+            return
+        }
+        
+        // Only check CloudKit status in production environment
         CKContainer.default().accountStatus { [weak self] status, error in
             DispatchQueue.main.async {
                 self?.isICloudAvailable = (status == .available)

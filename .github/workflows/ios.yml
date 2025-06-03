@@ -32,6 +32,10 @@ jobs:
           echo "Using default scheme: $default"
           
       - name: Build for Testing
+        env:
+          # Set CI environment variables to prevent CloudKit initialization
+          CI: "true"
+          GITHUB_ACTIONS: "true"
         run: |
           scheme=$(cat default)
           
@@ -47,14 +51,18 @@ jobs:
           echo "Building scheme: $scheme"
           echo "Using $filetype_parameter: $file_to_build"
           
-          # Build for testing first
+          # Build for testing using generic iOS Simulator
           xcodebuild build-for-testing \
             -scheme "$scheme" \
             -"$filetype_parameter" "$file_to_build" \
-            -destination "platform=iOS Simulator,name=iPhone 16 Pro,OS=18.4" \
+            -destination "generic/platform=iOS Simulator" \
             CODE_SIGNING_ALLOWED=NO
           
       - name: Run Tests with Verbose Output
+        env:
+          # Set CI environment variables to prevent CloudKit initialization
+          CI: "true"
+          GITHUB_ACTIONS: "true"
         run: |
           scheme=$(cat default)
           
@@ -67,10 +75,10 @@ jobs:
             file_to_build="`ls -A | grep -i \\.xcodeproj\$`"
           fi
           
-          # Run tests with verbose output to see crash details
+          # Run tests using generic iOS Simulator
           xcodebuild test-without-building \
             -scheme "$scheme" \
             -"$filetype_parameter" "$file_to_build" \
-            -destination "platform=iOS Simulator,name=iPhone 16 Pro,OS=18.4" \
+            -destination "generic/platform=iOS Simulator" \
             CODE_SIGNING_ALLOWED=NO \
-            -verbose
+            -quiet
