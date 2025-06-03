@@ -257,12 +257,138 @@ class DishSelectionIntegrationTests: BaseIntegrationTest {
             dishSelectionService: dishSelectionService
         ) { _ in }
         
-        // Test search
+        // Test search with reactive binding and debouncing
+        let expectation = XCTestExpectation(description: "Search filtering with optimization")
         viewModel.searchText = "Omel"
-        let (forMeal, other) = viewModel.splitDishes()
-        XCTAssertEqual(forMeal.count, 1)
-        XCTAssertTrue(forMeal.contains(breakfast1))
-        XCTAssertEqual(other.count, 0)
+        
+        // Wait for debounce period
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            let (forMeal, other) = self.viewModel.splitDishes()
+            XCTAssertEqual(forMeal.count, 1)
+            XCTAssertTrue(forMeal.contains(breakfast1))
+            XCTAssertEqual(other.count, 0)
+            expectation.fulfill()
+        }
+        
+        wait(for: [expectation], timeout: 1.0)
+    }
+    
+    func testOptimizedSearchPerformance() {
+        // Create multiple dishes for search testing
+        _ = createDishWithMealTypes(name: "Apple Pancakes", mealTypeNames: ["Breakfast"])
+        _ = createDishWithMealTypes(name: "Blueberry Pancakes", mealTypeNames: ["Breakfast"])
+        _ = createDishWithMealTypes(name: "Chocolate Pancakes", mealTypeNames: ["Breakfast"])
+        _ = createDishWithMealTypes(name: "Apple Pie", mealTypeNames: ["Dessert"])
+        _ = createDishWithMealTypes(name: "Chicken Soup", mealTypeNames: ["Lunch"])
+        
+        viewModel = DishSelectionViewModel(
+            selectedDishes: [],
+            mealType: "Breakfast",
+            dishSelectionService: dishSelectionService
+        ) { _ in }
+        
+        let expectation = XCTestExpectation(description: "Optimized search performance")
+        
+        // Test search for "Apple" - should find Apple Pancakes in breakfast section, Apple Pie in other section
+        viewModel.searchText = "Apple"
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            let (forMeal, other) = self.viewModel.splitDishes()
+            XCTAssertEqual(forMeal.count, 1) // Apple Pancakes for breakfast
+            XCTAssertEqual(other.count, 1) // Apple Pie for dessert
+            
+            // Test search refinement
+            self.viewModel.searchText = "Apple Pancakes"
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                let (forMealRefined, otherRefined) = self.viewModel.splitDishes()
+                XCTAssertEqual(forMealRefined.count, 1) // Only Apple Pancakes
+                XCTAssertEqual(otherRefined.count, 0) // Apple Pie filtered out
+                
+                // Test clearing search
+                self.viewModel.searchText = ""
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    let (allForMeal, allOther) = self.viewModel.splitDishes()
+                    XCTAssertEqual(allForMeal.count, 3) // All 3 breakfast items
+                    XCTAssertEqual(allOther.count, 2) // Dessert and lunch items
+                    expectation.fulfill()
+                }
+            }
+        }
+        
+        wait(for: [expectation], timeout: 2.0)
+    }
+    
+    func testSearchCaseInsensitivityAndSpecialCharacters() {
+        // Create dishes with various names
+        _ = createDishWithMealTypes(name: "Café Latte", mealTypeNames: ["Breakfast"])
+        _ = createDishWithMealTypes(name: "UPPERCASE DISH", mealTypeNames: ["Breakfast"])
+        _ = createDishWithMealTypes(name: "Mixed-Case Dish", mealTypeNames: ["Lunch"])
+        
+        viewModel = DishSelectionViewModel(
+            selectedDishes: [],
+            mealType: "Breakfast",
+            dishSelectionService: dishSelectionService
+        ) { _ in }
+        
+        let expectation = XCTestExpectation(description: "Case insensitive search")
+        
+        // Test case insensitive search
+        viewModel.searchText = "café"
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            let (forMeal, _) = self.viewModel.splitDishes()
+            XCTAssertEqual(forMeal.count, 1)
+            XCTAssertEqual(forMeal.first?.name, "Café Latte")
+            
+            // Test uppercase search
+            self.viewModel.searchText = "uppercase"
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                let (forMealUpper, _) = self.viewModel.splitDishes()
+                XCTAssertEqual(forMealUpper.count, 1)
+                XCTAssertEqual(forMealUpper.first?.name, "UPPERCASE DISH")
+                
+                // Test mixed case search
+                self.viewModel.searchText = "MIXED-case"
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    let (_, otherMixed) = self.viewModel.splitDishes()
+                    XCTAssertEqual(otherMixed.count, 1)
+                    XCTAssertEqual(otherMixed.first?.name, "Mixed-Case Dish")
+                    expectation.fulfill()
+                }
+            }
+        }
+        
+        wait(for: [expectation], timeout: 2.0)
+    }
+    
+    func testSearchWithEmptyResults() {
+        // Create test dishes
+        _ = createDishWithMealTypes(name: "Omelette", mealTypeNames: ["Breakfast"])
+        _ = createDishWithMealTypes(name: "Pancakes", mealTypeNames: ["Breakfast"])
+        
+        viewModel = DishSelectionViewModel(
+            selectedDishes: [],
+            mealType: "Breakfast",
+            dishSelectionService: dishSelectionService
+        ) { _ in }
+        
+        let expectation = XCTestExpectation(description: "Empty search results")
+        
+        // Search for non-existent dish
+        viewModel.searchText = "NonExistentDish"
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            let (forMeal, other) = self.viewModel.splitDishes()
+            XCTAssertEqual(forMeal.count, 0)
+            XCTAssertEqual(other.count, 0)
+            expectation.fulfill()
+        }
+        
+        wait(for: [expectation], timeout: 1.0)
     }
     
     func testMealTypeFilteringWithRealObjects() {
@@ -276,11 +402,18 @@ class DishSelectionIntegrationTests: BaseIntegrationTest {
             dishSelectionService: dishSelectionService
         ) { _ in }
         
-        let (breakfastDishes, otherDishes) = viewModel.splitDishes()
-        XCTAssertEqual(breakfastDishes.count, 1)
-        XCTAssertTrue(breakfastDishes.contains(versatileDish))
-        XCTAssertEqual(otherDishes.count, 1)
-        XCTAssertTrue(otherDishes.contains(lunchDish))
+        // Wait for reactive bindings to complete before testing
+        let expectation = XCTestExpectation(description: "Meal type filtering with reactive bindings")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            let (breakfastDishes, otherDishes) = self.viewModel.splitDishes()
+            XCTAssertEqual(breakfastDishes.count, 1)
+            XCTAssertTrue(breakfastDishes.contains(versatileDish))
+            XCTAssertEqual(otherDishes.count, 1)
+            XCTAssertTrue(otherDishes.contains(lunchDish))
+            expectation.fulfill()
+        }
+        
+        wait(for: [expectation], timeout: 1.0)
     }
     
     func testRollbackFunctionality() {
