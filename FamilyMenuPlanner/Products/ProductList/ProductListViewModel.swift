@@ -22,7 +22,10 @@ class ProductListViewModel: ObservableObject {
     @Published var searchText: String = ""
     @Published var filteredProducts: [Product] = []
     
-    var units: [Unit]
+    // Use cached data for better performance
+    var units: [Unit] {
+        return StaticDataCacheManager.shared.getUnits()
+    }
     
     // Use SearchOptimizationHelper for better performance
     private let searchHelper: SearchOptimizationHelper<Product>
@@ -39,7 +42,6 @@ class ProductListViewModel: ObservableObject {
 
     init(productListService: ProductListServiceProtocol) {
         self.productListService = productListService
-        self.units = productListService.fetchAllUnits()
         
         // Initialize search helper with proper filter predicate
         self.searchHelper = SearchOptimizationHelper<Product> { product, searchText in

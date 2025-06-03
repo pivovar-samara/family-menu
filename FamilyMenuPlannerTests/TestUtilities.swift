@@ -25,7 +25,7 @@ class TestCoreDataStack {
         
         // Configure for test environment
         description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
-        description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+        description.setOption(false as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
         description.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)
         description.setOption(true as NSNumber, forKey: NSInferMappingModelAutomaticallyOption)
         
@@ -64,25 +64,47 @@ class TestCoreDataStack {
     func clearDatabase() {
         let context = viewContext
         
+        // Use simple reset approach to avoid memory access issues
+        context.performAndWait {
+            // Reset clears all managed objects from the context
+            context.reset()
+        }
+    }
+    
+    /// Legacy method for complex clearing - kept for compatibility
+    func clearDatabaseLegacy() {
+        let context = viewContext
+        
         let entities = persistentContainer.managedObjectModel.entities
         
         for entity in entities {
             guard let entityName = entity.name else { continue }
             
-            let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
-            let batchDeleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
+            let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: entityName)
             
             do {
-                try context.execute(batchDeleteRequest)
+                // Fetch all objects first
+                let objects = try context.fetch(fetchRequest)
+                
+                // Delete them one by one (batch delete doesn't work with in-memory stores)
+                for object in objects {
+                    if !object.isDeleted {
+                        context.delete(object)
+                    }
+                }
             } catch {
                 print("Failed to clear \(entityName): \(error)")
             }
         }
         
+        // Simple save without complex error handling
         do {
-            try context.save()
+            if context.hasChanges {
+                try context.save()
+            }
         } catch {
             print("Failed to save after clearing database: \(error)")
+            context.rollback()
         }
     }
 }
@@ -94,11 +116,15 @@ class BaseIntegrationTest: XCTestCase {
     override func setUp() {
         super.setUp()
         context = TestCoreDataStack.shared.viewContext
+        // Clear cache before each test to ensure test isolation
+        StaticDataCacheManager.shared.invalidateCacheSync()
         cleanUpTestData()
     }
     
     override func tearDown() {
         cleanUpTestData()
+        // Clear cache after each test to prevent interference with other tests
+        StaticDataCacheManager.shared.invalidateCacheSync()
         context = nil
         super.tearDown()
     }

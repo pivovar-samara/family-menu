@@ -112,6 +112,11 @@ final class AppStateManager: ObservableObject {
         if isDatabaseEmpty {
             persistence.generateInitialData(context: context)
         }
+        
+        // Initialize static data cache after database is ready
+        // This will preload all static data to ensure immediate availability
+        StaticDataCacheManager.shared.initialize(with: context)
+        
         isLoading = false
     }
 }

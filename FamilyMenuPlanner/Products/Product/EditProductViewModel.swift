@@ -15,7 +15,10 @@ class EditProductViewModel: ObservableObject {
     @Published var selectedUnit: Unit?
     @Published var currentAlert: AlertItem?
     
-    var units: [Unit]
+    // Use cached data for better performance
+    var units: [Unit] {
+        return StaticDataCacheManager.shared.getUnits()
+    }
     
     private let editProductService: EditProductServiceProtocol
     private let alertManager = AlertQueueManager()
@@ -23,7 +26,6 @@ class EditProductViewModel: ObservableObject {
     init(product: Product, editProductService: EditProductServiceProtocol) {
         self.product = product
         self.editProductService = editProductService
-        self.units = editProductService.fetchAllUnits()
         alertManager.$currentAlert
                     .receive(on: RunLoop.main)
                     .assign(to: &$currentAlert)

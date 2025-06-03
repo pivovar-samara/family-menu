@@ -34,6 +34,10 @@
 		489131642DEF0A3A00BFDAA6 /* SearchOptimizationHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 489131622DEF0A3A00BFDAA6 /* SearchOptimizationHelper.swift */; };
 		489131652DEF0A3A00BFDAA6 /* SearchOptimizationHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 489131622DEF0A3A00BFDAA6 /* SearchOptimizationHelper.swift */; };
 		489131672DEF0A4900BFDAA6 /* SearchOptimizationHelperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 489131662DEF0A4900BFDAA6 /* SearchOptimizationHelperTests.swift */; };
+		489131692DEF14C800BFDAA6 /* StaticDataCacheManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 489131682DEF14C800BFDAA6 /* StaticDataCacheManager.swift */; };
+		4891316A2DEF14C800BFDAA6 /* StaticDataCacheManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 489131682DEF14C800BFDAA6 /* StaticDataCacheManager.swift */; };
+		4891316B2DEF14C800BFDAA6 /* StaticDataCacheManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 489131682DEF14C800BFDAA6 /* StaticDataCacheManager.swift */; };
+		4891316D2DEF14D100BFDAA6 /* StaticDataCacheManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4891316C2DEF14D100BFDAA6 /* StaticDataCacheManagerTests.swift */; };
 		A004ED792D11DC000081DDC0 /* FamilyMenuPlannerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A004ED782D11DC000081DDC0 /* FamilyMenuPlannerApp.swift */; };
 		A004ED7B2D11DC000081DDC0 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A004ED7A2D11DC000081DDC0 /* ContentView.swift */; };
 		A004ED7D2D11DC020081DDC0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A004ED7C2D11DC020081DDC0 /* Assets.xcassets */; };
@@ -187,6 +191,8 @@
 		489131602DEEE99500BFDAA6 /* CoreDataFetchHelperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataFetchHelperTests.swift; sourceTree = "<group>"; };
 		489131622DEF0A3A00BFDAA6 /* SearchOptimizationHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchOptimizationHelper.swift; sourceTree = "<group>"; };
 		489131662DEF0A4900BFDAA6 /* SearchOptimizationHelperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchOptimizationHelperTests.swift; sourceTree = "<group>"; };
+		489131682DEF14C800BFDAA6 /* StaticDataCacheManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaticDataCacheManager.swift; sourceTree = "<group>"; };
+		4891316C2DEF14D100BFDAA6 /* StaticDataCacheManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaticDataCacheManagerTests.swift; sourceTree = "<group>"; };
 		A004ED752D11DC000081DDC0 /* FamilyMenuPlanner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FamilyMenuPlanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A004ED782D11DC000081DDC0 /* FamilyMenuPlannerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyMenuPlannerApp.swift; sourceTree = "<group>"; };
 		A004ED7A2D11DC000081DDC0 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -311,6 +317,7 @@
 			children = (
 				489131602DEEE99500BFDAA6 /* CoreDataFetchHelperTests.swift */,
 				48355B2A2DE77C5F00209255 /* TestUtilities.swift */,
+				4891316C2DEF14D100BFDAA6 /* StaticDataCacheManagerTests.swift */,
 				A07E938A2D47F29C003940AE /* CommonUnitTests.swift */,
 				483986252DE9D79C00B15F16 /* DishCategoryTests.swift */,
 				480520822DE7A739006555CE /* DishListUnitTests.swift */,
@@ -474,6 +481,7 @@
 			children = (
 				A0D21EC32D1575240014AD78 /* ViewHelper.swift */,
 				489131622DEF0A3A00BFDAA6 /* SearchOptimizationHelper.swift */,
+				489131682DEF14C800BFDAA6 /* StaticDataCacheManager.swift */,
 				A0D21EBF2D1574E70014AD78 /* LocalizationHelper.swift */,
 				A0D21ECD2D16B4570014AD78 /* NumbersHelper.swift */,
 				4891315C2DEEE98C00BFDAA6 /* CoreDataFetchHelper.swift */,
@@ -656,6 +664,7 @@
 				A07F69F52D3D890200ECE326 /* AlertQueueManager.swift in Sources */,
 				A057064D2D3677BC00D4496C /* MenuService.swift in Sources */,
 				A05706512D36901C00D4496C /* MenuCoordinator.swift in Sources */,
+				4891316B2DEF14C800BFDAA6 /* StaticDataCacheManager.swift in Sources */,
 				A0A3B4DF2D43CF05009E8AE7 /* DishDetailsCoordinator.swift in Sources */,
 				A0A3B4CF2D43CB73009E8AE7 /* DishListCoordinator.swift in Sources */,
 				A0D21EB12D145B410014AD78 /* ProductSelectionView.swift in Sources */,
@@ -674,6 +683,7 @@
 				A0A3B4CC2D43CB66009E8AE7 /* DishListService.swift in Sources */,
 				A07F69EA2D3D061C00ECE326 /* ProductListViewModel.swift in Sources */,
 				A07F69E02D3BA69300ECE326 /* DishSelectionService.swift in Sources */,
+				4891316D2DEF14D100BFDAA6 /* StaticDataCacheManagerTests.swift in Sources */,
 				48355B242DE767DC00209255 /* EditProductIntegrationTests.swift in Sources */,
 				48355B252DE767DC00209255 /* ProductListIntegrationTests.swift in Sources */,
 				A07F69EE2D3D063800ECE326 /* ProductListService.swift in Sources */,
@@ -690,6 +700,7 @@
 				A0A3B4B92D3EC51C009E8AE7 /* EditProductService.swift in Sources */,
 				A05706412D35157900D4496C /* AppStateManager.swift in Sources */,
 				A07E938C2D47F405003940AE /* FamilyMenuPlanner.xcdatamodeld in Sources */,
+				4891316A2DEF14C800BFDAA6 /* StaticDataCacheManager.swift in Sources */,
 				A0A3B4E82D463B4E009E8AE7 /* ProductSelectionService.swift in Sources */,
 				A0A3B4E42D463B33009E8AE7 /* ProductSelectionViewModel.swift in Sources */,
 				489131672DEF0A4900BFDAA6 /* SearchOptimizationHelperTests.swift in Sources */,
@@ -748,6 +759,7 @@
 				A05706532D36901C00D4496C /* MenuCoordinator.swift in Sources */,
 				A0A3B4BE2D3EC52F009E8AE7 /* EditProductCoordinator.swift in Sources */,
 				A05706422D35157900D4496C /* AppStateManager.swift in Sources */,
+				489131692DEF14C800BFDAA6 /* StaticDataCacheManager.swift in Sources */,
 				A07E93912D47F418003940AE /* ContentView.swift in Sources */,
 				A057064F2D3677BC00D4496C /* MenuService.swift in Sources */,
 				A057064B2D36779800D4496C /* MenuViewModel.swift in Sources */,

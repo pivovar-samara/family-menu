@@ -11,4 +11,6 @@ For every new change look at the existing patterns used in project. Correcting c
 
 Always localize new and changed string constants which can be viewed by user.
 
-Do not suggest run build and test a project to check changes.
+Do not suggest run build or test to check changes, because it can be done only in xcode.
+
+Don't create new documentation files until it is requested obviously.
