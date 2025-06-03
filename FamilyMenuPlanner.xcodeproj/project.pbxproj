@@ -30,6 +30,10 @@
 		4891315E2DEEE98C00BFDAA6 /* CoreDataFetchHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4891315C2DEEE98C00BFDAA6 /* CoreDataFetchHelper.swift */; };
 		4891315F2DEEE98C00BFDAA6 /* CoreDataFetchHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4891315C2DEEE98C00BFDAA6 /* CoreDataFetchHelper.swift */; };
 		489131612DEEE99500BFDAA6 /* CoreDataFetchHelperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 489131602DEEE99500BFDAA6 /* CoreDataFetchHelperTests.swift */; };
+		489131632DEF0A3A00BFDAA6 /* SearchOptimizationHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 489131622DEF0A3A00BFDAA6 /* SearchOptimizationHelper.swift */; };
+		489131642DEF0A3A00BFDAA6 /* SearchOptimizationHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 489131622DEF0A3A00BFDAA6 /* SearchOptimizationHelper.swift */; };
+		489131652DEF0A3A00BFDAA6 /* SearchOptimizationHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 489131622DEF0A3A00BFDAA6 /* SearchOptimizationHelper.swift */; };
+		489131672DEF0A4900BFDAA6 /* SearchOptimizationHelperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 489131662DEF0A4900BFDAA6 /* SearchOptimizationHelperTests.swift */; };
 		A004ED792D11DC000081DDC0 /* FamilyMenuPlannerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A004ED782D11DC000081DDC0 /* FamilyMenuPlannerApp.swift */; };
 		A004ED7B2D11DC000081DDC0 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A004ED7A2D11DC000081DDC0 /* ContentView.swift */; };
 		A004ED7D2D11DC020081DDC0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A004ED7C2D11DC020081DDC0 /* Assets.xcassets */; };
@@ -181,6 +185,8 @@
 		4891315A2DEEE31C00BFDAA6 /* PersistencePerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistencePerformanceTests.swift; sourceTree = "<group>"; };
 		4891315C2DEEE98C00BFDAA6 /* CoreDataFetchHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataFetchHelper.swift; sourceTree = "<group>"; };
 		489131602DEEE99500BFDAA6 /* CoreDataFetchHelperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataFetchHelperTests.swift; sourceTree = "<group>"; };
+		489131622DEF0A3A00BFDAA6 /* SearchOptimizationHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchOptimizationHelper.swift; sourceTree = "<group>"; };
+		489131662DEF0A4900BFDAA6 /* SearchOptimizationHelperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchOptimizationHelperTests.swift; sourceTree = "<group>"; };
 		A004ED752D11DC000081DDC0 /* FamilyMenuPlanner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FamilyMenuPlanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A004ED782D11DC000081DDC0 /* FamilyMenuPlannerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyMenuPlannerApp.swift; sourceTree = "<group>"; };
 		A004ED7A2D11DC000081DDC0 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -317,6 +323,7 @@
 				48355B162DE744DC00209255 /* MenuUnitTests.swift */,
 				48355B1E2DE7586400209255 /* MenuIntegrationTests.swift */,
 				4825BC542DE635BB00671D4C /* ShoppingListUnitTests.swift */,
+				489131662DEF0A4900BFDAA6 /* SearchOptimizationHelperTests.swift */,
 				48355B1F2DE7586400209255 /* ShoppingListIntegrationTests.swift */,
 				4825BC522DE634AA00671D4C /* DishSelectionUnitTests.swift */,
 				48355B1C2DE74C1000209255 /* DishSelectionIntegrationTests.swift */,
@@ -466,6 +473,7 @@
 			isa = PBXGroup;
 			children = (
 				A0D21EC32D1575240014AD78 /* ViewHelper.swift */,
+				489131622DEF0A3A00BFDAA6 /* SearchOptimizationHelper.swift */,
 				A0D21EBF2D1574E70014AD78 /* LocalizationHelper.swift */,
 				A0D21ECD2D16B4570014AD78 /* NumbersHelper.swift */,
 				4891315C2DEEE98C00BFDAA6 /* CoreDataFetchHelper.swift */,
@@ -615,6 +623,7 @@
 				A0A3B4BC2D3EC52F009E8AE7 /* EditProductCoordinator.swift in Sources */,
 				4891315D2DEEE98C00BFDAA6 /* CoreDataFetchHelper.swift in Sources */,
 				A0DBD5402D12AF8F00C83BFD /* EditProductView.swift in Sources */,
+				489131652DEF0A3A00BFDAA6 /* SearchOptimizationHelper.swift in Sources */,
 				A07F69E92D3D061C00ECE326 /* ProductListViewModel.swift in Sources */,
 				A004ED822D11DC020081DDC0 /* Persistence.swift in Sources */,
 				A0D21EC02D1574E70014AD78 /* LocalizationHelper.swift in Sources */,
@@ -677,11 +686,13 @@
 				4825BC552DE635CA00671D4C /* ShoppingListUnitTests.swift in Sources */,
 				48355B2B2DE77C5F00209255 /* TestUtilities.swift in Sources */,
 				48355B1D2DE74C1000209255 /* DishSelectionIntegrationTests.swift in Sources */,
+				489131642DEF0A3A00BFDAA6 /* SearchOptimizationHelper.swift in Sources */,
 				A0A3B4B92D3EC51C009E8AE7 /* EditProductService.swift in Sources */,
 				A05706412D35157900D4496C /* AppStateManager.swift in Sources */,
 				A07E938C2D47F405003940AE /* FamilyMenuPlanner.xcdatamodeld in Sources */,
 				A0A3B4E82D463B4E009E8AE7 /* ProductSelectionService.swift in Sources */,
 				A0A3B4E42D463B33009E8AE7 /* ProductSelectionViewModel.swift in Sources */,
+				489131672DEF0A4900BFDAA6 /* SearchOptimizationHelperTests.swift in Sources */,
 				48355B202DE7586400209255 /* MenuIntegrationTests.swift in Sources */,
 				48355B212DE7586400209255 /* ShoppingListIntegrationTests.swift in Sources */,
 				A07F69DC2D3BA41700ECE326 /* DishSelectionViewModel.swift in Sources */,
@@ -730,6 +741,7 @@
 				A0D21EB32D145B410014AD78 /* ProductSelectionView.swift in Sources */,
 				A0D21ED92D1AD3CD0014AD78 /* CalendarHelper.swift in Sources */,
 				A0D21EC22D1574E70014AD78 /* LocalizationHelper.swift in Sources */,
+				489131632DEF0A3A00BFDAA6 /* SearchOptimizationHelper.swift in Sources */,
 				A07F69EB2D3D061C00ECE326 /* ProductListViewModel.swift in Sources */,
 				A0A3B4E52D463B33009E8AE7 /* ProductSelectionViewModel.swift in Sources */,
 				A0A3B4C52D43CB49009E8AE7 /* DishListView.swift in Sources */,

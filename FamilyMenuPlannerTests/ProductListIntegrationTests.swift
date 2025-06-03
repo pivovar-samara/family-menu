@@ -53,11 +53,17 @@ class ProductListIntegrationTests: BaseIntegrationTest {
         // Load products
         viewModel.loadProducts()
         
-        // Verify products are loaded
-        XCTAssertEqual(viewModel.allProducts.count, 2)
-        XCTAssertEqual(viewModel.filteredProducts.count, 2)
-        XCTAssertTrue(viewModel.allProducts.contains(products[0])) // Eggs
-        XCTAssertTrue(viewModel.allProducts.contains(products[1])) // Flour
+        // Wait for products to be loaded and reactive bindings to update
+        let loadExpectation = expectation(description: "Products loaded and filtered")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            // Verify products are loaded
+            XCTAssertEqual(self.viewModel.allProducts.count, 2)
+            XCTAssertEqual(self.viewModel.filteredProducts.count, 2)
+            XCTAssertTrue(self.viewModel.allProducts.contains(products[0])) // Eggs
+            XCTAssertTrue(self.viewModel.allProducts.contains(products[1])) // Flour
+            loadExpectation.fulfill()
+        }
+        wait(for: [loadExpectation], timeout: 1.0)
     }
     
     func testAddProduct() {
@@ -78,10 +84,16 @@ class ProductListIntegrationTests: BaseIntegrationTest {
         // Add product
         viewModel.addProduct()
         
-        // Verify product was added
-        XCTAssertEqual(viewModel.allProducts.count, 1)
-        XCTAssertEqual(viewModel.allProducts.first?.name, "Sugar")
-        XCTAssertEqual(viewModel.allProducts.first?.unit, units[1])
+        // Wait for product to be added and reactive bindings to update
+        let addExpectation = expectation(description: "Product added")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            // Verify product was added
+            XCTAssertEqual(self.viewModel.allProducts.count, 1)
+            XCTAssertEqual(self.viewModel.allProducts.first?.name, "Sugar")
+            XCTAssertEqual(self.viewModel.allProducts.first?.unit, units[1])
+            addExpectation.fulfill()
+        }
+        wait(for: [addExpectation], timeout: 1.0)
     }
     
     func testDeleteProduct() {
@@ -90,13 +102,27 @@ class ProductListIntegrationTests: BaseIntegrationTest {
         // Load products
         viewModel.loadProducts()
         
+        // Wait for products to be loaded and UI to update
+        let loadExpectation = expectation(description: "Products loaded")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            XCTAssertEqual(self.viewModel.filteredProducts.count, 2, "Should have 2 filtered products loaded")
+            loadExpectation.fulfill()
+        }
+        wait(for: [loadExpectation], timeout: 1.0)
+        
         // Delete first product
         viewModel.deleteProducts(at: IndexSet(integer: 0))
         
-        // Verify product was deleted
-        XCTAssertEqual(viewModel.allProducts.count, 1)
-        XCTAssertFalse(viewModel.allProducts.contains(products[0]))
-        XCTAssertTrue(viewModel.allProducts.contains(products[1]))
+        // Wait for deletion to complete and UI to update
+        let deleteExpectation = expectation(description: "Product deleted")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            // Verify product was deleted
+            XCTAssertEqual(self.viewModel.allProducts.count, 1)
+            XCTAssertFalse(self.viewModel.allProducts.contains(products[0]))
+            XCTAssertTrue(self.viewModel.allProducts.contains(products[1]))
+            deleteExpectation.fulfill()
+        }
+        wait(for: [deleteExpectation], timeout: 1.0)
     }
     
     func testSearchProducts() {
@@ -214,7 +240,15 @@ class ProductListIntegrationTests: BaseIntegrationTest {
         
         // Load initial state
         viewModel.loadProducts()
-        XCTAssertEqual(viewModel.allProducts.count, 0, "Should start with no products")
+        
+        // Wait for initial state to be fully loaded
+        let initialLoadExpectation = expectation(description: "Initial load completion")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            XCTAssertEqual(self.viewModel.allProducts.count, 0, "Should start with no products")
+            XCTAssertEqual(self.viewModel.filteredProducts.count, 0, "Should start with no filtered products")
+            initialLoadExpectation.fulfill()
+        }
+        wait(for: [initialLoadExpectation], timeout: 1.0)
         
         // Add multiple products
         let productNames = ["Product1", "Product2", "Product3", "Product4", "Product5"]
@@ -225,16 +259,29 @@ class ProductListIntegrationTests: BaseIntegrationTest {
             viewModel.addProduct()
         }
         
-        // Verify all products were added
-        viewModel.loadProducts()
-        XCTAssertEqual(viewModel.allProducts.count, 5, "Should have exactly 5 products after adding")
+        // Wait for all products to be added and UI to update
+        let addExpectation = expectation(description: "Products added")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            // Verify all products were added
+            XCTAssertEqual(self.viewModel.allProducts.count, 5, "Should have exactly 5 products after adding")
+            XCTAssertEqual(self.viewModel.filteredProducts.count, 5, "Should have exactly 5 filtered products after adding")
+            addExpectation.fulfill()
+        }
+        wait(for: [addExpectation], timeout: 2.0)
         
-        // Delete multiple products
+        // Delete multiple products using the first 3 from filteredProducts
         let indexSet = IndexSet(0..<3)
         viewModel.deleteProducts(at: indexSet)
         
-        // Verify products were deleted
-        XCTAssertEqual(viewModel.allProducts.count, 2, "Should have exactly 2 products after deleting 3")
+        // Wait for deletion to complete and UI to update
+        let deleteExpectation = expectation(description: "Products deleted")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            // Verify products were deleted
+            XCTAssertEqual(self.viewModel.allProducts.count, 2, "Should have exactly 2 products after deleting 3")
+            XCTAssertEqual(self.viewModel.filteredProducts.count, 2, "Should have exactly 2 filtered products after deleting 3")
+            deleteExpectation.fulfill()
+        }
+        wait(for: [deleteExpectation], timeout: 2.0)
     }
     
     func testProductListPersistence() {

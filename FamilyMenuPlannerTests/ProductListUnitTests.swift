@@ -256,4 +256,29 @@ class ProductListUnitTests: XCTestCase {
         // Try to delete product
         XCTAssertThrowsError(try viewModel.deleteProducts(at: IndexSet(integer: 0)))
     }
+    
+    // MARK: - Search Optimization Tests
+    
+    func testSearchOptimizationHelperIntegration() {
+        // Setup test data
+        let unit = MockUnit(name: "pcs", sortOrder: 0)
+        let product1 = MockProduct(name: "Apple", unit: unit)
+        let product2 = MockProduct(name: "Banana", unit: unit)
+        mockService.products = [product1, product2]
+        
+        // Load products
+        viewModel.loadProducts()
+        
+        // Test search functionality
+        viewModel.searchText = "Apple"
+        
+        // Since we can't easily test the debounce without async, we'll test the logic directly
+        viewModel.filterProducts(with: "Apple")
+        XCTAssertEqual(viewModel.filteredProducts.count, 1)
+        XCTAssertEqual(viewModel.filteredProducts.first?.name, "Apple")
+        
+        // Test search clearing
+        viewModel.filterProducts(with: "")
+        XCTAssertEqual(viewModel.filteredProducts.count, 2)
+    }
 } 

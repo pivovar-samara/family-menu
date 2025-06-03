@@ -10,19 +10,28 @@ import SwiftUI
 import Combine
 
 class ProductListViewModel: ObservableObject {
-    @Published var searchText: String = ""         // Search query
     @Published var selectedProduct: Product?       // Product for editing
     
     @Published var newProductName: String = ""
     @Published var selectedUnit: Unit? = nil
     @Published var validationError: LocalizedStringKey?
     
-    @Published var filteredProducts: [Product] = []
-    @Published private(set) var allProducts: [Product] = []
-    
     @Published var currentAlert: AlertItem?
     
+    // Published properties for search functionality
+    @Published var searchText: String = ""
+    @Published var filteredProducts: [Product] = []
+    
     var units: [Unit]
+    
+    // Use SearchOptimizationHelper for better performance
+    private let searchHelper: SearchOptimizationHelper<Product>
+    
+    private(set) var allProducts: [Product] = [] {
+        didSet {
+            searchHelper.updateItems(allProducts)
+        }
+    }
     
     private let productListService: ProductListServiceProtocol
     private var cancellables = Set<AnyCancellable>()
@@ -31,31 +40,37 @@ class ProductListViewModel: ObservableObject {
     init(productListService: ProductListServiceProtocol) {
         self.productListService = productListService
         self.units = productListService.fetchAllUnits()
-        $searchText
-            .debounce(for: 0.3, scheduler: RunLoop.main)
-            .removeDuplicates()
-            .sink { [weak self] text in
-                self?.filterProducts(with: text)
-            }
-            .store(in: &cancellables)
+        
+        // Initialize search helper with proper filter predicate
+        self.searchHelper = SearchOptimizationHelper<Product> { product, searchText in
+            guard let name = product.name else { return false }
+            return name.localizedCaseInsensitiveContains(searchText)
+        }
+        
+        // Setup bindings between ViewModel and SearchHelper
+        setupSearchBindings()
+        
+        // Setup alert manager
         alertManager.$currentAlert
                     .receive(on: RunLoop.main)
                     .assign(to: &$currentAlert)
     }
     
-    func loadProducts() {
-        allProducts = productListService.fetchAllProducts()
-        filteredProducts = allProducts
+    private func setupSearchBindings() {
+        // Forward search text changes to helper
+        $searchText
+            .assign(to: \.searchText, on: searchHelper)
+            .store(in: &cancellables)
+        
+        // Forward filtered results back to ViewModel
+        searchHelper.$filteredItems
+            .receive(on: RunLoop.main)
+            .assign(to: \.filteredProducts, on: self)
+            .store(in: &cancellables)
     }
     
-    private func filterProducts(with text: String) {
-        if text.isEmpty {
-            filteredProducts = allProducts
-        } else {
-            filteredProducts = allProducts.filter {
-                $0.name?.localizedCaseInsensitiveContains(text) ?? false
-            }
-        }
+    func loadProducts() {
+        allProducts = productListService.fetchAllProducts()
     }
     
     func updateSelectedUnit() {
@@ -75,7 +90,7 @@ class ProductListViewModel: ObservableObject {
                     allProducts.remove(at: index)
                 }
             }
-            filteredProducts.remove(atOffsets: offsets)
+            
             try productListService.deleteProducts(products: products)
         } catch {
             enqueueAlert(title: "Error", message: "Error deleting product. Please try again.")
@@ -95,7 +110,6 @@ class ProductListViewModel: ObservableObject {
             validationError = nil
             
             loadProducts()
-            filterProducts(with: searchText)
         } catch let error as NSError {
             enqueueAlert(title: "Error", message: error.localizedDescription)
         } catch {
