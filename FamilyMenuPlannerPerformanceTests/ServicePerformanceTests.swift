@@ -51,9 +51,9 @@ class ServicePerformanceTests: BaseIntegrationTest {
     
     func testDishDetailsServicePerformance() {
         // Create test data
-        let category = createDishCategory(name: "Main Course")
-        let mealType = createMealType(name: "Dinner")
-        let unit = createUnit(name: "kg")
+        _ = createDishCategory(name: "Main Course")
+        _ = createMealType(name: "Dinner")
+        _ = createUnit(name: "kg")
         
         let service = DishDetailsService(context: context)
         

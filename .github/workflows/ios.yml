@@ -31,7 +31,7 @@ jobs:
           echo $default | cat >default
           echo "Using default scheme: $default"
           
-      - name: Build and Test
+      - name: Build for Testing
         run: |
           scheme=$(cat default)
           
@@ -44,14 +44,33 @@ jobs:
             file_to_build="`ls -A | grep -i \\.xcodeproj\$`"
           fi
           
-          echo "Building and testing scheme: $scheme"
+          echo "Building scheme: $scheme"
           echo "Using $filetype_parameter: $file_to_build"
           
-          # Use a specific, available destination
-          xcodebuild test \
+          # Build for testing first
+          xcodebuild build-for-testing \
             -scheme "$scheme" \
             -"$filetype_parameter" "$file_to_build" \
-            -destination "platform=iOS Simulator,name=iPhone 16 Pro,OS=18.4" \
-            -only-testing:FamilyMenuPlannerTests \
+            -destination "platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5" \
+            CODE_SIGNING_ALLOWED=NO
+          
+      - name: Run Tests with Verbose Output
+        run: |
+          scheme=$(cat default)
+          
+          # Determine if we have a workspace or project
+          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then 
+            filetype_parameter="workspace"
+            file_to_build="`ls -A | grep -i \\.xcworkspace\$`"
+          else 
+            filetype_parameter="project"
+            file_to_build="`ls -A | grep -i \\.xcodeproj\$`"
+          fi
+          
+          # Run tests with verbose output to see crash details
+          xcodebuild test-without-building \
+            -scheme "$scheme" \
+            -"$filetype_parameter" "$file_to_build" \
+            -destination "platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5" \
             CODE_SIGNING_ALLOWED=NO \
-            -quiet
+            -verbose

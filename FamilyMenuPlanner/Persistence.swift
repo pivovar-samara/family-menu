@@ -79,9 +79,12 @@ struct PersistenceController {
     let stateManager = PersistenceStateManager()
 
     init(inMemory: Bool = false) {
-        // Check if we're running in a test environment or simulator
+        // Enhanced test environment detection for CI
         let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
-                            NSClassFromString("XCTestCase") != nil
+                            NSClassFromString("XCTestCase") != nil ||
+                            ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] != nil ||  // GitHub Actions
+                            ProcessInfo.processInfo.environment["CI"] != nil ||              // Generic CI
+                            ProcessInfo.processInfo.arguments.contains("test")               // xcodebuild test
         
         // Check if we're in simulator using Swift-compatible approach
         #if targetEnvironment(simulator)
