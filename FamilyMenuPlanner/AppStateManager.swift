@@ -48,12 +48,18 @@ final class AppStateManager: ObservableObject {
         self.isLoading = true
         
         let persistence = PersistenceController.shared
-        if persistence.attemptRecovery() {
-            checkDatabaseState()
-        } else {
-            self.persistenceError = "Unable to recover from the error. Please restart the app or contact support if the problem persists.".localized()
-            self.showPersistenceErrorAlert = true
-            self.isLoading = false
+        
+        // Use the new asynchronous recovery method to avoid blocking the UI
+        persistence.attemptRecovery { [weak self] success in
+            DispatchQueue.main.async {
+                if success {
+                    self?.checkDatabaseState()
+                } else {
+                    self?.persistenceError = "Unable to recover from the error. Please restart the app or contact support if the problem persists.".localized()
+                    self?.showPersistenceErrorAlert = true
+                    self?.isLoading = false
+                }
+            }
         }
     }
 

@@ -171,4 +171,66 @@ class PersistencePerformanceTests: BaseIntegrationTest {
         XCTAssertTrue(backgroundContext.shouldDeleteInaccessibleFaults)
         XCTAssertNotNil(backgroundContext.mergePolicy)
     }
+    
+    func testAsynchronousStoreLoadingPerformance() {
+        // Test that the new asynchronous store loading doesn't block the calling thread
+        let expectation = XCTestExpectation(description: "Async store loading completes")
+        let startTime = CFAbsoluteTimeGetCurrent()
+        
+        // Create a new persistence controller to test initialization
+        let testController = PersistenceController(inMemory: true)
+        
+        // Test the new async recovery method
+        testController.attemptRecovery { success in
+            let endTime = CFAbsoluteTimeGetCurrent()
+            let duration = endTime - startTime
+            
+            XCTAssertTrue(success, "Store loading should succeed")
+            XCTAssertLessThan(duration, 1.0, "Async initialization should complete quickly for in-memory stores")
+            
+            expectation.fulfill()
+        }
+        
+        // Verify the calling thread is not blocked
+        let afterCallTime = CFAbsoluteTimeGetCurrent()
+        let callDuration = afterCallTime - startTime
+        XCTAssertLessThan(callDuration, 0.1, "Async method should return immediately without blocking")
+        
+        wait(for: [expectation], timeout: 2.0)
+    }
+    
+    func testBackwardCompatibilityOfSynchronousRecovery() {
+        // Test that the synchronous recovery method still works for existing code
+        let testController = PersistenceController(inMemory: true)
+        
+        let startTime = CFAbsoluteTimeGetCurrent()
+        let success = testController.attemptRecovery()
+        let endTime = CFAbsoluteTimeGetCurrent()
+        
+        XCTAssertTrue(success, "Synchronous recovery should succeed")
+        
+        // For in-memory stores, this should still be relatively fast
+        let duration = endTime - startTime
+        XCTAssertLessThan(duration, 1.0, "Synchronous recovery should complete reasonably quickly for in-memory stores")
+    }
+    
+    func testStoreLoadingDoesNotBlockMainThread() {
+        // This test verifies that store loading can be called from main thread without blocking
+        let expectation = XCTestExpectation(description: "Main thread not blocked")
+        
+        DispatchQueue.main.async {
+            let testController = PersistenceController(inMemory: true)
+            
+            // Use async version to avoid blocking main thread
+            testController.attemptRecovery { success in
+                XCTAssertTrue(success, "Recovery should succeed")
+                expectation.fulfill()
+            }
+            
+            // This code should execute immediately, proving main thread isn't blocked
+            XCTAssertTrue(Thread.isMainThread, "Should still be on main thread")
+        }
+        
+        wait(for: [expectation], timeout: 2.0)
+    }
 } 

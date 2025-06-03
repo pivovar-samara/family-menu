@@ -149,26 +149,21 @@ struct PersistenceController {
         }
     }
     
-    private func loadPersistentStores() {
-        let group = DispatchGroup()
-        group.enter()
-        
+    private func loadPersistentStores(completion: @escaping (Bool) -> Void = { _ in }) {
         container.loadPersistentStores { [weak stateManager = self.stateManager] (storeDescription, error) in
-            defer { group.leave() }
-            
             if let error = error as NSError? {
-                self.handleStoreLoadingError(error, storeDescription: storeDescription, stateManager: stateManager)
+                self.handleStoreLoadingError(error, storeDescription: storeDescription, stateManager: stateManager) { success in
+                    completion(success)
+                }
             } else {
                 self.configureSuccessfulStore()
                 stateManager?.clearError()
+                completion(true)
             }
         }
-        
-        // Wait for store loading to complete
-        group.wait()
     }
     
-    private func handleStoreLoadingError(_ error: NSError, storeDescription: NSPersistentStoreDescription?, stateManager: PersistenceStateManager?) {
+    private func handleStoreLoadingError(_ error: NSError, storeDescription: NSPersistentStoreDescription?, stateManager: PersistenceStateManager?, completion: @escaping (Bool) -> Void) {
         let persistenceError = categorizeError(error)
         stateManager?.setError(persistenceError)
         
@@ -178,10 +173,14 @@ struct PersistenceController {
         // Attempt recovery based on error type
         if attemptErrorRecovery(error, storeDescription: storeDescription) {
             // If recovery succeeded, retry loading
-            retryStoreLoading()
+            retryStoreLoading { success in
+                completion(success)
+            }
         } else {
             // If recovery failed, fall back to in-memory store
-            fallbackToInMemoryStore()
+            fallbackToInMemoryStore { success in
+                completion(success)
+            }
         }
     }
     
@@ -311,54 +310,45 @@ struct PersistenceController {
         return true
     }
     
-    private func retryStoreLoading() {
+    private func retryStoreLoading(completion: @escaping (Bool) -> Void) {
         print("🔄 Retrying store loading after recovery...")
         
-        let group = DispatchGroup()
-        group.enter()
-        
         container.loadPersistentStores { [weak stateManager = self.stateManager] (_, error) in
-            defer { group.leave() }
-            
             if let error = error as NSError? {
                 print("❌ Retry failed: \(error)")
-                self.fallbackToInMemoryStore()
+                self.fallbackToInMemoryStore { success in
+                    completion(success)
+                }
             } else {
                 print("✅ Recovery successful!")
                 stateManager?.clearError()
                 self.configureSuccessfulStore()
+                completion(true)
             }
         }
-        
-        group.wait()
     }
     
-    private func fallbackToInMemoryStore() {
+    private func fallbackToInMemoryStore(completion: @escaping (Bool) -> Void) {
         print("⚠️ Falling back to in-memory store")
         
         // Create a new in-memory container as fallback
         let fallbackContainer = NSPersistentContainer(name: "FamilyMenuPlanner")
         fallbackContainer.persistentStoreDescriptions.first?.url = URL(fileURLWithPath: "/dev/null")
         
-        let group = DispatchGroup()
-        group.enter()
-        
         fallbackContainer.loadPersistentStores { [weak stateManager = self.stateManager] (_, error) in
-            defer { group.leave() }
-            
             if let error = error {
                 print("❌ Even in-memory store failed: \(error)")
                 // This is a critical error - the app cannot function
                 stateManager?.setError(.storeRecoveryFailed(error as NSError))
+                completion(false)
             } else {
                 print("✅ In-memory store loaded successfully")
                 // Replace the original container with the working in-memory one
                 // Note: This is a simplified approach. In practice, you might need
                 // to use a mutable property and update references accordingly.
+                completion(true)
             }
         }
-        
-        group.wait()
     }
     
     private func configureSuccessfulStore() {
@@ -394,9 +384,30 @@ struct PersistenceController {
         
         print("🔄 Manual recovery attempt initiated...")
         stateManager.clearError()
-        loadPersistentStores()
         
-        return stateManager.isReady
+        // Use a semaphore to maintain synchronous interface for backward compatibility
+        let semaphore = DispatchSemaphore(value: 0)
+        var success = false
+        
+        loadPersistentStores { result in
+            success = result
+            semaphore.signal()
+        }
+        
+        semaphore.wait()
+        return success
+    }
+    
+    /// Attempts to recover from errors and reinitialize the store asynchronously
+    func attemptRecovery(completion: @escaping (Bool) -> Void) {
+        guard !stateManager.isReady else { 
+            completion(true)
+            return 
+        }
+        
+        print("🔄 Manual recovery attempt initiated...")
+        stateManager.clearError()
+        loadPersistentStores(completion: completion)
     }
     
     func isDatabaseEmpty(context: NSManagedObjectContext) -> Bool {
