@@ -51,7 +51,7 @@ jobs:
           xcodebuild build-for-testing \
             -scheme "$scheme" \
             -"$filetype_parameter" "$file_to_build" \
-            -destination "platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5" \
+            -destination "platform=iOS Simulator,name=iPhone 16 Pro,OS=18.4" \
             CODE_SIGNING_ALLOWED=NO
           
       - name: Run Tests with Verbose Output
@@ -71,6 +71,6 @@ jobs:
           xcodebuild test-without-building \
             -scheme "$scheme" \
             -"$filetype_parameter" "$file_to_build" \
-            -destination "platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5" \
+            -destination "platform=iOS Simulator,name=iPhone 16 Pro,OS=18.4" \
             CODE_SIGNING_ALLOWED=NO \
             -verbose
