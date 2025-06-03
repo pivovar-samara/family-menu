@@ -14,31 +14,44 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        
       - name: Setup Xcode version
         run: sudo xcode-select -s /Applications/Xcode_16.0.app/Contents/Developer
+      
       - name: Show current version of Xcode
         run: xcodebuild -version
+        
+      - name: List available simulators
+        run: xcrun simctl list devices available --json
+        
       - name: Set Default Scheme
         run: |
           scheme_list=$(xcodebuild -list -json | tr -d "\n")
           default=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]")
           echo $default | cat >default
-          echo Using default scheme: $default
+          echo "Using default scheme: $default"
+          
       - name: Build and Test
         run: |
-          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then 
-            filetype_parameter="workspace" 
-            file_to_build="`ls -A | grep -i \\.xcworkspace\$`"
-          else 
-            filetype_parameter="project" 
-            file_to_build="`ls -A | grep -i \\.xcodeproj\$`"
-          fi
-          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
           scheme=$(cat default)
           
-          # Let Xcode choose an appropriate simulator by omitting specific device/OS
+          # Determine if we have a workspace or project
+          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then 
+            filetype_parameter="workspace"
+            file_to_build="`ls -A | grep -i \\.xcworkspace\$`"
+          else 
+            filetype_parameter="project"
+            file_to_build="`ls -A | grep -i \\.xcodeproj\$`"
+          fi
+          
+          echo "Building and testing scheme: $scheme"
+          echo "Using $filetype_parameter: $file_to_build"
+          
+          # Use a specific, available destination
           xcodebuild test \
             -scheme "$scheme" \
             -"$filetype_parameter" "$file_to_build" \
-            -destination "platform=iOS Simulator" \
-            CODE_SIGNING_ALLOWED=NO
+            -destination "platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5" \
+            -only-testing:FamilyMenuPlannerTests \
+            CODE_SIGNING_ALLOWED=NO \
+            -quiet
