@@ -31,8 +31,8 @@ class DishListServiceIntegrationTests: BaseIntegrationTest {
     func testFetchAllDishes() {
         // Create test dishes
         let category = createDishCategory(name: "Test Category")
-        createDish(name: "Pasta", category: category)
-        createDish(name: "Pizza", category: category)
+        _ = createDish(name: "Pasta", category: category)
+        _ = createDish(name: "Pizza", category: category)
         
         // Fetch dishes
         dishListService.fetchAllDishes()
