@@ -26,9 +26,11 @@ class ProductListService {
     func fetchAllProducts() -> [Product] {
         let fetchRequest: NSFetchRequest<Product> = Product.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Product.name, ascending: true)]
+        
+        // Configure batch fetching for better performance
+        CoreDataFetchHelper.configure(fetchRequest, batchSize: CoreDataFetchHelper.standardBatchSize)
 
         do {
-            try context.setQueryGenerationFrom(.current)
             return try context.fetch(fetchRequest)
         } catch {
             print("Error loading products: \(error)")
@@ -39,9 +41,11 @@ class ProductListService {
     func fetchAllUnits() -> [Unit] {
         let fetchRequest: NSFetchRequest<Unit> = Unit.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Unit.sortOrder, ascending: true)]
+        
+        // Units are typically small datasets, use smaller batch size
+        CoreDataFetchHelper.configureForSmallList(fetchRequest)
 
         do {
-            try context.setQueryGenerationFrom(.current)
             return try context.fetch(fetchRequest)
         } catch {
             print("Error loading units: \(error)")
@@ -51,7 +55,6 @@ class ProductListService {
     
     // Delete products from Core Data
     func deleteProducts(products: [Product]) throws {
-        try context.setQueryGenerationFrom(.current)
         for product in products {
             context.delete(product)
         }
@@ -59,8 +62,6 @@ class ProductListService {
     }
     
     func addProduct(name: String, unit: Unit) throws {
-        try context.setQueryGenerationFrom(.current)
-        
         let newProduct = Product(context: context)
         newProduct.name = name
         newProduct.unit = unit

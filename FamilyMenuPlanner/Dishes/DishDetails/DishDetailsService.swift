@@ -30,9 +30,11 @@ class DishDetailsService {
     func fetchAllUnits() -> [Unit] {
         let fetchRequest: NSFetchRequest<Unit> = Unit.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Unit.sortOrder, ascending: true)]
+        
+        // Units are typically small datasets, use smaller batch size
+        CoreDataFetchHelper.configureForSmallList(fetchRequest)
 
         do {
-            try context.setQueryGenerationFrom(.current)
             return try context.fetch(fetchRequest)
         } catch {
             print("Error loading units: \(error)")
@@ -43,9 +45,11 @@ class DishDetailsService {
     func fetchAllMealTypes() -> [MealType] {
         let fetchRequest: NSFetchRequest<MealType> = MealType.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \MealType.sortOrder, ascending: true)]
+        
+        // Meal types are typically small datasets, use smaller batch size
+        CoreDataFetchHelper.configureForSmallList(fetchRequest)
 
         do {
-            try context.setQueryGenerationFrom(.current)
             return try context.fetch(fetchRequest)
         } catch {
             print("Error loading meal types: \(error)")
@@ -56,9 +60,11 @@ class DishDetailsService {
     func fetchAllDishCategories() -> [DishCategory] {
         let fetchRequest: NSFetchRequest<DishCategory> = DishCategory.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \DishCategory.sortOrder, ascending: true)]
+        
+        // Dish categories are typically small datasets, use smaller batch size
+        CoreDataFetchHelper.configureForSmallList(fetchRequest)
 
         do {
-            try context.setQueryGenerationFrom(.current)
             return try context.fetch(fetchRequest)
         } catch {
             print("Error loading dish categories: \(error)")
@@ -67,13 +73,13 @@ class DishDetailsService {
     }
     
     func createDish() throws -> Dish {
-        try context.setQueryGenerationFrom(.current)
-        return Dish(context: context)
+        let dish = Dish(context: context)
+        return dish
     }
     
     func createIngredient() throws -> IngredientDetail {
-        try context.setQueryGenerationFrom(.current)
-        return IngredientDetail(context: context)
+        let ingredient = IngredientDetail(context: context)
+        return ingredient
     }
     
     func deleteIngredient(ingredient: IngredientDetail) {
@@ -81,7 +87,6 @@ class DishDetailsService {
     }
     
     func saveChanges() throws {
-        try context.setQueryGenerationFrom(.current)
         try context.save()
     }
     

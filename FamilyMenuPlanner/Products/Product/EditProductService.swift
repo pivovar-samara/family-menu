@@ -25,9 +25,11 @@ class EditProductService {
     func fetchAllUnits() -> [Unit] {
         let fetchRequest: NSFetchRequest<Unit> = Unit.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Unit.sortOrder, ascending: true)]
+        
+        // Units are typically small datasets, use smaller batch size
+        CoreDataFetchHelper.configureForSmallList(fetchRequest)
 
         do {
-            try context.setQueryGenerationFrom(.current)
             return try context.fetch(fetchRequest)
         } catch {
             print("Error loading units: \(error)")
@@ -36,7 +38,6 @@ class EditProductService {
     }
     
     func saveChanges() throws {
-        try context.setQueryGenerationFrom(.current)
         try context.save()
     }
     

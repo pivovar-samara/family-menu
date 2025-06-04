@@ -88,3 +88,23 @@
 "Dessert" = "Десерт";
 "Appetizer" = "Закуска";
 "Sauce" = "Соус";
+
+// Error Handling and Recovery
+"Failed to load data store: %@" = "Ошибка загрузки данных: %@";
+"Failed to recover data store: %@" = "Ошибка восстановления данных: %@";
+"Failed to migrate data: %@" = "Ошибка миграции данных: %@";
+"Insufficient disk space to load the app" = "Недостаточно места на диске для загрузки приложения";
+"Permission denied to access data" = "Отказано в доступе к данным";
+"An unexpected error occurred: %@" = "Произошла непредвиденная ошибка: %@";
+"Unable to recover from the error. Please restart the app or contact support if the problem persists." = "Не удалось восстановить работу. Перезапустите приложение или обратитесь в поддержку, если проблема сохраняется.";
+"Setting up your data..." = "Настройка ваших данных...";
+"Data Loading Error" = "Ошибка загрузки данных";
+"An unexpected error occurred while loading your data." = "Произошла непредвиденная ошибка при загрузке ваших данных.";
+"Try Again" = "Попробовать снова";
+"Retrying..." = "Повторная попытка...";
+"Restart App" = "Перезапустить приложение";
+"What you can try:" = "Что можно попробовать:";
+"Restart the app" = "Перезапустить приложение";
+"Check your internet connection" = "Проверить подключение к интернету";
+"Verify iCloud is enabled" = "Убедиться, что iCloud включен";
+"Ensure sufficient storage space" = "Убедиться в достаточном объёме хранилища";

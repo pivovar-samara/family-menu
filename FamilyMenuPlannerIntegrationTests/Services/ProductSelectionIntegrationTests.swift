@@ -107,16 +107,23 @@ class ProductSelectionIntegrationTests: BaseIntegrationTest {
         // Load products through view model
         viewModel.loadProducts()
         
-        // Verify products are loaded
-        XCTAssertEqual(viewModel.allProducts.count, 5)
-        XCTAssertEqual(viewModel.filteredProducts.count, 5)
+        // Wait for reactive bindings to complete
+        let expectation = XCTestExpectation(description: "Products loaded and filtered")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            // Verify products are loaded
+            XCTAssertEqual(self.viewModel.allProducts.count, 5)
+            XCTAssertEqual(self.viewModel.filteredProducts.count, 5)
+            
+            // Verify sorting (Apple, Apricot, Banana, Flour, Milk)
+            XCTAssertEqual(self.viewModel.allProducts[0].name, "Apple")
+            XCTAssertEqual(self.viewModel.allProducts[1].name, "Apricot")
+            XCTAssertEqual(self.viewModel.allProducts[2].name, "Banana")
+            XCTAssertEqual(self.viewModel.allProducts[3].name, "Flour")
+            XCTAssertEqual(self.viewModel.allProducts[4].name, "Milk")
+            expectation.fulfill()
+        }
         
-        // Verify sorting (Apple, Apricot, Banana, Flour, Milk)
-        XCTAssertEqual(viewModel.allProducts[0].name, "Apple")
-        XCTAssertEqual(viewModel.allProducts[1].name, "Apricot")
-        XCTAssertEqual(viewModel.allProducts[2].name, "Banana")
-        XCTAssertEqual(viewModel.allProducts[3].name, "Flour")
-        XCTAssertEqual(viewModel.allProducts[4].name, "Milk")
+        wait(for: [expectation], timeout: 1.0)
     }
     
     func testViewModelLoadProductsEmpty() {
@@ -230,7 +237,14 @@ class ProductSelectionIntegrationTests: BaseIntegrationTest {
         
         // 1. Load products
         viewModel.loadProducts()
-        XCTAssertEqual(viewModel.allProducts.count, 5)
+        
+        // Wait for products to load before proceeding with search
+        let loadExp = expectation(description: "Products loaded")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            XCTAssertEqual(self.viewModel.allProducts.count, 5)
+            loadExp.fulfill()
+        }
+        wait(for: [loadExp], timeout: 1.0)
         
         // 2. Search for specific product
         let exp = expectation(description: "Complete flow")
@@ -267,8 +281,14 @@ class ProductSelectionIntegrationTests: BaseIntegrationTest {
         
         viewModel.loadProducts()
         
-        // Verify current product exists in loaded products
-        XCTAssertTrue(viewModel.allProducts.contains(currentProduct))
+        // Wait for reactive bindings to complete
+        let loadExp = expectation(description: "Products loaded with current product")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            // Verify current product exists in loaded products
+            XCTAssertTrue(self.viewModel.allProducts.contains(currentProduct))
+            loadExp.fulfill()
+        }
+        wait(for: [loadExp], timeout: 1.0)
         
         // Select different product
         let newProduct = products[0] // Apple
@@ -322,7 +342,14 @@ class ProductSelectionIntegrationTests: BaseIntegrationTest {
         
         // Load products
         viewModel.loadProducts()
-        XCTAssertEqual(viewModel.allProducts.count, 3)
+        
+        // Wait for reactive bindings to complete
+        let loadExp = expectation(description: "Special character products loaded")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            XCTAssertEqual(self.viewModel.allProducts.count, 3)
+            loadExp.fulfill()
+        }
+        wait(for: [loadExp], timeout: 1.0)
         
         // Test search with special characters
         let exp = expectation(description: "Special characters search")
@@ -348,8 +375,15 @@ class ProductSelectionIntegrationTests: BaseIntegrationTest {
         
         // Load products
         viewModel.loadProducts()
-        XCTAssertEqual(viewModel.allProducts.count, 100)
-        XCTAssertEqual(viewModel.filteredProducts.count, 100)
+        
+        // Wait for reactive bindings to complete
+        let loadExpectation = expectation(description: "Large dataset loaded")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            XCTAssertEqual(self.viewModel.allProducts.count, 100)
+            XCTAssertEqual(self.viewModel.filteredProducts.count, 100)
+            loadExpectation.fulfill()
+        }
+        wait(for: [loadExpectation], timeout: 1.0)
         
         // Test search performance with large dataset
         let exp = expectation(description: "Large dataset search")

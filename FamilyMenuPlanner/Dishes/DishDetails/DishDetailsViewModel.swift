@@ -10,9 +10,19 @@ import SwiftUI
 import Combine
 
 class DishDetailsViewModel: ObservableObject {
-    @Published var units: [Unit]
-    @Published var allMealTypes: [MealType]
-    @Published var allDishCategories: [DishCategory] = []
+    // Use cached data for better performance
+    var units: [Unit] {
+        return StaticDataCacheManager.shared.getUnits()
+    }
+    
+    var allMealTypes: [MealType] {
+        return StaticDataCacheManager.shared.getMealTypes()
+    }
+    
+    var allDishCategories: [DishCategory] {
+        return StaticDataCacheManager.shared.getDishCategories()
+    }
+    
     @Published var selectedCategory: DishCategory?
     @Published var descriptionText: String = ""
     @Published var selectedMealTypes: Set<MealType> = []
@@ -30,9 +40,21 @@ class DishDetailsViewModel: ObservableObject {
     init(dishDetailsService: DishDetailsServiceProtocol, dish: Dish? = nil) {
         self.dishDetailsService = dishDetailsService
         self.dish = dish
-        self.units = dishDetailsService.fetchAllUnits()
-        self.allMealTypes = dishDetailsService.fetchAllMealTypes()
-        self.allDishCategories = dishDetailsService.fetchAllDishCategories()
+        
+        // Ensure static data is available for pickers
+        // This forces cache to load data if not already loaded
+        _ = StaticDataCacheManager.shared.getUnits()
+        _ = StaticDataCacheManager.shared.getMealTypes()  
+        _ = StaticDataCacheManager.shared.getDishCategories()
+        
+        // Load dish-specific data after static data is available
+        if let dish = dish {
+            self.selectedCategory = dish.category
+            if let mealTypes = dish.mealTypes as? Set<MealType> {
+                self.selectedMealTypes = mealTypes
+            }
+        }
+        
         alertManager.$currentAlert
                     .receive(on: RunLoop.main)
                     .assign(to: &$currentAlert)
@@ -55,13 +77,17 @@ class DishDetailsViewModel: ObservableObject {
     }
     
     func loadSelectedMealTypes() {
-        if let mealTypes = dish?.mealTypes as? Set<MealType> {
+        // Data is already loaded in init, but refresh if dish changed
+        if let dish = dish, let mealTypes = dish.mealTypes as? Set<MealType> {
             selectedMealTypes = mealTypes
         }
     }
     
     func loadSelectedCategory() {
-        selectedCategory = dish?.category
+        // Data is already loaded in init, but refresh if dish changed
+        if let dish = dish {
+            selectedCategory = dish.category
+        }
     }
     
     func setDishCategory(_ category: DishCategory?) {

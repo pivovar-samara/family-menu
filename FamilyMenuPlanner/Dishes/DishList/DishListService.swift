@@ -29,6 +29,10 @@ class DishListService: NSObject {
         self.context = context
         let fetchRequest: NSFetchRequest<Dish> = Dish.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Dish.name, ascending: true)]
+        
+        // Configure batch fetching for better performance
+        CoreDataFetchHelper.configure(fetchRequest, batchSize: CoreDataFetchHelper.standardBatchSize)
+        
         self.fetchedResultsController = NSFetchedResultsController(
             fetchRequest: fetchRequest,
             managedObjectContext: context,
@@ -43,7 +47,6 @@ class DishListService: NSObject {
     
     func fetchAllDishes() {
         do {
-            try context.setQueryGenerationFrom(.current)
             try fetchedResultsController.performFetch()
             self.delegate?.serviceDidChangeContent(fetchedResultsController.fetchedObjects ?? [])
         } catch {
@@ -53,7 +56,6 @@ class DishListService: NSObject {
     }
     
     func deleteDishes(dishes: [Dish]) throws {
-        try context.setQueryGenerationFrom(.current)
         for dish in dishes {
             context.delete(dish)
         }

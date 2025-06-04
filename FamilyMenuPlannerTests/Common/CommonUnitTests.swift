@@ -7,6 +7,7 @@
 
 import XCTest
 import SwiftUI
+import CoreData
 @testable import FamilyMenuPlanner
 
 final class CommonUnitTests: XCTestCase {
