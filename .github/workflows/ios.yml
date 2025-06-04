@@ -31,7 +31,7 @@ jobs:
           echo $default | cat >default
           echo "Using default scheme: $default"
           
-      - name: Build for Testing
+      - name: Build and Test
         env:
           # Set CI environment variables to prevent CloudKit initialization
           CI: "true"
@@ -48,37 +48,13 @@ jobs:
             file_to_build="`ls -A | grep -i \\.xcodeproj\$`"
           fi
           
-          echo "Building scheme: $scheme"
+          echo "Building and testing scheme: $scheme"
           echo "Using $filetype_parameter: $file_to_build"
           
-          # Build for testing using generic iOS Simulator
-          xcodebuild build-for-testing \
+          # Build and test in one step using a specific simulator
+          xcodebuild test \
             -scheme "$scheme" \
             -"$filetype_parameter" "$file_to_build" \
-            -destination "generic/platform=iOS Simulator" \
-            CODE_SIGNING_ALLOWED=NO
-          
-      - name: Run Tests with Verbose Output
-        env:
-          # Set CI environment variables to prevent CloudKit initialization
-          CI: "true"
-          GITHUB_ACTIONS: "true"
-        run: |
-          scheme=$(cat default)
-          
-          # Determine if we have a workspace or project
-          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then 
-            filetype_parameter="workspace"
-            file_to_build="`ls -A | grep -i \\.xcworkspace\$`"
-          else 
-            filetype_parameter="project"
-            file_to_build="`ls -A | grep -i \\.xcodeproj\$`"
-          fi
-          
-          # Run tests using generic iOS Simulator
-          xcodebuild test-without-building \
-            -scheme "$scheme" \
-            -"$filetype_parameter" "$file_to_build" \
-            -destination "generic/platform=iOS Simulator" \
+            -destination "platform=iOS Simulator,name=iPhone 16 Pro" \
             CODE_SIGNING_ALLOWED=NO \
             -quiet
