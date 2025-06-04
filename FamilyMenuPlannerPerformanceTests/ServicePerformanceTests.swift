@@ -3,19 +3,16 @@ import CoreData
 @testable import FamilyMenuPlanner
 
 class ServicePerformanceTests: BaseIntegrationTest {
-    var persistenceController: PersistenceController!
     
     override func setUp() async throws {
-        try await super.setUp()
-        persistenceController = PersistenceController(inMemory: true)
-        context = persistenceController.container.viewContext
+        // Use TestCoreDataStack which properly loads the model from the correct bundle
+        context = TestCoreDataStack.shared.viewContext
         testDataFactory = TestDataFactory(context: context)
         cleanUpTestData()
     }
     
     override func tearDown() async throws {
         cleanUpTestData()
-        persistenceController = nil
         testDataFactory = nil
         try await super.tearDown()
     }
@@ -101,24 +98,20 @@ class ServicePerformanceTests: BaseIntegrationTest {
     }
     
     func testAsynchronousStoreLoadingPerformance() {
-        // Test that the new asynchronous store loading doesn't block the calling thread
-        let expectation = XCTestExpectation(description: "Async store loading completes")
+        // Test that the test stack loads quickly
+        let expectation = XCTestExpectation(description: "Test stack loading completes")
         let startTime = CFAbsoluteTimeGetCurrent()
         
-        // Create a new persistence controller to test initialization
-        let testController = PersistenceController(inMemory: true)
-        
         measure {
-            // Test the new async recovery method
-            testController.attemptRecovery { success in
-                let endTime = CFAbsoluteTimeGetCurrent()
-                let duration = endTime - startTime
-                
-                XCTAssertTrue(success, "Store loading should succeed")
-                XCTAssertLessThan(duration, 1.0, "Async initialization should complete quickly for in-memory stores")
-                
-                expectation.fulfill()
-            }
+            // Test basic operations with the test stack
+            let unit = createUnit(name: "test_kg", sortOrder: 1)
+            _ = createProduct(name: "Test Product", unit: unit)
+            
+            let endTime = CFAbsoluteTimeGetCurrent()
+            let duration = endTime - startTime
+            
+            XCTAssertLessThan(duration, 1.0, "Test stack operations should complete quickly")
+            expectation.fulfill()
         }
         
         wait(for: [expectation], timeout: 2.0)

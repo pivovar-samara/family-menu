@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		4809E68C2DF025D100B54D77 /* DishListServicePerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4809E68B2DF025D100B54D77 /* DishListServicePerformanceTests.swift */; };
 		484161982DEF67B400A48C49 /* FamilyMenuPlanner.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = A004ED832D11DC020081DDC0 /* FamilyMenuPlanner.xcdatamodeld */; };
 		484161992DEF67BA00A48C49 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = A004ED812D11DC020081DDC0 /* Persistence.swift */; };
 		4841619A2DEF67C000A48C49 /* AppStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A057063F2D35157900D4496C /* AppStateManager.swift */; };
@@ -231,6 +232,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		4809E68B2DF025D100B54D77 /* DishListServicePerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DishListServicePerformanceTests.swift; sourceTree = "<group>"; };
 		4841617E2DEF52D800A48C49 /* FamilyMenuPlannerIntegrationTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FamilyMenuPlannerIntegrationTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		484161E12DEF698200A48C49 /* FamilyMenuPlannerPerformanceTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FamilyMenuPlannerPerformanceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		484161E32DEF69DB00A48C49 /* PersistencePerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistencePerformanceTests.swift; sourceTree = "<group>"; };
@@ -368,6 +370,7 @@
 		484161E42DEF69DB00A48C49 /* FamilyMenuPlannerPerformanceTests */ = {
 			isa = PBXGroup;
 			children = (
+				4809E68B2DF025D100B54D77 /* DishListServicePerformanceTests.swift */,
 				484161F22DEF748700A48C49 /* CachePerformanceTests.swift */,
 				484161F32DEF748700A48C49 /* CoreDataPerformanceTests.swift */,
 				484161F42DEF748700A48C49 /* ServicePerformanceTests.swift */,
@@ -898,6 +901,7 @@
 				484161D42DEF698200A48C49 /* DishListService.swift in Sources */,
 				484161D52DEF698200A48C49 /* ProductSelectionViewModel.swift in Sources */,
 				484161D62DEF698200A48C49 /* SearchOptimizationHelper.swift in Sources */,
+				4809E68C2DF025D100B54D77 /* DishListServicePerformanceTests.swift in Sources */,
 				484161D72DEF698200A48C49 /* NumbersHelper.swift in Sources */,
 				484161D82DEF698200A48C49 /* CoreDataFetchHelper.swift in Sources */,
 				484161E52DEF69DB00A48C49 /* PersistencePerformanceTests.swift in Sources */,
