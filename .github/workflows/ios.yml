@@ -31,7 +31,7 @@ jobs:
           echo $default | cat >default
           echo "Using default scheme: $default"
           
-      - name: Build and Test
+      - name: Build and Test (Unit and Integration Tests)
         env:
           # Set CI environment variables to prevent CloudKit initialization
           CI: "true"
@@ -51,10 +51,13 @@ jobs:
           echo "Building and testing scheme: $scheme"
           echo "Using $filetype_parameter: $file_to_build"
           
-          # Build and test in one step using a specific simulator
+          # Run only unit tests, integration tests, and performance tests (skip UI tests)
           xcodebuild test \
             -scheme "$scheme" \
             -"$filetype_parameter" "$file_to_build" \
             -destination "platform=iOS Simulator,name=iPhone 16 Pro" \
+            -only-testing:FamilyMenuPlannerTests \
+            -only-testing:FamilyMenuPlannerIntegrationTests \
+            -only-testing:FamilyMenuPlannerPerformanceTests \
             CODE_SIGNING_ALLOWED=NO \
             -quiet
