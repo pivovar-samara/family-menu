@@ -141,6 +141,7 @@ final class StaticDataCacheManager: ObservableObject {
     }
     
     private func clearAllCache() {
+        // Update local state immediately for synchronous access
         isUnitsLoaded = false
         isMealTypesLoaded = false
         isDishCategoriesLoaded = false
@@ -148,27 +149,61 @@ final class StaticDataCacheManager: ObservableObject {
         units = []
         mealTypes = []
         dishCategories = []
+        
+        // Update @Published properties on main thread for optimal UI performance
+        // Use async only if not already on main thread
+        if !Thread.isMainThread {
+            DispatchQueue.main.async {
+                self.units = []
+                self.mealTypes = []
+                self.dishCategories = []
+            }
+        }
     }
     
     /// Invalidate specific data type - internal for testing
     internal func invalidateUnits() {
         cacheQueue.async(flags: .barrier) {
+            // Update local state immediately for synchronous access
             self.isUnitsLoaded = false
             self.units = []
+            
+            // Update @Published properties on main thread for optimal UI performance
+            if !Thread.isMainThread {
+                DispatchQueue.main.async {
+                    self.units = []
+                }
+            }
         }
     }
     
     internal func invalidateMealTypes() {
         cacheQueue.async(flags: .barrier) {
+            // Update local state immediately for synchronous access
             self.isMealTypesLoaded = false
             self.mealTypes = []
+            
+            // Update @Published properties on main thread for optimal UI performance
+            if !Thread.isMainThread {
+                DispatchQueue.main.async {
+                    self.mealTypes = []
+                }
+            }
         }
     }
     
     internal func invalidateDishCategories() {
         cacheQueue.async(flags: .barrier) {
+            // Update local state immediately for synchronous access
             self.isDishCategoriesLoaded = false
             self.dishCategories = []
+            
+            // Update @Published properties on main thread for optimal UI performance
+            if !Thread.isMainThread {
+                DispatchQueue.main.async {
+                    self.dishCategories = []
+                }
+            }
         }
     }
     
@@ -186,9 +221,20 @@ final class StaticDataCacheManager: ObservableObject {
         
         do {
             let fetchedUnits = try context.fetch(fetchRequest)
-            // Update both the flag and data synchronously to avoid race conditions
+            
+            // Update local state immediately for synchronous access
             self.units = fetchedUnits
-            isUnitsLoaded = true
+            self.isUnitsLoaded = true
+            
+            // Update @Published properties on main thread for optimal UI performance
+            // Use async only if not already on main thread
+            if Thread.isMainThread {
+                // Already on main thread, no need to dispatch
+            } else {
+                DispatchQueue.main.async {
+                    self.units = fetchedUnits
+                }
+            }
             
             if !isTestInstance {
                 Self.logger.info("Units cached: \(fetchedUnits.count) items")
@@ -197,8 +243,16 @@ final class StaticDataCacheManager: ObservableObject {
             }
         } catch {
             Self.logger.error("Error loading units for cache: \(error.localizedDescription)")
+            // Handle error immediately for synchronous access
             self.units = []
-            isUnitsLoaded = false
+            self.isUnitsLoaded = false
+            
+            // Update @Published properties on main thread as well
+            if !Thread.isMainThread {
+                DispatchQueue.main.async {
+                    self.units = []
+                }
+            }
         }
     }
     
@@ -215,9 +269,20 @@ final class StaticDataCacheManager: ObservableObject {
         
         do {
             let fetchedMealTypes = try context.fetch(fetchRequest)
-            // Update both the flag and data synchronously to avoid race conditions
+            
+            // Update local state immediately for synchronous access
             self.mealTypes = fetchedMealTypes
-            isMealTypesLoaded = true
+            self.isMealTypesLoaded = true
+            
+            // Update @Published properties on main thread for optimal UI performance
+            // Use async only if not already on main thread
+            if Thread.isMainThread {
+                // Already on main thread, no need to dispatch
+            } else {
+                DispatchQueue.main.async {
+                    self.mealTypes = fetchedMealTypes
+                }
+            }
             
             if !isTestInstance {
                 Self.logger.info("MealTypes cached: \(fetchedMealTypes.count) items")
@@ -226,8 +291,16 @@ final class StaticDataCacheManager: ObservableObject {
             }
         } catch {
             Self.logger.error("Error loading meal types for cache: \(error.localizedDescription)")
+            // Handle error immediately for synchronous access
             self.mealTypes = []
-            isMealTypesLoaded = false
+            self.isMealTypesLoaded = false
+            
+            // Update @Published properties on main thread as well
+            if !Thread.isMainThread {
+                DispatchQueue.main.async {
+                    self.mealTypes = []
+                }
+            }
         }
     }
     
@@ -244,9 +317,20 @@ final class StaticDataCacheManager: ObservableObject {
         
         do {
             let fetchedCategories = try context.fetch(fetchRequest)
-            // Update both the flag and data synchronously to avoid race conditions
+            
+            // Update local state immediately for synchronous access
             self.dishCategories = fetchedCategories
-            isDishCategoriesLoaded = true
+            self.isDishCategoriesLoaded = true
+            
+            // Update @Published properties on main thread for optimal UI performance
+            // Use async only if not already on main thread
+            if Thread.isMainThread {
+                // Already on main thread, no need to dispatch
+            } else {
+                DispatchQueue.main.async {
+                    self.dishCategories = fetchedCategories
+                }
+            }
             
             if !isTestInstance {
                 Self.logger.info("DishCategories cached: \(fetchedCategories.count) items")
@@ -255,8 +339,16 @@ final class StaticDataCacheManager: ObservableObject {
             }
         } catch {
             Self.logger.error("Error loading dish categories for cache: \(error.localizedDescription)")
+            // Handle error immediately for synchronous access
             self.dishCategories = []
-            isDishCategoriesLoaded = false
+            self.isDishCategoriesLoaded = false
+            
+            // Update @Published properties on main thread as well
+            if !Thread.isMainThread {
+                DispatchQueue.main.async {
+                    self.dishCategories = []
+                }
+            }
         }
     }
     

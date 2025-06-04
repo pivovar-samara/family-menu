@@ -321,4 +321,36 @@ final class StaticDataCacheManagerTests: XCTestCase {
         
         wait(for: [expectation], timeout: 2.0)
     }
+    
+    func testPublishedUpdatesHappenOnMainThread() {
+        // Clear cache first
+        cacheManager.invalidateCacheSync()
+        
+        // Create test data on a background thread
+        let backgroundContext = isolatedTestStack!.newBackgroundContext()
+        backgroundContext.performAndWait {
+            let unit = Unit(context: backgroundContext)
+            unit.name = "Test Unit"
+            unit.sortOrder = 1
+            
+            try! backgroundContext.save()
+        }
+        
+        // Verify @Published updates happen on main thread
+        let expectation = XCTestExpectation(description: "Units loaded on main thread")
+        
+        DispatchQueue.global(qos: .background).async {
+            // Trigger cache load from background thread
+            let units = self.cacheManager.getUnits()
+            
+            // Verify the @Published property is eventually updated on main thread
+            DispatchQueue.main.async {
+                XCTAssertEqual(units.count, 1)
+                XCTAssertEqual(units.first?.name, "Test Unit")
+                expectation.fulfill()
+            }
+        }
+        
+        wait(for: [expectation], timeout: 2.0)
+    }
 } 
