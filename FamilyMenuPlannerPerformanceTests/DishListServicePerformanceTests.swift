@@ -31,7 +31,8 @@ class DishListServicePerformanceTests: BaseIntegrationTest {
     }
     
     func testDebouncedUpdatePerformance() {
-        let dishListService = DishListService(context: context)
+        // Use faster debounce for performance testing (5ms instead of 100ms)
+        let dishListService = DishListService(context: context, debounceInterval: 0.005)
         let mockDelegate = MockPerformanceDelegate()
         dishListService.delegate = mockDelegate
         
@@ -80,7 +81,8 @@ class DishListServicePerformanceTests: BaseIntegrationTest {
     }
     
     func testMemoryUsageDuringRapidUpdates() {
-        let dishListService = DishListService(context: context)
+        // Use faster debounce for performance testing (5ms instead of 100ms)
+        let dishListService = DishListService(context: context, debounceInterval: 0.005)
         let mockDelegate = MockPerformanceDelegate()
         dishListService.delegate = mockDelegate
         
@@ -139,7 +141,8 @@ class DishListServicePerformanceTests: BaseIntegrationTest {
     }
     
     func testUIResponsivenessDuringBulkOperations() {
-        let dishListService = DishListService(context: context)
+        // Use faster debounce for performance testing (5ms instead of 100ms)
+        let dishListService = DishListService(context: context, debounceInterval: 0.005)
         let mockDelegate = MockPerformanceDelegate()
         dishListService.delegate = mockDelegate
         
@@ -207,7 +210,8 @@ class DishListServicePerformanceTests: BaseIntegrationTest {
         // This test documents the improvement achieved by debouncing
         // by comparing with a simulated non-debounced approach
         
-        let dishListService = DishListService(context: context)
+        // Use faster debounce for performance testing (5ms instead of 100ms)
+        let dishListService = DishListService(context: context, debounceInterval: 0.005)
         let mockDelegate = MockPerformanceDelegate()
         dishListService.delegate = mockDelegate
         

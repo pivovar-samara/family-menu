@@ -29,10 +29,11 @@ class DishListService: NSObject {
     // Performance optimization: debounce rapid changes
     private var changeDebounceTimer: Timer?
     private var hasPendingChanges = false
-    private let debounceInterval: TimeInterval = 0.1 // 100ms debounce
+    private let debounceInterval: TimeInterval
     
-    init(context: NSManagedObjectContext) {
+    init(context: NSManagedObjectContext, debounceInterval: TimeInterval = 0.1) {
         self.context = context
+        self.debounceInterval = debounceInterval
         let fetchRequest: NSFetchRequest<Dish> = Dish.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Dish.name, ascending: true)]
         

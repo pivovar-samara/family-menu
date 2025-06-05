@@ -15,7 +15,8 @@ class DishListServiceIntegrationTests: BaseIntegrationTest {
     
     override func setUp() {
         super.setUp()
-        dishListService = DishListService(context: context)
+        // Use faster debounce interval for tests (10ms instead of 100ms)
+        dishListService = DishListService(context: context, debounceInterval: 0.01)
         mockDelegate = MockDishListServiceDelegate()
         dishListService.delegate = mockDelegate
     }
@@ -168,8 +169,8 @@ class DishListServiceIntegrationTests: BaseIntegrationTest {
     func testDebounceTimerCleanupOnDeinit() {
         let category = createDishCategory(name: "Timer Test Category")
         
-        // Create service in limited scope
-        var service: DishListService? = DishListService(context: context)
+        // Create service in limited scope with faster debounce for testing
+        var service: DishListService? = DishListService(context: context, debounceInterval: 0.01)
         weak var weakService = service
         
         // Trigger timer creation
