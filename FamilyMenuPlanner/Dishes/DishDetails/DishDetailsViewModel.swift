@@ -10,18 +10,10 @@ import SwiftUI
 import Combine
 
 class DishDetailsViewModel: ObservableObject {
-    // Use cached data for better performance
-    var units: [Unit] {
-        return StaticDataCacheManager.shared.getUnits()
-    }
-    
-    var allMealTypes: [MealType] {
-        return StaticDataCacheManager.shared.getMealTypes()
-    }
-    
-    var allDishCategories: [DishCategory] {
-        return StaticDataCacheManager.shared.getDishCategories()
-    }
+    // Use @Published properties that observe the cache for automatic UI updates
+    @Published var units: [Unit] = []
+    @Published var allMealTypes: [MealType] = []
+    @Published var allDishCategories: [DishCategory] = []
     
     @Published var selectedCategory: DishCategory?
     @Published var descriptionText: String = ""
@@ -36,16 +28,32 @@ class DishDetailsViewModel: ObservableObject {
     
     private let dishDetailsService: DishDetailsServiceProtocol
     private let alertManager = AlertQueueManager()
+    private var cancellables = Set<AnyCancellable>()
     
     init(dishDetailsService: DishDetailsServiceProtocol, dish: Dish? = nil) {
         self.dishDetailsService = dishDetailsService
         self.dish = dish
         
-        // Ensure static data is available for pickers
-        // This forces cache to load data if not already loaded
-        _ = StaticDataCacheManager.shared.getUnits()
-        _ = StaticDataCacheManager.shared.getMealTypes()  
-        _ = StaticDataCacheManager.shared.getDishCategories()
+        // Load initial static data
+        self.units = StaticDataCacheManager.shared.getUnits()
+        self.allMealTypes = StaticDataCacheManager.shared.getMealTypes()
+        self.allDishCategories = StaticDataCacheManager.shared.getDishCategories()
+        
+        // Observe cache manager for automatic updates
+        StaticDataCacheManager.shared.$units
+            .receive(on: DispatchQueue.main)
+            .assign(to: \.units, on: self)
+            .store(in: &cancellables)
+            
+        StaticDataCacheManager.shared.$mealTypes
+            .receive(on: DispatchQueue.main)
+            .assign(to: \.allMealTypes, on: self)
+            .store(in: &cancellables)
+            
+        StaticDataCacheManager.shared.$dishCategories
+            .receive(on: DispatchQueue.main)
+            .assign(to: \.allDishCategories, on: self)
+            .store(in: &cancellables)
         
         // Load dish-specific data after static data is available
         if let dish = dish {

@@ -508,6 +508,9 @@ struct PersistenceController {
             // Save all data
             try context.save()
             print("Data preloaded successfully from preloadData.json.")
+            
+            // Refresh static data cache to ensure it has the newly created data
+            StaticDataCacheManager.shared.invalidateCache()
         } catch {
             print("Error preloading data: \(error)")
         }

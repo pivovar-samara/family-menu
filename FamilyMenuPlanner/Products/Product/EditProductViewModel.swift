@@ -14,18 +14,25 @@ class EditProductViewModel: ObservableObject {
     
     @Published var selectedUnit: Unit?
     @Published var currentAlert: AlertItem?
-    
-    // Use cached data for better performance
-    var units: [Unit] {
-        return StaticDataCacheManager.shared.getUnits()
-    }
+    @Published var units: [Unit] = []
     
     private let editProductService: EditProductServiceProtocol
     private let alertManager = AlertQueueManager()
+    private var cancellables = Set<AnyCancellable>()
     
     init(product: Product, editProductService: EditProductServiceProtocol) {
         self.product = product
         self.editProductService = editProductService
+        
+        // Load initial units
+        self.units = StaticDataCacheManager.shared.getUnits()
+        
+        // Observe cache manager for units updates
+        StaticDataCacheManager.shared.$units
+            .receive(on: DispatchQueue.main)
+            .assign(to: \.units, on: self)
+            .store(in: &cancellables)
+        
         alertManager.$currentAlert
                     .receive(on: RunLoop.main)
                     .assign(to: &$currentAlert)

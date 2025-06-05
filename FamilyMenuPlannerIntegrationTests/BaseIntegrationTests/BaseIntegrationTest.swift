@@ -18,6 +18,10 @@ class BaseIntegrationTest: XCTestCase {
         super.setUp()
         context = TestCoreDataStack.shared.viewContext
         testDataFactory = TestDataFactory(context: context)
+        
+        // Initialize the shared cache manager with the test context
+        StaticDataCacheManager.shared.initialize(with: context)
+        
         // Clear cache before each test to ensure test isolation
         StaticDataCacheManager.shared.invalidateCacheSync()
         cleanUpTestData()

@@ -38,7 +38,9 @@ class EditProductService {
     }
     
     func saveChanges() throws {
+        print("💾 EditProductService: Saving product changes")
         try context.save()
+        print("✅ EditProductService: Product changes saved successfully")
     }
     
     func rollback() {

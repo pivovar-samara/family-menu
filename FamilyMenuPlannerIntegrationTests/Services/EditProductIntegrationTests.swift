@@ -34,12 +34,11 @@ class EditProductIntegrationTests: BaseIntegrationTest {
         // Create test product
         testProduct = createProduct(name: "Test Product", unit: pieces)
         
-        // Force cache to reload after creating test data
-        StaticDataCacheManager.shared.invalidateCacheSync()
+        // Initialize the shared cache manager with the test context first
         StaticDataCacheManager.shared.initialize(with: context)
         
-        // Force synchronous reload to ensure data is available immediately
-        let _ = StaticDataCacheManager.shared.getUnits()
+        // Then force cache to reload after creating test data
+        StaticDataCacheManager.shared.invalidateCacheSync()
         
         // Initialize service and view model
         editProductService = EditProductService(context: context)
