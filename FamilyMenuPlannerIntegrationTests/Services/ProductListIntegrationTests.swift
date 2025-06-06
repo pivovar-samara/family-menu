@@ -55,7 +55,7 @@ class ProductListIntegrationTests: BaseIntegrationTest {
         
         // Wait for products to be loaded and reactive bindings to update
         let loadExpectation = expectation(description: "Products loaded and filtered")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             // Verify products are loaded
             XCTAssertEqual(self.viewModel.allProducts.count, 2)
             XCTAssertEqual(self.viewModel.filteredProducts.count, 2)
@@ -63,7 +63,7 @@ class ProductListIntegrationTests: BaseIntegrationTest {
             XCTAssertTrue(self.viewModel.allProducts.contains(products[1])) // Flour
             loadExpectation.fulfill()
         }
-        wait(for: [loadExpectation], timeout: 1.0)
+        wait(for: [loadExpectation], timeout: 0.5)
     }
     
     func testAddProduct() {
@@ -86,14 +86,14 @@ class ProductListIntegrationTests: BaseIntegrationTest {
         
         // Wait for product to be added and reactive bindings to update
         let addExpectation = expectation(description: "Product added")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             // Verify product was added
             XCTAssertEqual(self.viewModel.allProducts.count, 1)
             XCTAssertEqual(self.viewModel.allProducts.first?.name, "Sugar")
             XCTAssertEqual(self.viewModel.allProducts.first?.unit, units[1])
             addExpectation.fulfill()
         }
-        wait(for: [addExpectation], timeout: 1.0)
+        wait(for: [addExpectation], timeout: 0.5)
     }
     
     func testDeleteProduct() {
@@ -104,25 +104,25 @@ class ProductListIntegrationTests: BaseIntegrationTest {
         
         // Wait for products to be loaded and UI to update
         let loadExpectation = expectation(description: "Products loaded")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             XCTAssertEqual(self.viewModel.filteredProducts.count, 2, "Should have 2 filtered products loaded")
             loadExpectation.fulfill()
         }
-        wait(for: [loadExpectation], timeout: 1.0)
+        wait(for: [loadExpectation], timeout: 0.5)
         
         // Delete first product
         viewModel.deleteProducts(at: IndexSet(integer: 0))
         
         // Wait for deletion to complete and UI to update
         let deleteExpectation = expectation(description: "Product deleted")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             // Verify product was deleted
             XCTAssertEqual(self.viewModel.allProducts.count, 1)
             XCTAssertFalse(self.viewModel.allProducts.contains(products[0]))
             XCTAssertTrue(self.viewModel.allProducts.contains(products[1]))
             deleteExpectation.fulfill()
         }
-        wait(for: [deleteExpectation], timeout: 1.0)
+        wait(for: [deleteExpectation], timeout: 0.5)
     }
     
     func testSearchProducts() {
@@ -154,12 +154,12 @@ class ProductListIntegrationTests: BaseIntegrationTest {
         // Load products again to get our test products
         viewModel.loadProducts()
         
-        // Test search
+        // Test search - using actual debounce timing (300ms) + buffer
         let exp = expectation(description: "Search filtering")
         viewModel.searchText = "Apple"
         
-        // Wait for debounce period
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+        // Wait for debounce period (300ms) + buffer for reliability
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
             // Verify filtered products
             XCTAssertEqual(self.viewModel.filteredProducts.count, 1)
             XCTAssertEqual(self.viewModel.filteredProducts.first?.name, "Apple")
@@ -168,21 +168,21 @@ class ProductListIntegrationTests: BaseIntegrationTest {
             self.viewModel.searchText = "NonExistent"
             
             // Wait for second search to complete
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                 XCTAssertEqual(self.viewModel.filteredProducts.count, 0)
                 
                 // Clear search
                 self.viewModel.searchText = ""
                 
                 // Wait for final search to complete
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                     XCTAssertEqual(self.viewModel.filteredProducts.count, 2)
                     exp.fulfill()
                 }
             }
         }
         
-        wait(for: [exp], timeout: 2)
+        wait(for: [exp], timeout: 2.0)
     }
     
     func testValidateNewProduct() {
@@ -222,13 +222,14 @@ class ProductListIntegrationTests: BaseIntegrationTest {
         let exp = expectation(description: "Search filtering")
         viewModel.searchText = "!@#$"
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+        // Use correct debounce timing (300ms) + buffer
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
             XCTAssertEqual(self.viewModel.filteredProducts.count, 1)
             XCTAssertEqual(self.viewModel.filteredProducts.first?.name, "Product!@#$%^&*()")
             exp.fulfill()
         }
         
-        wait(for: [exp], timeout: 2)
+        wait(for: [exp], timeout: 1.0)
     }
     
     func testBulkOperations() {
