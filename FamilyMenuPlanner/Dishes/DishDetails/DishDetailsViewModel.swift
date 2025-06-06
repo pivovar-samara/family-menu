@@ -74,7 +74,7 @@ class DishDetailsViewModel: ObservableObject {
         do {
             try dish = dishDetailsService.createDish()
         } catch {
-            print("Failed to create a new dish: \(error)")
+            AppLogger.error("Failed to create a new dish", error: error, category: AppLogger.viewModel)
         }
     }
     
@@ -103,17 +103,20 @@ class DishDetailsViewModel: ObservableObject {
         dish?.category = category
     }
 
-    func addIngredient(for product: Product) {
+    func addIngredient(product: Product, quantity: Double) {
+        guard let dish = dish else { return }
+        
         do {
-            let newIngredient = try dishDetailsService.createIngredient()
-            newIngredient.dish = dish
-            newIngredient.product = product
-            newIngredient.quantity = 1.0
-            newIngredient.sortOrder = (selectedIngredients.last?.sortOrder ?? 0) + 1
-
-            selectedIngredients.append(newIngredient)
+            let ingredientDetail = try dishDetailsService.createIngredient()
+            ingredientDetail.dish = dish
+            ingredientDetail.product = product
+            ingredientDetail.quantity = quantity
+            
+            try dishDetailsService.saveChanges()
+            // Refresh ingredients list
+            loadIngredients()
         } catch {
-            print("Failed to create a new ingredient: \(error)")
+            AppLogger.error("Failed to create a new ingredient", error: error, category: AppLogger.viewModel)
         }
     }
 

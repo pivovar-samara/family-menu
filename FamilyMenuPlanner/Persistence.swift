@@ -113,7 +113,7 @@ struct PersistenceController {
                     // Use the container to initialize the development schema.
                     try cloudKitContainer.initializeCloudKitSchema(options: [])
                 } catch {
-                    print("⚠️ CloudKit schema initialization failed: \(error)")
+                    AppLogger.error("CloudKit schema initialization failed", error: error, category: AppLogger.cloudKit)
                 }
             }
         }
@@ -208,19 +208,18 @@ struct PersistenceController {
     }
     
     private func logError(_ error: NSError, persistenceError: PersistenceError) {
-        print("🚨 Core Data Store Loading Error:")
-        print("   Code: \(error.code)")
-        print("   Domain: \(error.domain)")
-        print("   Description: \(error.localizedDescription)")
-        print("   User Info: \(error.userInfo)")
-        print("   Categorized as: \(persistenceError)")
+        AppLogger.critical("Core Data Store Loading Error", category: AppLogger.persistence)
+        AppLogger.error("Code: \(error.code), Domain: \(error.domain)", category: AppLogger.persistence)
+        AppLogger.error("Description: \(error.localizedDescription)", category: AppLogger.persistence)
+        AppLogger.error("User Info: \(error.userInfo)", category: AppLogger.persistence)
+        AppLogger.error("Categorized as: \(persistenceError)", category: AppLogger.persistence)
         
         // TODO: Send to crash reporting service (e.g., Crashlytics, Sentry)
         // CrashReporter.shared.recordError(persistenceError)
     }
     
     private func attemptErrorRecovery(_ error: NSError, storeDescription: NSPersistentStoreDescription?) -> Bool {
-        print("🔧 Attempting error recovery...")
+        AppLogger.info("Attempting error recovery", category: AppLogger.persistence)
         
         switch categorizeError(error) {
         case .migrationFailed:
@@ -242,7 +241,7 @@ struct PersistenceController {
             return false
         }
         
-        print("🔄 Attempting migration recovery...")
+        AppLogger.info("Attempting migration recovery", category: AppLogger.persistence)
         
         // Try to delete and recreate the store if migration fails
         do {
@@ -265,11 +264,11 @@ struct PersistenceController {
                 try fileManager.removeItem(at: shmURL)
             }
             
-            print("✅ Store files removed successfully")
+            AppLogger.info("Store files removed successfully", category: AppLogger.persistence)
             return true
             
         } catch {
-            print("❌ Failed to remove store files: \(error)")
+            AppLogger.error("Failed to remove store files", error: error, category: AppLogger.persistence)
             return false
         }
     }
@@ -355,7 +354,7 @@ struct PersistenceController {
     }
     
     private func configureSuccessfulStore() {
-        print("✅ Core Data store loaded successfully")
+        AppLogger.info("Core Data store loaded successfully", category: AppLogger.persistence)
         container.viewContext.automaticallyMergesChangesFromParent = true
         
         // Configure for better performance
@@ -428,7 +427,7 @@ struct PersistenceController {
     
     func generateInitialData(context: NSManagedObjectContext) {
         guard let url = Bundle.main.url(forResource: "preloadData", withExtension: "json") else {
-            print("Failed to find preloadData.json in bundle")
+            AppLogger.error("Failed to find preloadData.json in bundle", category: AppLogger.dataImport)
             return
         }
 
@@ -507,12 +506,12 @@ struct PersistenceController {
 
             // Save all data
             try context.save()
-            print("Data preloaded successfully from preloadData.json.")
+            AppLogger.info("Data preloaded successfully from preloadData.json", category: AppLogger.dataImport)
             
             // Refresh static data cache to ensure it has the newly created data
             StaticDataCacheManager.shared.invalidateCache()
         } catch {
-            print("Error preloading data: \(error)")
+            AppLogger.error("Error preloading data", error: error, category: AppLogger.dataImport)
         }
     }
     

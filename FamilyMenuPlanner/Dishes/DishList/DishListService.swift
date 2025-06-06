@@ -61,7 +61,7 @@ class DishListService: NSObject {
             try fetchedResultsController.performFetch()
             self.delegate?.serviceDidChangeContent(fetchedResultsController.fetchedObjects ?? [])
         } catch {
-            print("Error loading dishes: \(error)")
+            AppLogger.error("Error loading dishes", error: error, category: AppLogger.service)
             self.delegate?.serviceDidChangeContent([])
         }
     }

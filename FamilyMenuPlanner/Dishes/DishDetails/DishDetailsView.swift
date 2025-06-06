@@ -127,7 +127,7 @@ struct DishDetailsView: View {
             NavigationStack {
                 ProductSelectionCoordinator().createProductSelectionView(currentProduct: viewModel.selectedIngredient?.product) { selectedProduct in
                     if viewModel.isAddingIngredient {
-                        viewModel.addIngredient(for: selectedProduct)
+                        viewModel.addIngredient(product: selectedProduct, quantity: 1.0)
                     } else {
                         viewModel.selectedIngredient?.product = selectedProduct
                         

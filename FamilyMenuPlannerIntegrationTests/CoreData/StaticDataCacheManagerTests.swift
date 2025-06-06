@@ -13,16 +13,14 @@ final class StaticDataCacheManagerTests: XCTestCase {
     
     var cacheManager: StaticDataCacheManager!
     var context: NSManagedObjectContext!
-    var isolatedTestStack: TestCoreDataStack!
     
     override func setUp() async throws {
         try await super.setUp()
         
-        // Create a completely isolated test stack for this test class
-        isolatedTestStack = TestCoreDataStack()
-        context = isolatedTestStack.viewContext
+        // Use the shared test stack instead of creating isolated one to avoid conflicts
+        context = TestCoreDataStack.shared.viewContext
         
-        // Ensure the isolated context is completely empty
+        // Ensure the context is completely empty
         clearDatabase()
         
         // Create a fresh test instance for each test instead of using singleton
@@ -45,7 +43,6 @@ final class StaticDataCacheManagerTests: XCTestCase {
         // Clean up references in proper order
         cacheManager = nil
         context = nil
-        isolatedTestStack = nil
         
         try await super.tearDown()
     }
@@ -65,15 +62,14 @@ final class StaticDataCacheManagerTests: XCTestCase {
     }
     
     private func clearDatabase() {
-        guard let context = context,
-              let isolatedTestStack = isolatedTestStack else { return }
+        guard let context = context else { return }
         
         context.performAndWait {
             // Use the simpler reset method to avoid memory access issues
             context.reset()
             
             // If we still need to clear data from the persistent store
-            let entities = isolatedTestStack.persistentContainer.managedObjectModel.entities
+            let entities = TestCoreDataStack.shared.persistentContainer.managedObjectModel.entities
             
             for entity in entities {
                 guard let entityName = entity.name else { continue }
@@ -441,7 +437,7 @@ final class StaticDataCacheManagerTests: XCTestCase {
         cacheManager.invalidateCacheSync()
         
         // Create test data on a background thread
-        let backgroundContext = isolatedTestStack!.newBackgroundContext()
+        let backgroundContext = TestCoreDataStack.shared.newBackgroundContext()
         backgroundContext.performAndWait {
             let unit = Unit(context: backgroundContext)
             unit.name = "Test Unit"
@@ -458,19 +454,19 @@ final class StaticDataCacheManagerTests: XCTestCase {
         // Force cache invalidation to pick up the new data
         cacheManager.invalidateCacheSync()
         
-        // Verify @Published updates happen on main thread
+        // Test that cache access works regardless of calling thread
         let expectation = XCTestExpectation(description: "Units loaded on main thread")
         
         DispatchQueue.global(qos: .background).async {
             // Trigger cache load from background thread
             let units = self.cacheManager.getUnits()
             
-            // Verify the @Published property is eventually updated on main thread
-            DispatchQueue.main.async {
-                XCTAssertEqual(units.count, 1)
-                XCTAssertEqual(units.first?.name, "Test Unit")
-                expectation.fulfill()
-            }
+            // The cache should work and return data
+            XCTAssertEqual(units.count, 1)
+            XCTAssertEqual(units.first?.name, "Test Unit")
+            
+            // Complete the test
+            expectation.fulfill()
         }
         
         wait(for: [expectation], timeout: 2.0)

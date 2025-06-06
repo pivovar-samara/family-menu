@@ -8,6 +8,11 @@
 
 /* Begin PBXBuildFile section */
 		4809E68C2DF025D100B54D77 /* DishListServicePerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4809E68B2DF025D100B54D77 /* DishListServicePerformanceTests.swift */; };
+		480F46042DF1E0D300B369F9 /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 480F46032DF1E0D300B369F9 /* AppLogger.swift */; };
+		480F46052DF1E0D300B369F9 /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 480F46032DF1E0D300B369F9 /* AppLogger.swift */; };
+		480F46062DF1E0D300B369F9 /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 480F46032DF1E0D300B369F9 /* AppLogger.swift */; };
+		480F46072DF1E0D300B369F9 /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 480F46032DF1E0D300B369F9 /* AppLogger.swift */; };
+		480F46082DF1E0D300B369F9 /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 480F46032DF1E0D300B369F9 /* AppLogger.swift */; };
 		484161982DEF67B400A48C49 /* FamilyMenuPlanner.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = A004ED832D11DC020081DDC0 /* FamilyMenuPlanner.xcdatamodeld */; };
 		484161992DEF67BA00A48C49 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = A004ED812D11DC020081DDC0 /* Persistence.swift */; };
 		4841619A2DEF67C000A48C49 /* AppStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A057063F2D35157900D4496C /* AppStateManager.swift */; };
@@ -233,6 +238,7 @@
 
 /* Begin PBXFileReference section */
 		4809E68B2DF025D100B54D77 /* DishListServicePerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DishListServicePerformanceTests.swift; sourceTree = "<group>"; };
+		480F46032DF1E0D300B369F9 /* AppLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLogger.swift; sourceTree = "<group>"; };
 		4841617E2DEF52D800A48C49 /* FamilyMenuPlannerIntegrationTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FamilyMenuPlannerIntegrationTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		484161E12DEF698200A48C49 /* FamilyMenuPlannerPerformanceTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FamilyMenuPlannerPerformanceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		484161E32DEF69DB00A48C49 /* PersistencePerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistencePerformanceTests.swift; sourceTree = "<group>"; };
@@ -630,6 +636,7 @@
 		A0DBD54B2D12E01100C83BFD /* Common */ = {
 			isa = PBXGroup;
 			children = (
+				480F46032DF1E0D300B369F9 /* AppLogger.swift */,
 				A0D21EC32D1575240014AD78 /* ViewHelper.swift */,
 				489131622DEF0A3A00BFDAA6 /* SearchOptimizationHelper.swift */,
 				489131682DEF14C800BFDAA6 /* StaticDataCacheManager.swift */,
@@ -849,6 +856,7 @@
 				484161992DEF67BA00A48C49 /* Persistence.swift in Sources */,
 				4841619A2DEF67C000A48C49 /* AppStateManager.swift in Sources */,
 				484161982DEF67B400A48C49 /* FamilyMenuPlanner.xcdatamodeld in Sources */,
+				480F46042DF1E0D300B369F9 /* AppLogger.swift in Sources */,
 				4841619B2DEF67D200A48C49 /* LocalizationHelper.swift in Sources */,
 				4841619C2DEF67D200A48C49 /* StaticDataCacheManager.swift in Sources */,
 				4841619D2DEF67D200A48C49 /* CalendarHelper.swift in Sources */,
@@ -886,6 +894,7 @@
 				484161C82DEF698200A48C49 /* ProductSelectionService.swift in Sources */,
 				484161C92DEF698200A48C49 /* EditProductViewModel.swift in Sources */,
 				484161CA2DEF698200A48C49 /* ProductListService.swift in Sources */,
+				480F46082DF1E0D300B369F9 /* AppLogger.swift in Sources */,
 				484161CB2DEF698200A48C49 /* ProductListViewModel.swift in Sources */,
 				484161CC2DEF698200A48C49 /* EditProductService.swift in Sources */,
 				484161CD2DEF698200A48C49 /* DishListViewModel.swift in Sources */,
@@ -952,6 +961,7 @@
 				4891316B2DEF14C800BFDAA6 /* StaticDataCacheManager.swift in Sources */,
 				A0A3B4DF2D43CF05009E8AE7 /* DishDetailsCoordinator.swift in Sources */,
 				A0A3B4CF2D43CB73009E8AE7 /* DishListCoordinator.swift in Sources */,
+				480F46052DF1E0D300B369F9 /* AppLogger.swift in Sources */,
 				A0D21EB12D145B410014AD78 /* ProductSelectionView.swift in Sources */,
 				A07F69DB2D3BA41700ECE326 /* DishSelectionViewModel.swift in Sources */,
 				A07F69ED2D3D063800ECE326 /* ProductListService.swift in Sources */,
@@ -977,6 +987,7 @@
 				A07E938C2D47F405003940AE /* FamilyMenuPlanner.xcdatamodeld in Sources */,
 				4891316A2DEF14C800BFDAA6 /* StaticDataCacheManager.swift in Sources */,
 				A0A3B4E82D463B4E009E8AE7 /* ProductSelectionService.swift in Sources */,
+				480F46062DF1E0D300B369F9 /* AppLogger.swift in Sources */,
 				A0A3B4E42D463B33009E8AE7 /* ProductSelectionViewModel.swift in Sources */,
 				A07F69DC2D3BA41700ECE326 /* DishSelectionViewModel.swift in Sources */,
 				A0D21ECF2D16B4570014AD78 /* NumbersHelper.swift in Sources */,
@@ -1015,6 +1026,7 @@
 				A0D21ED02D16B4570014AD78 /* NumbersHelper.swift in Sources */,
 				A004ED9C2D11DC030081DDC0 /* FamilyMenuPlannerUITestsLaunchTests.swift in Sources */,
 				A07F69EF2D3D063800ECE326 /* ProductListService.swift in Sources */,
+				480F46072DF1E0D300B369F9 /* AppLogger.swift in Sources */,
 				A07F69F72D3D890200ECE326 /* AlertQueueManager.swift in Sources */,
 				A0D21EC62D1575240014AD78 /* ViewHelper.swift in Sources */,
 				A0DBD5532D12E90500C83BFD /* ShoppingListView.swift in Sources */,

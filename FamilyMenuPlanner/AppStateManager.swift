@@ -73,7 +73,7 @@ final class AppStateManager: ObservableObject {
         
         // Skip CloudKit checks in test/CI environments
         if isRunningTests {
-            print("🧪 Running in test/CI environment - skipping iCloud account status check")
+            AppLogger.debug("Running in test/CI environment - skipping iCloud account status check", category: AppLogger.appState)
             DispatchQueue.main.async {
                 self.isICloudAvailable = false
             }
@@ -93,7 +93,7 @@ final class AppStateManager: ObservableObject {
                         self?.handleCloudKitEvent(notification)
                     }
                 } else {
-                    print("❌ iCloud is not available. Disabling iCloud sync.")
+                    AppLogger.warning("iCloud is not available. Disabling iCloud sync", category: AppLogger.cloudKit)
                 }
             }
         }
@@ -102,7 +102,7 @@ final class AppStateManager: ObservableObject {
     private func handleCloudKitEvent(_ notification: Notification) {
         if let event = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey] as? NSPersistentCloudKitContainer.Event,
            event.type == .import, event.endDate != nil {
-            print("✅ iCloud sync completed.")
+            AppLogger.info("iCloud sync completed", category: AppLogger.cloudKit)
             DispatchQueue.main.async {
                 // Only check database state if persistence is ready
                 if PersistenceController.shared.isReady {
