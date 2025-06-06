@@ -79,12 +79,14 @@ struct PersistenceController {
     let stateManager = PersistenceStateManager()
 
     init(inMemory: Bool = false) {
-        // Enhanced test environment detection for CI
+        // Enhanced test environment detection for CI with more robust checks
         let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
                             NSClassFromString("XCTestCase") != nil ||
                             ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] != nil ||  // GitHub Actions
                             ProcessInfo.processInfo.environment["CI"] != nil ||              // Generic CI
-                            ProcessInfo.processInfo.arguments.contains("test")               // xcodebuild test
+                            ProcessInfo.processInfo.environment["BUILD_NUMBER"] != nil ||    // Xcode Cloud
+                            ProcessInfo.processInfo.arguments.contains("test") ||           // xcodebuild test
+                            ProcessInfo.processInfo.arguments.contains("-XCTest")           // Additional test detection
         
         // Check if we're in simulator using Swift-compatible approach
         #if targetEnvironment(simulator)
@@ -93,29 +95,34 @@ struct PersistenceController {
         let isSimulator = false
         #endif
         
-        // Use NSPersistentContainer for tests, optionally for simulator too
-        // Change `|| isSimulator` to `&& false` if you want CloudKit in simulator
-        if isRunningTests || inMemory {
+        // Always use NSPersistentContainer for CI/tests to avoid CloudKit issues
+        // Use NSPersistentContainer for tests, CI environments, or simulator
+        if isRunningTests || inMemory || (isSimulator && ProcessInfo.processInfo.environment["CI"] != nil) {
             container = NSPersistentContainer(name: "FamilyMenuPlanner")
+            AppLogger.info("Using NSPersistentContainer (no CloudKit) for CI/test environment", category: AppLogger.persistence)
         } else {
             container = NSPersistentCloudKitContainer(name: "FamilyMenuPlanner")
+            AppLogger.info("Using NSPersistentCloudKitContainer for production environment", category: AppLogger.persistence)
         }
         
         // Configure store descriptions before loading
         configureStoreDescriptions(inMemory: inMemory, isRunningTests: isRunningTests, isSimulator: isSimulator)
         
         // Only initialize CloudKit schema when building the app with the
-        // Debug build configuration and not running tests or in simulator without iCloud.
+        // Debug build configuration and not running tests or in CI environments.
         #if DEBUG
         if !isRunningTests && !inMemory && (!isSimulator || shouldUseCloudKitInSimulator()) {
             if let cloudKitContainer = container as? NSPersistentCloudKitContainer {
                 do {
                     // Use the container to initialize the development schema.
                     try cloudKitContainer.initializeCloudKitSchema(options: [])
+                    AppLogger.info("CloudKit schema initialized successfully", category: AppLogger.cloudKit)
                 } catch {
                     AppLogger.error("CloudKit schema initialization failed", error: error, category: AppLogger.cloudKit)
                 }
             }
+        } else {
+            AppLogger.info("Skipping CloudKit schema initialization for CI/test environment", category: AppLogger.cloudKit)
         }
         #endif
         
@@ -136,29 +143,51 @@ struct PersistenceController {
         
         // Configure store options for better error handling and performance
         if let storeDescription = container.persistentStoreDescriptions.first {
-            // Always enable history tracking and remote notifications for consistency
-            storeDescription.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
-            storeDescription.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
-            
             // Enable automatic store migration
             storeDescription.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)
             storeDescription.setOption(true as NSNumber, forKey: NSInferMappingModelAutomaticallyOption)
             
-            // Disable CloudKit for tests or optionally for simulator to prevent conflicts
+            // Configure history tracking and notifications based on environment
+            if isRunningTests || inMemory {
+                // Minimal configuration for test environments to avoid issues
+                storeDescription.setOption(false as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+                storeDescription.setOption(false as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+                AppLogger.info("Configured Core Data for test environment - minimal options", category: AppLogger.persistence)
+            } else {
+                // Full configuration for production
+                storeDescription.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+                storeDescription.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+                AppLogger.info("Configured Core Data for production environment - full options", category: AppLogger.persistence)
+            }
+            
+            // Completely disable CloudKit for tests/CI or optionally for simulator
             if isRunningTests || inMemory || (isSimulator && !shouldUseCloudKitInSimulator()) {
                 // Remove CloudKit configuration for test environments or simulator (based on preference)
                 storeDescription.cloudKitContainerOptions = nil
+                AppLogger.info("CloudKit disabled for test/simulator environment", category: AppLogger.persistence)
+            } else {
+                AppLogger.info("CloudKit enabled for production environment", category: AppLogger.persistence)
             }
+        } else {
+            AppLogger.error("Failed to get store description - this may cause startup issues", category: AppLogger.persistence)
         }
     }
     
     private func loadPersistentStores(completion: @escaping (Bool) -> Void = { _ in }) {
+        AppLogger.info("Loading persistent stores...", category: AppLogger.persistence)
+        
         container.loadPersistentStores { [weak stateManager = self.stateManager] (storeDescription, error) in
             if let error = error as NSError? {
+                AppLogger.error("Persistent store loading failed", error: error, category: AppLogger.persistence)
+                AppLogger.error("Store description: \(storeDescription.description)", category: AppLogger.persistence)
+                
                 self.handleStoreLoadingError(error, storeDescription: storeDescription, stateManager: stateManager) { success in
                     completion(success)
                 }
             } else {
+                AppLogger.info("Persistent stores loaded successfully", category: AppLogger.persistence)
+                AppLogger.info("Store description: \(storeDescription.description)", category: AppLogger.persistence)
+                
                 self.configureSuccessfulStore()
                 stateManager?.clearError()
                 completion(true)

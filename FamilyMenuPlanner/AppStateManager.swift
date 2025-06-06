@@ -19,8 +19,11 @@ final class AppStateManager: ObservableObject {
     private var isDatabaseEmpty: Bool = false
 
     private init() {
+        AppLogger.info("AppStateManager initializing...", category: AppLogger.appState)
+        
         checkPersistenceState()
         checkICloudAccountStatus()
+        AppLogger.info("AppStateManager initialized successfully", category: AppLogger.appState)
     }
     
     deinit {
@@ -64,12 +67,14 @@ final class AppStateManager: ObservableObject {
     }
 
     private func checkICloudAccountStatus() {
-        // Enhanced test environment detection - same as in PersistenceController
+        // Enhanced test environment detection - same as in PersistenceController with additional CI checks
         let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
                             NSClassFromString("XCTestCase") != nil ||
                             ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] != nil ||
                             ProcessInfo.processInfo.environment["CI"] != nil ||
-                            ProcessInfo.processInfo.arguments.contains("test")
+                            ProcessInfo.processInfo.environment["BUILD_NUMBER"] != nil ||    // Xcode Cloud
+                            ProcessInfo.processInfo.arguments.contains("test") ||
+                            ProcessInfo.processInfo.arguments.contains("-XCTest")
         
         // Skip CloudKit checks in test/CI environments
         if isRunningTests {
@@ -92,8 +97,13 @@ final class AppStateManager: ObservableObject {
                     ) { [weak self] notification in
                         self?.handleCloudKitEvent(notification)
                     }
+                    AppLogger.info("iCloud is available - CloudKit sync enabled", category: AppLogger.cloudKit)
                 } else {
-                    AppLogger.warning("iCloud is not available. Disabling iCloud sync", category: AppLogger.cloudKit)
+                    if let error = error {
+                        AppLogger.error("iCloud account check failed", error: error, category: AppLogger.cloudKit)
+                    } else {
+                        AppLogger.info("iCloud is not available - running in local mode", category: AppLogger.cloudKit)
+                    }
                 }
             }
         }
