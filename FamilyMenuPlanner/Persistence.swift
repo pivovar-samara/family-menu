@@ -89,7 +89,11 @@ struct PersistenceController {
                             ProcessInfo.processInfo.environment["CI"] != nil ||              // Generic CI
                             ProcessInfo.processInfo.environment["BUILD_NUMBER"] != nil ||    // Xcode Cloud
                             ProcessInfo.processInfo.arguments.contains("test") ||           // xcodebuild test
-                            ProcessInfo.processInfo.arguments.contains("-XCTest")           // Additional test detection
+                            ProcessInfo.processInfo.arguments.contains("-XCTest") ||        // Additional test detection
+                            ProcessInfo.processInfo.environment["UI_TESTS"] != nil ||       // UI test environment variable
+                            ProcessInfo.processInfo.environment["DISABLE_CLOUDKIT"] != nil || // CloudKit disable flag
+                            ProcessInfo.processInfo.arguments.contains("-UITests") ||       // UI test launch argument
+                            ProcessInfo.processInfo.arguments.contains("-DisableCloudKit")  // CloudKit disable argument
         
         AppLogger.info("Environment: inMemory=\(inMemory), isRunningTests=\(isRunningTests)", category: AppLogger.persistence)
         

@@ -81,15 +81,24 @@ final class AppStateManager: ObservableObject {
 
     private func checkICloudAccountStatus() {
         // Enhanced test environment detection - same as in PersistenceController with additional CI checks
+        // Also check for UI test environment which launches the actual app
         let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
                             NSClassFromString("XCTestCase") != nil ||
                             ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] != nil ||
                             ProcessInfo.processInfo.environment["CI"] != nil ||
                             ProcessInfo.processInfo.environment["BUILD_NUMBER"] != nil ||    // Xcode Cloud
                             ProcessInfo.processInfo.arguments.contains("test") ||
-                            ProcessInfo.processInfo.arguments.contains("-XCTest")
+                            ProcessInfo.processInfo.arguments.contains("-XCTest") ||
+                            ProcessInfo.processInfo.arguments.contains("xctest") ||         // Additional test detection
+                            ProcessInfo.processInfo.environment["XCTestBundlePath"] != nil || // UI test detection
+                            Bundle.main.bundlePath.contains("UITests") ||                   // UI test bundle detection
+                            ProcessInfo.processInfo.processName.contains("test") ||        // Process name contains test
+                            ProcessInfo.processInfo.environment["UI_TESTS"] != nil ||      // UI test environment variable
+                            ProcessInfo.processInfo.environment["DISABLE_CLOUDKIT"] != nil || // CloudKit disable flag
+                            ProcessInfo.processInfo.arguments.contains("-UITests") ||      // UI test launch argument
+                            ProcessInfo.processInfo.arguments.contains("-DisableCloudKit") // CloudKit disable argument
         
-        // Skip CloudKit checks in test/CI environments
+        // Skip CloudKit checks in test/CI environments - be extra defensive
         if isRunningTests {
             AppLogger.debug("Running in test/CI environment - skipping iCloud account status check", category: AppLogger.appState)
             DispatchQueue.main.async {
@@ -98,22 +107,43 @@ final class AppStateManager: ObservableObject {
             return
         }
         
-        // Only check CloudKit status in production environment
+        // Additional safety check - wrap CloudKit access in try-catch equivalent
+        guard !ProcessInfo.processInfo.arguments.contains("-UITests") else {
+            AppLogger.debug("UI test launch argument detected - skipping CloudKit", category: AppLogger.appState)
+            DispatchQueue.main.async {
+                self.isICloudAvailable = false
+            }
+            return
+        }
+        
+        // Check for explicit CloudKit disable arguments
+        guard !ProcessInfo.processInfo.arguments.contains("-DisableCloudKit") else {
+            AppLogger.debug("CloudKit disabled by launch argument", category: AppLogger.appState)
+            DispatchQueue.main.async {
+                self.isICloudAvailable = false
+            }
+            return
+        }
+        
+        // Only check CloudKit status in production environment with additional safety
         CKContainer.default().accountStatus { [weak self] status, error in
             DispatchQueue.main.async {
-                self?.isICloudAvailable = (status == .available)
-                if self?.isICloudAvailable == true {
-                    NotificationCenter.default.addObserver(
-                        forName: NSPersistentCloudKitContainer.eventChangedNotification,
-                        object: nil,
-                        queue: .main
-                    ) { [weak self] notification in
-                        self?.handleCloudKitEvent(notification)
-                    }
-                    AppLogger.info("iCloud is available - CloudKit sync enabled", category: AppLogger.cloudKit)
+                guard let self = self else { return }
+                
+                if let error = error {
+                    AppLogger.error("iCloud account check failed", error: error, category: AppLogger.cloudKit)
+                    self.isICloudAvailable = false
                 } else {
-                    if let error = error {
-                        AppLogger.error("iCloud account check failed", error: error, category: AppLogger.cloudKit)
+                    self.isICloudAvailable = (status == .available)
+                    if self.isICloudAvailable {
+                        NotificationCenter.default.addObserver(
+                            forName: NSPersistentCloudKitContainer.eventChangedNotification,
+                            object: nil,
+                            queue: .main
+                        ) { [weak self] notification in
+                            self?.handleCloudKitEvent(notification)
+                        }
+                        AppLogger.info("iCloud is available - CloudKit sync enabled", category: AppLogger.cloudKit)
                     } else {
                         AppLogger.info("iCloud is not available - running in local mode", category: AppLogger.cloudKit)
                     }
