@@ -30,15 +30,18 @@ class EditProductService {
         CoreDataFetchHelper.configureForSmallList(fetchRequest)
 
         do {
-            return try context.fetch(fetchRequest)
+            let units = try context.fetch(fetchRequest)
+            return units
         } catch {
-            print("Error loading units: \(error)")
+            AppLogger.error("Error loading units", error: error, category: AppLogger.service)
             return []
         }
     }
     
     func saveChanges() throws {
+        AppLogger.info("Saving product changes", category: AppLogger.service)
         try context.save()
+        AppLogger.info("Product changes saved successfully", category: AppLogger.service)
     }
     
     func rollback() {

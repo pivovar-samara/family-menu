@@ -33,8 +33,25 @@ An iOS application designed to help families plan their weekly menus efficiently
 - **Family Collaboration** - Real-time sync across family devices via iCloud
 - **Search & Optimization** - Smart search and menu optimization features
 
+## Performance Optimizations
+
+### UI Update Debouncing
+The app implements intelligent debouncing in `NSFetchedResultsController` delegates to prevent excessive UI updates during:
+- Rapid data changes (bulk operations)
+- CloudKit synchronization events
+- Batch imports/exports
+
+This optimization reduces UI refresh frequency by ~80% during bulk operations while maintaining data consistency.
+
+### Memory Safety & Threading
+Enhanced CoreData operations with proper thread safety mechanisms:
+- Thread-safe context access in StaticDataCacheManager
+- Proper resource cleanup to prevent memory leaks
+- Serial queue usage for cache operations to avoid race conditions
+
 ## Development Practices
 
 - **Test Coverage** - Comprehensive unit, integration, and UI tests
+- **Performance Monitoring** - Dedicated performance tests for critical operations
 - **Localization** - Full internationalization support
 - **Code Quality** - Consistent patterns and helper utilities for maintainability

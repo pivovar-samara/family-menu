@@ -37,7 +37,7 @@ class DishDetailsService {
         do {
             return try context.fetch(fetchRequest)
         } catch {
-            print("Error loading units: \(error)")
+            AppLogger.error("Error loading units", error: error, category: AppLogger.service)
             return []
         }
     }
@@ -52,7 +52,7 @@ class DishDetailsService {
         do {
             return try context.fetch(fetchRequest)
         } catch {
-            print("Error loading meal types: \(error)")
+            AppLogger.error("Error loading meal types", error: error, category: AppLogger.service)
             return []
         }
     }
@@ -67,7 +67,7 @@ class DishDetailsService {
         do {
             return try context.fetch(fetchRequest)
         } catch {
-            print("Error loading dish categories: \(error)")
+            AppLogger.error("Error loading dish categories", error: error, category: AppLogger.service)
             return []
         }
     }

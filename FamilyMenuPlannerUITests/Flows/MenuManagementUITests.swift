@@ -8,6 +8,21 @@ final class MenuManagementUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
+        
+        // Add launch arguments to disable CloudKit and indicate UI test environment
+        app.launchArguments = [
+            "-UITests",
+            "-DisableCloudKit",
+            "-XCTest"
+        ]
+        
+        // Add environment variables for test detection
+        app.launchEnvironment = [
+            "UI_TESTS": "1",
+            "DISABLE_CLOUDKIT": "1",
+            "XCTestBundlePath": "UITests"
+        ]
+        
         menuPageObject = MenuPageObject(app: app)
         dishListPageObject = DishListPageObject(app: app)
         app.launch()

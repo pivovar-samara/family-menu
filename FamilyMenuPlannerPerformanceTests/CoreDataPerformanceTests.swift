@@ -3,19 +3,16 @@ import CoreData
 @testable import FamilyMenuPlanner
 
 class CoreDataPerformanceTests: BaseIntegrationTest {
-    var persistenceController: PersistenceController!
     
     override func setUp() async throws {
-        try await super.setUp()
-        persistenceController = PersistenceController(inMemory: true)
-        context = persistenceController.container.viewContext
+        // Use TestCoreDataStack which properly loads the model from the correct bundle
+        context = TestCoreDataStack.shared.viewContext
         testDataFactory = TestDataFactory(context: context)
         cleanUpTestData()
     }
     
     override func tearDown() async throws {
         cleanUpTestData()
-        persistenceController = nil
         testDataFactory = nil
         try await super.tearDown()
     }
@@ -93,7 +90,7 @@ class CoreDataPerformanceTests: BaseIntegrationTest {
     
     func testContextConfigurationPerformance() {
         measure {
-            let backgroundContext = persistenceController.newBackgroundContext()
+            let backgroundContext = TestCoreDataStack.shared.newBackgroundContext()
             
             // Test that context configuration doesn't impact performance
             XCTAssertNotNil(backgroundContext)

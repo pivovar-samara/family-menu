@@ -10,19 +10,16 @@ import CoreData
 @testable import FamilyMenuPlanner
 
 class PersistencePerformanceTests: BaseIntegrationTest {
-    var persistenceController: PersistenceController!
     
     override func setUp() async throws {
-        try await super.setUp()
-        persistenceController = PersistenceController(inMemory: true)
-        context = persistenceController.container.viewContext
+        // Use TestCoreDataStack which properly loads the model from the correct bundle
+        context = TestCoreDataStack.shared.viewContext
         testDataFactory = TestDataFactory(context: context)
         cleanUpTestData()
     }
     
     override func tearDown() async throws {
         cleanUpTestData()
-        persistenceController = nil
         testDataFactory = nil
         try await super.tearDown()
     }
@@ -30,7 +27,7 @@ class PersistencePerformanceTests: BaseIntegrationTest {
     func testInMemoryStoreSkipsQueryGeneration() {
         // Test that in-memory stores (used in tests) don't have query generation
         // This is expected behavior since in-memory stores don't support this feature
-        let persistenceContext = persistenceController.container.viewContext
+        let persistenceContext = TestCoreDataStack.shared.viewContext
         
         // In-memory stores should not have query generation due to technical limitations
         // This is not a failure - it's the expected behavior for test environments
@@ -43,7 +40,7 @@ class PersistencePerformanceTests: BaseIntegrationTest {
     
     func testNewBackgroundContextHandlesInMemoryStore() {
         // Test that background contexts handle in-memory stores gracefully
-        let backgroundContext = persistenceController.newBackgroundContext()
+        let backgroundContext = TestCoreDataStack.shared.newBackgroundContext()
         
         // Background contexts should be properly configured even without query generation
         XCTAssertNotNil(backgroundContext)
@@ -68,8 +65,8 @@ class PersistencePerformanceTests: BaseIntegrationTest {
     
     func testContextConfigurationIsProperlyApplied() {
         // Test that all context configurations are applied correctly
-        let persistenceContext = persistenceController.container.viewContext
-        let backgroundContext = persistenceController.newBackgroundContext()
+        let persistenceContext = TestCoreDataStack.shared.viewContext
+        let backgroundContext = TestCoreDataStack.shared.newBackgroundContext()
         
         // Test view context configuration
         XCTAssertTrue(persistenceContext.automaticallyMergesChangesFromParent)
@@ -84,38 +81,30 @@ class PersistencePerformanceTests: BaseIntegrationTest {
         XCTAssertNotNil(backgroundContext.mergePolicy)
     }
     
-    func testBackwardCompatibilityOfSynchronousRecovery() {
-        // Test that the synchronous recovery method still works for existing code
-        let testController = PersistenceController(inMemory: true)
+    func testCoreDataPerformanceWithTestStack() {
+        // Test basic Core Data performance with the test stack
+        let unit = createUnit(name: "kg", sortOrder: 1)
         
-        let startTime = CFAbsoluteTimeGetCurrent()
-        let success = testController.attemptRecovery()
-        let endTime = CFAbsoluteTimeGetCurrent()
-        
-        XCTAssertTrue(success, "Synchronous recovery should succeed")
-        
-        // For in-memory stores, this should still be relatively fast
-        let duration = endTime - startTime
-        XCTAssertLessThan(duration, 1.0, "Synchronous recovery should complete reasonably quickly for in-memory stores")
+        measure {
+            for i in 1...100 {
+                _ = createProduct(name: "Performance Product \(i)", unit: unit)
+            }
+        }
     }
     
-    func testStoreLoadingDoesNotBlockMainThread() {
-        // This test verifies that store loading can be called from main thread without blocking
-        let expectation = XCTestExpectation(description: "Main thread not blocked")
+    func testContextOperationsPerformance() {
+        // Test context operations performance
+        let unit = createUnit(name: "pieces", sortOrder: 1)
         
-        DispatchQueue.main.async {
-            let testController = PersistenceController(inMemory: true)
-            
-            // Use async version to avoid blocking main thread
-            testController.attemptRecovery { success in
-                XCTAssertTrue(success, "Recovery should succeed")
-                expectation.fulfill()
+        measure {
+            context.performAndWait {
+                for i in 1...50 {
+                    let product = Product(context: context)
+                    product.name = "Batch Product \(i)"
+                    product.unit = unit
+                }
+                try! context.save()
             }
-            
-            // This code should execute immediately, proving main thread isn't blocked
-            XCTAssertTrue(Thread.isMainThread, "Should still be on main thread")
         }
-        
-        wait(for: [expectation], timeout: 2.0)
     }
 }

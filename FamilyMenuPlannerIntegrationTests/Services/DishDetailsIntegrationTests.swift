@@ -70,7 +70,7 @@ class DishDetailsIntegrationTests: BaseIntegrationTest {
         viewModel.dish?.details = viewModel.descriptionText
         
         // Add required data for validation to pass
-        viewModel.addIngredient(for: product)
+        viewModel.addIngredient(product: product, quantity: 1.0)
         viewModel.toggleMealTypeSelection(mealType)
         
         // Save changes
@@ -138,7 +138,7 @@ class DishDetailsIntegrationTests: BaseIntegrationTest {
         dish.category = category
         
         // Add required data for validation
-        viewModel.addIngredient(for: product)
+        viewModel.addIngredient(product: product, quantity: 1.0)
         viewModel.toggleMealTypeSelection(mealType)
         
         // Save changes
@@ -162,7 +162,7 @@ class DishDetailsIntegrationTests: BaseIntegrationTest {
         viewModel = DishDetailsViewModel(dishDetailsService: dishDetailsService, dish: dish)
         
         // Add ingredient
-        viewModel.addIngredient(for: product)
+        viewModel.addIngredient(product: product, quantity: 2.5)
         
         // Save changes
         viewModel.saveChanges {}
@@ -171,7 +171,7 @@ class DishDetailsIntegrationTests: BaseIntegrationTest {
         if let ingredients = dish.ingredientDetails as? Set<IngredientDetail> {
             XCTAssertEqual(ingredients.count, 1)
             XCTAssertEqual(ingredients.first?.product?.name, "Test Product")
-            XCTAssertEqual(ingredients.first?.quantity, 1.0)
+            XCTAssertEqual(ingredients.first?.quantity, 2.5)
         } else {
             XCTFail("No ingredients found")
         }
@@ -187,8 +187,8 @@ class DishDetailsIntegrationTests: BaseIntegrationTest {
         viewModel.toggleMealTypeSelection(mealType)
         
         // Add two ingredients so we can delete one without violating validation
-        viewModel.addIngredient(for: product)
-        viewModel.addIngredient(for: product)
+        viewModel.addIngredient(product: product, quantity: 1.0)
+        viewModel.addIngredient(product: product, quantity: 2.0)
         
         // Load ingredients to sync selectedIngredients with Core Data relationship
         viewModel.loadIngredients()
@@ -278,7 +278,7 @@ class DishDetailsIntegrationTests: BaseIntegrationTest {
         XCTAssertNotNil(viewModel.validationError)
         
         // Add ingredient
-        viewModel.addIngredient(for: product)
+        viewModel.addIngredient(product: product, quantity: 1.0)
         
         // Add meal type
         viewModel.toggleMealTypeSelection(mealType)

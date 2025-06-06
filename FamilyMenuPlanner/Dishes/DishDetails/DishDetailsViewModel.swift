@@ -10,18 +10,10 @@ import SwiftUI
 import Combine
 
 class DishDetailsViewModel: ObservableObject {
-    // Use cached data for better performance
-    var units: [Unit] {
-        return StaticDataCacheManager.shared.getUnits()
-    }
-    
-    var allMealTypes: [MealType] {
-        return StaticDataCacheManager.shared.getMealTypes()
-    }
-    
-    var allDishCategories: [DishCategory] {
-        return StaticDataCacheManager.shared.getDishCategories()
-    }
+    // Use @Published properties that observe the cache for automatic UI updates
+    @Published var units: [Unit] = []
+    @Published var allMealTypes: [MealType] = []
+    @Published var allDishCategories: [DishCategory] = []
     
     @Published var selectedCategory: DishCategory?
     @Published var descriptionText: String = ""
@@ -36,16 +28,32 @@ class DishDetailsViewModel: ObservableObject {
     
     private let dishDetailsService: DishDetailsServiceProtocol
     private let alertManager = AlertQueueManager()
+    private var cancellables = Set<AnyCancellable>()
     
     init(dishDetailsService: DishDetailsServiceProtocol, dish: Dish? = nil) {
         self.dishDetailsService = dishDetailsService
         self.dish = dish
         
-        // Ensure static data is available for pickers
-        // This forces cache to load data if not already loaded
-        _ = StaticDataCacheManager.shared.getUnits()
-        _ = StaticDataCacheManager.shared.getMealTypes()  
-        _ = StaticDataCacheManager.shared.getDishCategories()
+        // Load initial static data
+        self.units = StaticDataCacheManager.shared.getUnits()
+        self.allMealTypes = StaticDataCacheManager.shared.getMealTypes()
+        self.allDishCategories = StaticDataCacheManager.shared.getDishCategories()
+        
+        // Observe cache manager for automatic updates
+        StaticDataCacheManager.shared.$units
+            .receive(on: DispatchQueue.main)
+            .assign(to: \.units, on: self)
+            .store(in: &cancellables)
+            
+        StaticDataCacheManager.shared.$mealTypes
+            .receive(on: DispatchQueue.main)
+            .assign(to: \.allMealTypes, on: self)
+            .store(in: &cancellables)
+            
+        StaticDataCacheManager.shared.$dishCategories
+            .receive(on: DispatchQueue.main)
+            .assign(to: \.allDishCategories, on: self)
+            .store(in: &cancellables)
         
         // Load dish-specific data after static data is available
         if let dish = dish {
@@ -66,7 +74,7 @@ class DishDetailsViewModel: ObservableObject {
         do {
             try dish = dishDetailsService.createDish()
         } catch {
-            print("Failed to create a new dish: \(error)")
+            AppLogger.error("Failed to create a new dish", error: error, category: AppLogger.viewModel)
         }
     }
     
@@ -95,17 +103,20 @@ class DishDetailsViewModel: ObservableObject {
         dish?.category = category
     }
 
-    func addIngredient(for product: Product) {
+    func addIngredient(product: Product, quantity: Double) {
+        guard let dish = dish else { return }
+        
         do {
-            let newIngredient = try dishDetailsService.createIngredient()
-            newIngredient.dish = dish
-            newIngredient.product = product
-            newIngredient.quantity = 1.0
-            newIngredient.sortOrder = (selectedIngredients.last?.sortOrder ?? 0) + 1
-
-            selectedIngredients.append(newIngredient)
+            let ingredientDetail = try dishDetailsService.createIngredient()
+            ingredientDetail.dish = dish
+            ingredientDetail.product = product
+            ingredientDetail.quantity = quantity
+            
+            try dishDetailsService.saveChanges()
+            // Refresh ingredients list
+            loadIngredients()
         } catch {
-            print("Failed to create a new ingredient: \(error)")
+            AppLogger.error("Failed to create a new ingredient", error: error, category: AppLogger.viewModel)
         }
     }
 

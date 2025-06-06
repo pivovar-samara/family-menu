@@ -19,6 +19,21 @@ final class FamilyMenuPlannerUITestsLaunchTests: XCTestCase {
 
     func testLaunch() throws {
         let app = XCUIApplication()
+        
+        // Add launch arguments to disable CloudKit and indicate UI test environment
+        app.launchArguments = [
+            "-UITests",
+            "-DisableCloudKit",
+            "-XCTest"
+        ]
+        
+        // Add environment variables for test detection
+        app.launchEnvironment = [
+            "UI_TESTS": "1",
+            "DISABLE_CLOUDKIT": "1",
+            "XCTestBundlePath": "UITests"
+        ]
+        
         app.launch()
 
         // Insert steps here to perform after app launch but before taking a screenshot,

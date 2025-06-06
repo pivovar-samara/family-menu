@@ -79,12 +79,23 @@ struct PersistenceController {
     let stateManager = PersistenceStateManager()
 
     init(inMemory: Bool = false) {
-        // Enhanced test environment detection for CI
+        // Very early logging to help diagnose CI issues
+        AppLogger.info("PersistenceController initialization started", category: AppLogger.persistence)
+        
+        // Enhanced test environment detection for CI with more robust checks
         let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
                             NSClassFromString("XCTestCase") != nil ||
                             ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] != nil ||  // GitHub Actions
                             ProcessInfo.processInfo.environment["CI"] != nil ||              // Generic CI
-                            ProcessInfo.processInfo.arguments.contains("test")               // xcodebuild test
+                            ProcessInfo.processInfo.environment["BUILD_NUMBER"] != nil ||    // Xcode Cloud
+                            ProcessInfo.processInfo.arguments.contains("test") ||           // xcodebuild test
+                            ProcessInfo.processInfo.arguments.contains("-XCTest") ||        // Additional test detection
+                            ProcessInfo.processInfo.environment["UI_TESTS"] != nil ||       // UI test environment variable
+                            ProcessInfo.processInfo.environment["DISABLE_CLOUDKIT"] != nil || // CloudKit disable flag
+                            ProcessInfo.processInfo.arguments.contains("-UITests") ||       // UI test launch argument
+                            ProcessInfo.processInfo.arguments.contains("-DisableCloudKit")  // CloudKit disable argument
+        
+        AppLogger.info("Environment: inMemory=\(inMemory), isRunningTests=\(isRunningTests)", category: AppLogger.persistence)
         
         // Check if we're in simulator using Swift-compatible approach
         #if targetEnvironment(simulator)
@@ -93,33 +104,46 @@ struct PersistenceController {
         let isSimulator = false
         #endif
         
-        // Use NSPersistentContainer for tests, optionally for simulator too
-        // Change `|| isSimulator` to `&& false` if you want CloudKit in simulator
-        if isRunningTests || inMemory {
+        AppLogger.info("Platform: isSimulator=\(isSimulator)", category: AppLogger.persistence)
+        
+        // Always use NSPersistentContainer for CI/tests to avoid CloudKit issues
+        // Use NSPersistentContainer for tests, CI environments, or simulator
+        if isRunningTests || inMemory || (isSimulator && ProcessInfo.processInfo.environment["CI"] != nil) {
+            AppLogger.info("Creating NSPersistentContainer (no CloudKit)", category: AppLogger.persistence)
             container = NSPersistentContainer(name: "FamilyMenuPlanner")
+            AppLogger.info("Using NSPersistentContainer (no CloudKit) for CI/test environment", category: AppLogger.persistence)
         } else {
+            AppLogger.info("Creating NSPersistentCloudKitContainer", category: AppLogger.persistence)
             container = NSPersistentCloudKitContainer(name: "FamilyMenuPlanner")
+            AppLogger.info("Using NSPersistentCloudKitContainer for production environment", category: AppLogger.persistence)
         }
         
         // Configure store descriptions before loading
+        AppLogger.info("Configuring store descriptions", category: AppLogger.persistence)
         configureStoreDescriptions(inMemory: inMemory, isRunningTests: isRunningTests, isSimulator: isSimulator)
         
         // Only initialize CloudKit schema when building the app with the
-        // Debug build configuration and not running tests or in simulator without iCloud.
+        // Debug build configuration and not running tests or in CI environments.
         #if DEBUG
         if !isRunningTests && !inMemory && (!isSimulator || shouldUseCloudKitInSimulator()) {
+            AppLogger.info("Attempting CloudKit schema initialization", category: AppLogger.cloudKit)
             if let cloudKitContainer = container as? NSPersistentCloudKitContainer {
                 do {
                     // Use the container to initialize the development schema.
                     try cloudKitContainer.initializeCloudKitSchema(options: [])
+                    AppLogger.info("CloudKit schema initialized successfully", category: AppLogger.cloudKit)
                 } catch {
-                    print("⚠️ CloudKit schema initialization failed: \(error)")
+                    AppLogger.error("CloudKit schema initialization failed", error: error, category: AppLogger.cloudKit)
                 }
             }
+        } else {
+            AppLogger.info("Skipping CloudKit schema initialization for CI/test environment", category: AppLogger.cloudKit)
         }
         #endif
         
+        AppLogger.info("Starting persistent stores loading", category: AppLogger.persistence)
         loadPersistentStores()
+        AppLogger.info("PersistenceController initialization completed", category: AppLogger.persistence)
     }
     
     private func shouldUseCloudKitInSimulator() -> Bool {
@@ -136,29 +160,51 @@ struct PersistenceController {
         
         // Configure store options for better error handling and performance
         if let storeDescription = container.persistentStoreDescriptions.first {
-            // Always enable history tracking and remote notifications for consistency
-            storeDescription.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
-            storeDescription.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
-            
             // Enable automatic store migration
             storeDescription.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)
             storeDescription.setOption(true as NSNumber, forKey: NSInferMappingModelAutomaticallyOption)
             
-            // Disable CloudKit for tests or optionally for simulator to prevent conflicts
+            // Configure history tracking and notifications based on environment
+            if isRunningTests || inMemory {
+                // Minimal configuration for test environments to avoid issues
+                storeDescription.setOption(false as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+                storeDescription.setOption(false as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+                AppLogger.info("Configured Core Data for test environment - minimal options", category: AppLogger.persistence)
+            } else {
+                // Full configuration for production
+                storeDescription.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+                storeDescription.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+                AppLogger.info("Configured Core Data for production environment - full options", category: AppLogger.persistence)
+            }
+            
+            // Completely disable CloudKit for tests/CI or optionally for simulator
             if isRunningTests || inMemory || (isSimulator && !shouldUseCloudKitInSimulator()) {
                 // Remove CloudKit configuration for test environments or simulator (based on preference)
                 storeDescription.cloudKitContainerOptions = nil
+                AppLogger.info("CloudKit disabled for test/simulator environment", category: AppLogger.persistence)
+            } else {
+                AppLogger.info("CloudKit enabled for production environment", category: AppLogger.persistence)
             }
+        } else {
+            AppLogger.error("Failed to get store description - this may cause startup issues", category: AppLogger.persistence)
         }
     }
     
     private func loadPersistentStores(completion: @escaping (Bool) -> Void = { _ in }) {
+        AppLogger.info("Loading persistent stores...", category: AppLogger.persistence)
+        
         container.loadPersistentStores { [weak stateManager = self.stateManager] (storeDescription, error) in
             if let error = error as NSError? {
+                AppLogger.error("Persistent store loading failed", error: error, category: AppLogger.persistence)
+                AppLogger.error("Store description: \(storeDescription.description)", category: AppLogger.persistence)
+                
                 self.handleStoreLoadingError(error, storeDescription: storeDescription, stateManager: stateManager) { success in
                     completion(success)
                 }
             } else {
+                AppLogger.info("Persistent stores loaded successfully", category: AppLogger.persistence)
+                AppLogger.info("Store description: \(storeDescription.description)", category: AppLogger.persistence)
+                
                 self.configureSuccessfulStore()
                 stateManager?.clearError()
                 completion(true)
@@ -208,19 +254,18 @@ struct PersistenceController {
     }
     
     private func logError(_ error: NSError, persistenceError: PersistenceError) {
-        print("🚨 Core Data Store Loading Error:")
-        print("   Code: \(error.code)")
-        print("   Domain: \(error.domain)")
-        print("   Description: \(error.localizedDescription)")
-        print("   User Info: \(error.userInfo)")
-        print("   Categorized as: \(persistenceError)")
+        AppLogger.critical("Core Data Store Loading Error", category: AppLogger.persistence)
+        AppLogger.error("Code: \(error.code), Domain: \(error.domain)", category: AppLogger.persistence)
+        AppLogger.error("Description: \(error.localizedDescription)", category: AppLogger.persistence)
+        AppLogger.error("User Info: \(error.userInfo)", category: AppLogger.persistence)
+        AppLogger.error("Categorized as: \(persistenceError)", category: AppLogger.persistence)
         
         // TODO: Send to crash reporting service (e.g., Crashlytics, Sentry)
         // CrashReporter.shared.recordError(persistenceError)
     }
     
     private func attemptErrorRecovery(_ error: NSError, storeDescription: NSPersistentStoreDescription?) -> Bool {
-        print("🔧 Attempting error recovery...")
+        AppLogger.info("Attempting error recovery", category: AppLogger.persistence)
         
         switch categorizeError(error) {
         case .migrationFailed:
@@ -242,7 +287,7 @@ struct PersistenceController {
             return false
         }
         
-        print("🔄 Attempting migration recovery...")
+        AppLogger.info("Attempting migration recovery", category: AppLogger.persistence)
         
         // Try to delete and recreate the store if migration fails
         do {
@@ -265,11 +310,11 @@ struct PersistenceController {
                 try fileManager.removeItem(at: shmURL)
             }
             
-            print("✅ Store files removed successfully")
+            AppLogger.info("Store files removed successfully", category: AppLogger.persistence)
             return true
             
         } catch {
-            print("❌ Failed to remove store files: \(error)")
+            AppLogger.error("Failed to remove store files", error: error, category: AppLogger.persistence)
             return false
         }
     }
@@ -355,7 +400,7 @@ struct PersistenceController {
     }
     
     private func configureSuccessfulStore() {
-        print("✅ Core Data store loaded successfully")
+        AppLogger.info("Core Data store loaded successfully", category: AppLogger.persistence)
         container.viewContext.automaticallyMergesChangesFromParent = true
         
         // Configure for better performance
@@ -428,7 +473,7 @@ struct PersistenceController {
     
     func generateInitialData(context: NSManagedObjectContext) {
         guard let url = Bundle.main.url(forResource: "preloadData", withExtension: "json") else {
-            print("Failed to find preloadData.json in bundle")
+            AppLogger.error("Failed to find preloadData.json in bundle", category: AppLogger.dataImport)
             return
         }
 
@@ -507,9 +552,12 @@ struct PersistenceController {
 
             // Save all data
             try context.save()
-            print("Data preloaded successfully from preloadData.json.")
+            AppLogger.info("Data preloaded successfully from preloadData.json", category: AppLogger.dataImport)
+            
+            // Refresh static data cache to ensure it has the newly created data
+            StaticDataCacheManager.shared.invalidateCache()
         } catch {
-            print("Error preloading data: \(error)")
+            AppLogger.error("Error preloading data", error: error, category: AppLogger.dataImport)
         }
     }
     

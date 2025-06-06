@@ -27,43 +27,35 @@ final class StaticDataCacheManager: ObservableObject {
     private var isMealTypesLoaded = false
     private var isDishCategoriesLoaded = false
     
-    private weak var context: NSManagedObjectContext?
-    private var cancellables = Set<AnyCancellable>()
-    private let cacheQueue = DispatchQueue(label: "com.familymenuplanner.cache", attributes: .concurrent)
+    // Use strong reference to prevent context deallocation during operations
+    private var context: NSManagedObjectContext?
+    // Use serial queue for thread safety
+    private let cacheQueue = DispatchQueue(label: "com.familymenuplanner.cache", qos: .utility)
     
     // Logging
     private static let logger = Logger(subsystem: "com.familymenuplanner", category: "StaticDataCache")
     
     // Testing support
-    private var notificationsEnabled = true
     private let isTestInstance: Bool
     
     private init(isTestInstance: Bool = false) {
         self.isTestInstance = isTestInstance
-        setupRemoteChangeNotifications()
-    }
-    
-    /// Internal initializer for testing
-    internal init(enableNotifications: Bool) {
-        self.notificationsEnabled = enableNotifications
-        self.isTestInstance = true
-        if enableNotifications {
-            setupRemoteChangeNotifications()
-        }
     }
     
     /// Create a test instance that doesn't use singleton pattern
     static func createTestInstance() -> StaticDataCacheManager {
-        return StaticDataCacheManager(enableNotifications: false)
+        return StaticDataCacheManager(isTestInstance: true)
     }
     
     // MARK: - Public Interface
     
     /// Initialize cache with CoreData context
     func initialize(with context: NSManagedObjectContext) {
+        // Store strong reference to context
         self.context = context
         
-        cacheQueue.async(flags: .barrier) {
+        // Preload synchronously to ensure immediate availability
+        cacheQueue.sync {
             // Preload all static data to ensure immediate availability
             self.preloadAllData()
         }
@@ -99,28 +91,47 @@ final class StaticDataCacheManager: ObservableObject {
         }
     }
     
-    /// Force reload all data
+    /// Force reload all data (useful for development/testing)
     func invalidateCache() {
-        cacheQueue.async(flags: .barrier) {
+        cacheQueue.async {
             self.clearAllCache()
+            self.preloadAllData()
         }
     }
     
     /// Invalidate cache synchronously for testing purposes
     func invalidateCacheSync() {
-        clearAllCache()
+        cacheQueue.sync {
+            clearAllCache()
+            preloadAllData()
+        }
     }
     
-    /// Disable notifications for testing
-    func disableNotifications() {
-        notificationsEnabled = false
-        stopListeningForChanges()
+    /// Cleanup method for proper resource deallocation
+    func cleanup() {
+        let cleanupGroup = DispatchGroup()
+        
+        cleanupGroup.enter()
+        cacheQueue.async {
+            // Clear all cached data
+            self.clearAllCache()
+            
+            // Release context reference
+            self.context = nil
+            
+            cleanupGroup.leave()
+        }
+        
+        // Wait for cleanup to complete, but with a timeout to prevent hanging
+        _ = cleanupGroup.wait(timeout: .now() + 1.0)
     }
     
-    /// Enable notifications for production
-    func enableNotifications() {
-        notificationsEnabled = true
-        startListeningForChanges()
+    /// Synchronous cleanup for testing
+    func cleanupSync() {
+        cacheQueue.sync {
+            clearAllCache()
+            context = nil
+        }
     }
     
     // MARK: - Private Methods
@@ -141,6 +152,7 @@ final class StaticDataCacheManager: ObservableObject {
     }
     
     private func clearAllCache() {
+        // Update local state immediately for synchronous access
         isUnitsLoaded = false
         isMealTypesLoaded = false
         isDishCategoriesLoaded = false
@@ -148,27 +160,14 @@ final class StaticDataCacheManager: ObservableObject {
         units = []
         mealTypes = []
         dishCategories = []
-    }
-    
-    /// Invalidate specific data type - internal for testing
-    internal func invalidateUnits() {
-        cacheQueue.async(flags: .barrier) {
-            self.isUnitsLoaded = false
-            self.units = []
-        }
-    }
-    
-    internal func invalidateMealTypes() {
-        cacheQueue.async(flags: .barrier) {
-            self.isMealTypesLoaded = false
-            self.mealTypes = []
-        }
-    }
-    
-    internal func invalidateDishCategories() {
-        cacheQueue.async(flags: .barrier) {
-            self.isDishCategoriesLoaded = false
-            self.dishCategories = []
+        
+        // Update @Published properties on main thread for optimal UI performance
+        if !Thread.isMainThread {
+            DispatchQueue.main.async { [weak self] in
+                self?.units = []
+                self?.mealTypes = []
+                self?.dishCategories = []
+            }
         }
     }
     
@@ -184,21 +183,38 @@ final class StaticDataCacheManager: ObservableObject {
         // Static data is usually small, use smaller batch size
         CoreDataFetchHelper.configureForSmallList(fetchRequest)
         
-        do {
-            let fetchedUnits = try context.fetch(fetchRequest)
-            // Update both the flag and data synchronously to avoid race conditions
-            self.units = fetchedUnits
-            isUnitsLoaded = true
-            
-            if !isTestInstance {
-                Self.logger.info("Units cached: \(fetchedUnits.count) items")
-            } else {
-                print("✅ Units cached: \(fetchedUnits.count) items")
+        // Perform the fetch on the context's queue to ensure thread safety
+        context.performAndWait {
+            do {
+                let freshUnits = try context.fetch(fetchRequest)
+                
+                // Update local state immediately for synchronous access
+                self.units = freshUnits
+                self.isUnitsLoaded = true
+                
+                // Update @Published properties on main thread for optimal UI performance
+                if !Thread.isMainThread {
+                    DispatchQueue.main.async { [weak self] in
+                        self?.units = freshUnits
+                    }
+                }
+                
+                if !isTestInstance {
+                    Self.logger.info("Units cached: \(freshUnits.count) items")
+                }
+            } catch {
+                Self.logger.error("Error loading units for cache: \(error.localizedDescription)")
+                // Handle error immediately for synchronous access
+                self.units = []
+                self.isUnitsLoaded = false
+                
+                // Update @Published properties on main thread as well
+                if !Thread.isMainThread {
+                    DispatchQueue.main.async { [weak self] in
+                        self?.units = []
+                    }
+                }
             }
-        } catch {
-            Self.logger.error("Error loading units for cache: \(error.localizedDescription)")
-            self.units = []
-            isUnitsLoaded = false
         }
     }
     
@@ -213,21 +229,38 @@ final class StaticDataCacheManager: ObservableObject {
         
         CoreDataFetchHelper.configureForSmallList(fetchRequest)
         
-        do {
-            let fetchedMealTypes = try context.fetch(fetchRequest)
-            // Update both the flag and data synchronously to avoid race conditions
-            self.mealTypes = fetchedMealTypes
-            isMealTypesLoaded = true
-            
-            if !isTestInstance {
-                Self.logger.info("MealTypes cached: \(fetchedMealTypes.count) items")
-            } else {
-                print("✅ MealTypes cached: \(fetchedMealTypes.count) items")
+        // Perform the fetch on the context's queue to ensure thread safety
+        context.performAndWait {
+            do {
+                let freshMealTypes = try context.fetch(fetchRequest)
+                
+                // Update local state immediately for synchronous access
+                self.mealTypes = freshMealTypes
+                self.isMealTypesLoaded = true
+                
+                // Update @Published properties on main thread for optimal UI performance
+                if !Thread.isMainThread {
+                    DispatchQueue.main.async { [weak self] in
+                        self?.mealTypes = freshMealTypes
+                    }
+                }
+                
+                if !isTestInstance {
+                    Self.logger.info("MealTypes cached: \(freshMealTypes.count) items")
+                }
+            } catch {
+                Self.logger.error("Error loading meal types for cache: \(error.localizedDescription)")
+                // Handle error immediately for synchronous access
+                self.mealTypes = []
+                self.isMealTypesLoaded = false
+                
+                // Update @Published properties on main thread for optimal UI performance
+                if !Thread.isMainThread {
+                    DispatchQueue.main.async { [weak self] in
+                        self?.mealTypes = []
+                    }
+                }
             }
-        } catch {
-            Self.logger.error("Error loading meal types for cache: \(error.localizedDescription)")
-            self.mealTypes = []
-            isMealTypesLoaded = false
         }
     }
     
@@ -242,86 +275,51 @@ final class StaticDataCacheManager: ObservableObject {
         
         CoreDataFetchHelper.configureForSmallList(fetchRequest)
         
-        do {
-            let fetchedCategories = try context.fetch(fetchRequest)
-            // Update both the flag and data synchronously to avoid race conditions
-            self.dishCategories = fetchedCategories
-            isDishCategoriesLoaded = true
-            
-            if !isTestInstance {
-                Self.logger.info("DishCategories cached: \(fetchedCategories.count) items")
-            } else {
-                print("✅ DishCategories cached: \(fetchedCategories.count) items")
-            }
-        } catch {
-            Self.logger.error("Error loading dish categories for cache: \(error.localizedDescription)")
-            self.dishCategories = []
-            isDishCategoriesLoaded = false
-        }
-    }
-    
-    private func setupRemoteChangeNotifications() {
-        // Only set up notifications if they are enabled
-        if notificationsEnabled {
-            startListeningForChanges()
-        }
-    }
-    
-    private func startListeningForChanges() {
-        // Clear existing subscriptions first
-        cancellables.removeAll()
-        
-        // Listen for CoreData changes for automatic cache invalidation
-        NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
-            .sink { [weak self] notification in
-                self?.handleCoreDataChanges(notification)
-            }
-            .store(in: &cancellables)
-    }
-    
-    private func stopListeningForChanges() {
-        cancellables.removeAll()
-    }
-    
-    private func handleCoreDataChanges(_ notification: Notification) {
-        // Skip processing if notifications are disabled (for testing)
-        guard notificationsEnabled else { return }
-        
-        guard let userInfo = notification.userInfo else { return }
-        
-        // Safely extract changed entity names to avoid collection mutation errors
-        var changedEntityNames = Set<String>()
-        
-        // Process each type of change separately to avoid enumeration conflicts
-        let changeKeys = [NSInsertedObjectsKey, NSUpdatedObjectsKey, NSDeletedObjectsKey]
-        
-        for key in changeKeys {
-            if let objects = userInfo[key] as? Set<NSManagedObject> {
-                // Create a copy to avoid mutation during enumeration
-                let objectsCopy = Array(objects)
-                for object in objectsCopy {
-                    if let entityName = object.entity.name {
-                        changedEntityNames.insert(entityName)
+        // Perform the fetch on the context's queue to ensure thread safety
+        context.performAndWait {
+            do {
+                let freshCategories = try context.fetch(fetchRequest)
+                
+                // Update local state immediately for synchronous access
+                self.dishCategories = freshCategories
+                self.isDishCategoriesLoaded = true
+                
+                // Update @Published properties on main thread for optimal UI performance
+                if !Thread.isMainThread {
+                    DispatchQueue.main.async { [weak self] in
+                        self?.dishCategories = freshCategories
+                    }
+                }
+                
+                if !isTestInstance {
+                    Self.logger.info("DishCategories cached: \(freshCategories.count) items")
+                }
+            } catch {
+                Self.logger.error("Error loading dish categories for cache: \(error.localizedDescription)")
+                // Handle error immediately for synchronous access
+                self.dishCategories = []
+                self.isDishCategoriesLoaded = false
+                
+                // Update @Published properties on main thread for optimal UI performance
+                if !Thread.isMainThread {
+                    DispatchQueue.main.async { [weak self] in
+                        self?.dishCategories = []
                     }
                 }
             }
         }
-        
-        // Invalidate caches based on changed entity types
-        if changedEntityNames.contains("Unit") {
-            invalidateUnits()
-        }
-        
-        if changedEntityNames.contains("MealType") {
-            invalidateMealTypes()
-        }
-        
-        if changedEntityNames.contains("DishCategory") {
-            invalidateDishCategories()
-        }
     }
     
     deinit {
-        stopListeningForChanges()
+        // Clear context reference directly
+        context = nil
+        
+        // Clear cached data directly
+        units = []
+        mealTypes = []
+        dishCategories = []
+        isUnitsLoaded = false
+        isMealTypesLoaded = false
+        isDishCategoriesLoaded = false
     }
 } 
