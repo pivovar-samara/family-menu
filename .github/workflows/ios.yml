@@ -51,7 +51,7 @@ jobs:
           echo "Building and testing scheme: $scheme"
           echo "Using $filetype_parameter: $file_to_build"
           
-          # Run only unit tests, integration tests, and performance tests (skip UI tests)
+          # Run all test suites including UI tests (self-hosted runner can handle them)
           xcodebuild test \
             -scheme "$scheme" \
             -"$filetype_parameter" "$file_to_build" \
@@ -59,6 +59,7 @@ jobs:
             -only-testing:FamilyMenuPlannerTests \
             -only-testing:FamilyMenuPlannerIntegrationTests \
             -only-testing:FamilyMenuPlannerPerformanceTests \
+            -only-testing:FamilyMenuPlannerUITests \
             -parallel-testing-enabled NO \
             -maximum-concurrent-test-simulator-destinations 1 \
             -test-timeouts-enabled YES \
