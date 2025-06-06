@@ -79,6 +79,9 @@ struct PersistenceController {
     let stateManager = PersistenceStateManager()
 
     init(inMemory: Bool = false) {
+        // Very early logging to help diagnose CI issues
+        AppLogger.info("PersistenceController initialization started", category: AppLogger.persistence)
+        
         // Enhanced test environment detection for CI with more robust checks
         let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
                             NSClassFromString("XCTestCase") != nil ||
@@ -88,6 +91,8 @@ struct PersistenceController {
                             ProcessInfo.processInfo.arguments.contains("test") ||           // xcodebuild test
                             ProcessInfo.processInfo.arguments.contains("-XCTest")           // Additional test detection
         
+        AppLogger.info("Environment: inMemory=\(inMemory), isRunningTests=\(isRunningTests)", category: AppLogger.persistence)
+        
         // Check if we're in simulator using Swift-compatible approach
         #if targetEnvironment(simulator)
         let isSimulator = true
@@ -95,23 +100,29 @@ struct PersistenceController {
         let isSimulator = false
         #endif
         
+        AppLogger.info("Platform: isSimulator=\(isSimulator)", category: AppLogger.persistence)
+        
         // Always use NSPersistentContainer for CI/tests to avoid CloudKit issues
         // Use NSPersistentContainer for tests, CI environments, or simulator
         if isRunningTests || inMemory || (isSimulator && ProcessInfo.processInfo.environment["CI"] != nil) {
+            AppLogger.info("Creating NSPersistentContainer (no CloudKit)", category: AppLogger.persistence)
             container = NSPersistentContainer(name: "FamilyMenuPlanner")
             AppLogger.info("Using NSPersistentContainer (no CloudKit) for CI/test environment", category: AppLogger.persistence)
         } else {
+            AppLogger.info("Creating NSPersistentCloudKitContainer", category: AppLogger.persistence)
             container = NSPersistentCloudKitContainer(name: "FamilyMenuPlanner")
             AppLogger.info("Using NSPersistentCloudKitContainer for production environment", category: AppLogger.persistence)
         }
         
         // Configure store descriptions before loading
+        AppLogger.info("Configuring store descriptions", category: AppLogger.persistence)
         configureStoreDescriptions(inMemory: inMemory, isRunningTests: isRunningTests, isSimulator: isSimulator)
         
         // Only initialize CloudKit schema when building the app with the
         // Debug build configuration and not running tests or in CI environments.
         #if DEBUG
         if !isRunningTests && !inMemory && (!isSimulator || shouldUseCloudKitInSimulator()) {
+            AppLogger.info("Attempting CloudKit schema initialization", category: AppLogger.cloudKit)
             if let cloudKitContainer = container as? NSPersistentCloudKitContainer {
                 do {
                     // Use the container to initialize the development schema.
@@ -126,7 +137,9 @@ struct PersistenceController {
         }
         #endif
         
+        AppLogger.info("Starting persistent stores loading", category: AppLogger.persistence)
         loadPersistentStores()
+        AppLogger.info("PersistenceController initialization completed", category: AppLogger.persistence)
     }
     
     private func shouldUseCloudKitInSimulator() -> Bool {

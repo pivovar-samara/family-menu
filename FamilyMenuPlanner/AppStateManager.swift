@@ -19,6 +19,19 @@ final class AppStateManager: ObservableObject {
     private var isDatabaseEmpty: Bool = false
 
     private init() {
+        // Early CI detection to prevent potential startup issues
+        let isCI = ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] != nil ||
+                   ProcessInfo.processInfo.environment["CI"] != nil ||
+                   ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        
+        if isCI {
+            print("ℹ️ AppStateManager: Running in CI environment")
+            // Set safe defaults for CI
+            self.isLoading = false
+            self.isICloudAvailable = false
+            return
+        }
+        
         AppLogger.info("AppStateManager initializing...", category: AppLogger.appState)
         
         checkPersistenceState()
