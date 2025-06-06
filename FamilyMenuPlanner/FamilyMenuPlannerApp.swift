@@ -9,9 +9,23 @@ import SwiftUI
 
 @main
 struct FamilyMenuPlannerApp: App {
-    let persistenceController = PersistenceController.shared
+    let persistenceController: PersistenceController
     
     init() {
+        // Initialize persistence controller based on environment
+        let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
+                            NSClassFromString("XCTestCase") != nil ||
+                            ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] != nil ||
+                            ProcessInfo.processInfo.environment["CI"] != nil
+        
+        if isRunningTests {
+            // For tests, use in-memory database to avoid interference
+            self.persistenceController = PersistenceController(inMemory: true)
+        } else {
+            // For production, use the shared instance
+            self.persistenceController = PersistenceController.shared
+        }
+        
         // Customize TabBar appearance
         let tabBarAppearance = UITabBarAppearance()
         tabBarAppearance.configureWithOpaqueBackground() // Makes the background opaque

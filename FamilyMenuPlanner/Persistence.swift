@@ -537,7 +537,7 @@ struct PersistenceController {
                         ingredient.product = product
                         ingredient.quantity = ingredientData.quantity
                     } else {
-                        print("Product \(ingredientData.product) not found for dish \(dishData.name).")
+                        AppLogger.warning("Product \(ingredientData.product) not found for dish \(dishData.name)", category: AppLogger.dataImport)
                     }
                 }
                 
@@ -551,7 +551,9 @@ struct PersistenceController {
             }
 
             // Save all data
-            try context.save()
+            if context.hasChanges {
+                try context.save()
+            }
             AppLogger.info("Data preloaded successfully from preloadData.json", category: AppLogger.dataImport)
             
             // Refresh static data cache to ensure it has the newly created data
@@ -604,27 +606,231 @@ struct PersistenceController {
     
     /// Sets query generation for a context if supported by the store configuration
     private func setQueryGenerationIfSupported(for context: NSManagedObjectContext) {
-        // Check if this is an in-memory store or other configuration that doesn't support query generation
-        guard let storeDescription = container.persistentStoreDescriptions.first,
-              let storeURL = storeDescription.url else {
+        // Only set query generation for contexts with persistent stores that support it
+        guard let coordinator = context.persistentStoreCoordinator,
+              !coordinator.persistentStores.isEmpty else {
             return
         }
         
-        // Skip query generation for in-memory stores (used in tests)
-        let isInMemoryStore = storeURL.path == "/dev/null" || storeDescription.type == NSInMemoryStoreType
-        
-        guard !isInMemoryStore else {
-            print("🔄 Skipping query generation for in-memory store")
-            return
+        // Check if any store is in-memory or uses /dev/null (which doesn't support query generation)
+        let hasUnsupportedStore = coordinator.persistentStores.contains { store in
+            store.type == NSInMemoryStoreType || 
+            store.url?.path == "/dev/null"
         }
         
-        // Set query generation for supported stores
+        if !hasUnsupportedStore {
+            do {
+                try context.setQueryGenerationFrom(.current)
+                AppLogger.info("Query generation set for context", category: AppLogger.persistence)
+            } catch {
+                AppLogger.warning("Could not set query generation for context: \(error.localizedDescription)", category: AppLogger.persistence)
+            }
+        } else {
+            AppLogger.info("Skipping query generation for in-memory or test store", category: AppLogger.persistence)
+        }
+    }
+    
+    // MARK: - Heavy Operations Support
+    
+    /// Generates initial data in background for better app startup performance
+    func generateInitialDataInBackground(completion: @escaping (Bool) -> Void) {
+        BackgroundOperationManager.shared.executeBulkOperation { backgroundContext in
+            self.performInitialDataGeneration(context: backgroundContext)
+        } completion: { result in
+            switch result {
+            case .success:
+                AppLogger.info("Initial data generated successfully in background", category: AppLogger.persistence)
+                completion(true)
+            case .failure(let error):
+                AppLogger.error("Failed to generate initial data in background", error: error, category: AppLogger.persistence)
+                completion(false)
+            }
+        }
+    }
+    
+    /// Deletes all data using background context for better performance
+    func deleteAllDataInBackground(completion: @escaping (Result<Void, Error>) -> Void) {
+        BackgroundOperationManager.shared.executeBulkOperation { backgroundContext in
+            self.performDeleteAllData(context: backgroundContext)
+        } completion: { result in
+            completion(result)
+        }
+    }
+    
+    /// Performs bulk import of data in background
+    func importDataInBackground<T: NSManagedObject>(
+        entityName: String,
+        dataItems: [[String: Any]],
+        completion: @escaping (Result<[T], Error>) -> Void
+    ) {
+        BackgroundOperationManager.shared.executeHeavyOperation { backgroundContext in
+            var importedObjects: [NSManagedObjectID] = []
+            
+            for dataItem in dataItems {
+                guard let entity = NSEntityDescription.entity(forEntityName: entityName, in: backgroundContext) else {
+                    throw PersistenceError.unknown(NSError(domain: "EntityNotFound", code: -1, userInfo: nil))
+                }
+                
+                let object = NSManagedObject(entity: entity, insertInto: backgroundContext)
+                
+                // Set properties from data item
+                for (key, value) in dataItem {
+                    if entity.attributesByName[key] != nil {
+                        object.setValue(value, forKey: key)
+                    }
+                }
+                
+                importedObjects.append(object.objectID)
+            }
+            
+            if backgroundContext.hasChanges {
+                try backgroundContext.save()
+            }
+            
+            return importedObjects
+        } completion: { result in
+            switch result {
+            case .success(let objectIDs):
+                // Convert object IDs to main context objects
+                do {
+                    let mainObjects = try objectIDs.map { objectID -> T in
+                        let object = try self.container.viewContext.existingObject(with: objectID)
+                        guard let typedObject = object as? T else {
+                            throw PersistenceError.unknown(NSError(domain: "TypeCastError", code: -1, userInfo: nil))
+                        }
+                        return typedObject
+                    }
+                    completion(.success(mainObjects))
+                } catch {
+                    completion(.failure(error))
+                }
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+    
+    // MARK: - Private Helper Methods
+    
+    private func performInitialDataGeneration(context: NSManagedObjectContext) {
+        AppLogger.info("Generating initial data in context", category: AppLogger.persistence)
+        
+        // Use the existing generateInitialData logic but adapted for any context
+        guard let url = Bundle.main.url(forResource: "preloadData", withExtension: "json") else {
+            AppLogger.error("Failed to find preloadData.json in bundle", category: AppLogger.dataImport)
+            return
+        }
+
         do {
-            try context.setQueryGenerationFrom(.current)
-            print("✅ Query generation configured for context")
+            let data = try Data(contentsOf: url)
+            let decoder = JSONDecoder()
+            let jsonData = try decoder.decode(PreloadedData.self, from: data)
+
+            // Create Units
+            var unitMap: [String: Unit] = [:]
+            for unitData in jsonData.units {
+                let unit = Unit(context: context)
+                unit.name = unitData.name
+                unit.sortOrder = unitData.sortOrder
+                unitMap[unitData.name] = unit
+            }
+            
+            // Create Meal types
+            var mealTypeMap: [String: MealType] = [:]
+            for mealTypeData in jsonData.mealTypes {
+                let mealType = MealType(context: context)
+                mealType.name = mealTypeData.name
+                mealType.sortOrder = mealTypeData.sortOrder
+                mealTypeMap[mealTypeData.name] = mealType
+            }
+            
+            // Create Dish Categories
+            var dishCategoryMap: [String: DishCategory] = [:]
+            for categoryData in jsonData.dishCategories {
+                let category = DishCategory(context: context)
+                category.name = categoryData.name
+                category.sortOrder = categoryData.sortOrder
+                dishCategoryMap[categoryData.name] = category
+            }
+
+            // Create Products
+            var productMap: [String: Product] = [:]
+            for productData in jsonData.products {
+                let product = Product(context: context)
+                product.name = productData.name
+                product.unit = unitMap[productData.unit]
+                productMap[productData.name] = product
+            }
+
+            // Create Dishes and Ingredients
+            for dishData in jsonData.dishes {
+                let dish = Dish(context: context)
+                dish.name = dishData.name
+                dish.details = dishData.details
+                
+                // Set category
+                if let categoryName = dishData.category,
+                   let category = dishCategoryMap[categoryName] {
+                    dish.category = category
+                }
+
+                for ingredientData in dishData.ingredients {
+                    if let product = productMap[ingredientData.product] {
+                        let ingredient = IngredientDetail(context: context)
+                        ingredient.dish = dish
+                        ingredient.product = product
+                        ingredient.quantity = ingredientData.quantity
+                    } else {
+                        AppLogger.warning("Product \(ingredientData.product) not found for dish \(dishData.name)", category: AppLogger.dataImport)
+                    }
+                }
+                
+                if let mealTypeNames = dishData.mealTypes {
+                    for mealTypeName in mealTypeNames {
+                        if let mealType = mealTypeMap[mealTypeName] {
+                            dish.addToMealTypes(mealType)
+                        }
+                    }
+                }
+            }
+
+            // Save all data
+            if context.hasChanges {
+                try context.save()
+            }
+            AppLogger.info("Initial data generated successfully in background context", category: AppLogger.dataImport)
+            
         } catch {
-            print("⚠️ Failed to set query generation: \(error)")
-            // This is not a fatal error - the app can continue without query generation
+            AppLogger.error("Error generating initial data in background context", error: error, category: AppLogger.dataImport)
+        }
+        
+        AppLogger.info("Initial data generation completed", category: AppLogger.persistence)
+    }
+    
+    private func performDeleteAllData(context: NSManagedObjectContext) {
+        guard let entities = context.persistentStoreCoordinator?.managedObjectModel.entities else { return }
+
+        for entity in entities {
+            guard let entityName = entity.name else { continue }
+
+            let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
+            let batchDeleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
+
+            do {
+                try context.execute(batchDeleteRequest)
+                AppLogger.info("Successfully deleted all data from \(entityName)", category: AppLogger.persistence)
+            } catch {
+                AppLogger.error("Error deleting data from \(entityName)", error: error, category: AppLogger.persistence)
+            }
+        }
+
+        do {
+            if context.hasChanges {
+                try context.save()
+            }
+            AppLogger.info("All data deleted successfully", category: AppLogger.persistence)
+        } catch {
+            AppLogger.error("Error saving context after deletion", error: error, category: AppLogger.persistence)
         }
     }
 }

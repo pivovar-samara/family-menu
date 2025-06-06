@@ -22,6 +22,15 @@ class MockEditProductService: EditProductServiceProtocol {
         saveChangesCalled = true
     }
     
+    func saveChangesInBackground(completion: @escaping (Result<Void, Error>) -> Void) {
+        if let error = error {
+            completion(.failure(error))
+        } else {
+            saveChangesCalled = true
+            completion(.success(()))
+        }
+    }
+    
     func rollback() {
         rollbackCalled = true
     }

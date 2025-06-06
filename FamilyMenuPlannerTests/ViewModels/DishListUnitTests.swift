@@ -24,6 +24,15 @@ class MockDishListService: DishListServiceProtocol {
         }
         deleteDishCalled = true
     }
+    
+    func deleteDishesInBackground(dishes: [Dish], completion: @escaping (Result<Void, Error>) -> Void) {
+        if let error = error {
+            completion(.failure(error))
+        } else {
+            deleteDishCalled = true
+            completion(.success(()))
+        }
+    }
 }
 
 // MARK: - View Model for Unit Tests

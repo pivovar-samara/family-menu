@@ -12,11 +12,19 @@ import CoreData
 class DishListServiceIntegrationTests: BaseIntegrationTest {
     var dishListService: DishListService!
     var mockDelegate: MockDishListServiceDelegate!
+    var testBackgroundManager: TestBackgroundOperationManager!
     
     override func setUp() {
         super.setUp()
+        // Create test background manager using the same test stack
+        testBackgroundManager = TestBackgroundOperationManager(testStack: TestCoreDataStack.shared)
+        
         // Use faster debounce interval for tests (10ms instead of 100ms)
-        dishListService = DishListService(context: context, debounceInterval: 0.01)
+        dishListService = DishListService(
+            context: context,
+            debounceInterval: 0.01,
+            backgroundOperationManager: testBackgroundManager
+        )
         mockDelegate = MockDishListServiceDelegate()
         dishListService.delegate = mockDelegate
     }
@@ -24,6 +32,7 @@ class DishListServiceIntegrationTests: BaseIntegrationTest {
     override func tearDown() {
         mockDelegate = nil
         dishListService = nil
+        testBackgroundManager = nil
         super.tearDown()
     }
     

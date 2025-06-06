@@ -11,6 +11,7 @@ import Combine
 protocol DishListServiceProtocol {
     func fetchAllDishes()
     func deleteDishes(dishes: [Dish]) throws
+    func deleteDishesInBackground(dishes: [Dish], completion: @escaping (Result<Void, Error>) -> Void)
     
     var delegate: DishListServiceDelegate? { get set }
 }
@@ -23,6 +24,7 @@ protocol DishListServiceDelegate {
 
 class DishListService: NSObject {
     private let context: NSManagedObjectContext
+    private let backgroundOperationManager: BackgroundOperationManagerProtocol
     private let fetchedResultsController: NSFetchedResultsController<Dish>
     var delegate: DishListServiceDelegate? = nil
     
@@ -31,8 +33,9 @@ class DishListService: NSObject {
     private var hasPendingChanges = false
     private let debounceInterval: TimeInterval
     
-    init(context: NSManagedObjectContext, debounceInterval: TimeInterval = 0.1) {
+    init(context: NSManagedObjectContext, debounceInterval: TimeInterval = 0.1, backgroundOperationManager: BackgroundOperationManagerProtocol = BackgroundOperationManager.shared) {
         self.context = context
+        self.backgroundOperationManager = backgroundOperationManager
         self.debounceInterval = debounceInterval
         let fetchRequest: NSFetchRequest<Dish> = Dish.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Dish.name, ascending: true)]
@@ -59,13 +62,13 @@ class DishListService: NSObject {
     func fetchAllDishes() {
         do {
             try fetchedResultsController.performFetch()
-            self.delegate?.serviceDidChangeContent(fetchedResultsController.fetchedObjects ?? [])
+            notifyDelegate(immediate: true)
         } catch {
-            AppLogger.error("Error loading dishes", error: error, category: AppLogger.service)
-            self.delegate?.serviceDidChangeContent([])
+            print("Error fetching dishes: \(error)")
         }
     }
     
+    // Synchronous deletion for backward compatibility
     func deleteDishes(dishes: [Dish]) throws {
         for dish in dishes {
             context.delete(dish)
@@ -73,37 +76,197 @@ class DishListService: NSObject {
         try context.save()
     }
     
-    // MARK: - Performance Optimization Helpers
-    
-    private func scheduleDataRefresh() {
-        // Cancel existing timer if present
-        changeDebounceTimer?.invalidate()
-        hasPendingChanges = true
+    // Background deletion for better UI responsiveness
+    func deleteDishesInBackground(dishes: [Dish], completion: @escaping (Result<Void, Error>) -> Void) {
+        // For small number of dishes, use synchronous deletion
+        if dishes.count <= 3 {
+            do {
+                try deleteDishes(dishes: dishes)
+                completion(.success(()))
+            } catch {
+                completion(.failure(error))
+            }
+            return
+        }
         
-        // Schedule new timer to batch multiple rapid changes
-        changeDebounceTimer = Timer.scheduledTimer(withTimeInterval: debounceInterval, repeats: false) { [weak self] _ in
-            self?.performDataRefresh()
+        // For larger batches, use background context
+        let objectIDs = dishes.map { $0.objectID }
+        
+        backgroundOperationManager.executeBatchSaveOperation(objectIDs: objectIDs) { backgroundObjects in
+            // Delete all dishes in background context
+            for object in backgroundObjects {
+                if let dish = object as? Dish {
+                    object.managedObjectContext?.delete(dish)
+                }
+            }
+        } completion: { result in
+            completion(result)
         }
     }
     
-    private func performDataRefresh() {
-        guard hasPendingChanges else { return }
+    // MARK: - Bulk Operations
+    
+    /// Creates multiple dishes in a single background operation
+    func createDishesBulk(dishData: [(name: String, details: String?, category: DishCategory?, mealTypes: Set<MealType>)], completion: @escaping (Result<[Dish], Error>) -> Void) {
+        guard !dishData.isEmpty else {
+            completion(.success([]))
+            return
+        }
         
-        hasPendingChanges = false
-        changeDebounceTimer = nil
-        
-        // Ensure we're on the main queue for UI updates
-        DispatchQueue.main.async { [weak self] in
-            if let updatedDishes = self?.fetchedResultsController.fetchedObjects {
-                self?.delegate?.serviceDidChangeContent(updatedDishes)
+        // For small batches, use regular synchronous approach
+        if dishData.count <= 5 {
+            do {
+                var createdDishes: [Dish] = []
+                for data in dishData {
+                    let dish = Dish(context: context)
+                    dish.name = data.name
+                    dish.details = data.details
+                    dish.category = data.category
+                    dish.mealTypes = data.mealTypes as NSSet
+                    createdDishes.append(dish)
+                }
+                try context.save()
+                completion(.success(createdDishes))
+            } catch {
+                completion(.failure(error))
             }
+            return
+        }
+        
+        // For larger batches, use background context
+        backgroundOperationManager.executeHeavyOperation { backgroundContext in
+            var createdObjectIDs: [NSManagedObjectID] = []
+            
+            for data in dishData {
+                let dish = Dish(context: backgroundContext)
+                dish.name = data.name
+                dish.details = data.details
+                
+                // Transfer category to background context
+                if let categoryID = data.category?.objectID,
+                   let backgroundCategory = try? backgroundContext.existingObject(with: categoryID) as? DishCategory {
+                    dish.category = backgroundCategory
+                }
+                
+                // Transfer meal types to background context
+                var backgroundMealTypes = Set<MealType>()
+                for mealType in data.mealTypes {
+                    if let backgroundMealType = try? backgroundContext.existingObject(with: mealType.objectID) as? MealType {
+                        backgroundMealTypes.insert(backgroundMealType)
+                    }
+                }
+                dish.mealTypes = backgroundMealTypes as NSSet
+                
+                createdObjectIDs.append(dish.objectID)
+            }
+            
+            if backgroundContext.hasChanges {
+                try backgroundContext.save()
+            }
+            
+            return createdObjectIDs
+        } completion: { result in
+            switch result {
+            case .success(let objectIDs):
+                // Get dishes in main context
+                do {
+                    let mainDishes = try objectIDs.map { objectID in
+                        try self.context.existingObject(with: objectID) as! Dish
+                    }
+                    completion(.success(mainDishes))
+                } catch {
+                    completion(.failure(error))
+                }
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+    
+    /// Updates multiple dishes in a single background operation
+    func updateDishesBulk(dishUpdates: [(dish: Dish, name: String?, details: String?, category: DishCategory?)], completion: @escaping (Result<Void, Error>) -> Void) {
+        guard !dishUpdates.isEmpty else {
+            completion(.success(()))
+            return
+        }
+        
+        // For small batches, use regular synchronous approach
+        if dishUpdates.count <= 3 {
+            do {
+                for update in dishUpdates {
+                    if let name = update.name {
+                        update.dish.name = name
+                    }
+                    if let details = update.details {
+                        update.dish.details = details
+                    }
+                    if let category = update.category {
+                        update.dish.category = category
+                    }
+                }
+                try context.save()
+                completion(.success(()))
+            } catch {
+                completion(.failure(error))
+            }
+            return
+        }
+        
+        // For larger batches, use background context
+        let dishObjectIDs = dishUpdates.map { $0.dish.objectID }
+        
+        backgroundOperationManager.executeBatchSaveOperation(objectIDs: dishObjectIDs) { backgroundObjects in
+            for (index, object) in backgroundObjects.enumerated() {
+                guard let dish = object as? Dish,
+                      index < dishUpdates.count else { continue }
+                
+                let update = dishUpdates[index]
+                
+                if let name = update.name {
+                    dish.name = name
+                }
+                if let details = update.details {
+                    dish.details = details
+                }
+                if let categoryID = update.category?.objectID,
+                   let backgroundCategory = try? object.managedObjectContext?.existingObject(with: categoryID) as? DishCategory {
+                    dish.category = backgroundCategory
+                }
+            }
+        } completion: { result in
+            completion(result)
+        }
+    }
+    
+    // MARK: - Private Methods
+    
+    private func notifyDelegate(immediate: Bool = false) {
+        guard let delegate = delegate else { return }
+        
+        if immediate {
+            // For direct calls (like fetchAllDishes), notify immediately
+            let dishes = fetchedResultsController.fetchedObjects ?? []
+            delegate.serviceDidChangeContent(dishes)
+            return
+        }
+        
+        // Debounce rapid changes for better performance
+        changeDebounceTimer?.invalidate()
+        hasPendingChanges = true
+        
+        changeDebounceTimer = Timer.scheduledTimer(withTimeInterval: debounceInterval, repeats: false) { [weak self] _ in
+            guard let self = self, self.hasPendingChanges else { return }
+            
+            let dishes = self.fetchedResultsController.fetchedObjects ?? []
+            delegate.serviceDidChangeContent(dishes)
+            self.hasPendingChanges = false
         }
     }
 }
 
+// MARK: - NSFetchedResultsControllerDelegate
 extension DishListService: NSFetchedResultsControllerDelegate {
     func controllerDidChangeContent(_ controller: NSFetchedResultsController<NSFetchRequestResult>) {
-        // Use debouncing to prevent excessive UI updates during rapid changes
-        scheduleDataRefresh()
+        notifyDelegate(immediate: false)
     }
 }

@@ -31,7 +31,7 @@ class TestCoreDataStack {
         description.cloudKitContainerOptions = nil
         
         // Configure for test environment
-        description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+        description.setOption(false as NSNumber, forKey: NSPersistentHistoryTrackingKey)
         description.setOption(false as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
         description.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)
         description.setOption(true as NSNumber, forKey: NSInferMappingModelAutomaticallyOption)

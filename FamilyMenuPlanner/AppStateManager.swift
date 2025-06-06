@@ -165,7 +165,7 @@ final class AppStateManager: ObservableObject {
         }
     }
 
-    func checkDatabaseState() {
+    private func checkDatabaseState() {
         let persistence = PersistenceController.shared
         
         // Double-check that persistence is ready before proceeding
@@ -180,13 +180,28 @@ final class AppStateManager: ObservableObject {
         isDatabaseEmpty = persistence.isDatabaseEmpty(context: context)
         
         if isDatabaseEmpty {
-            persistence.generateInitialData(context: context)
+            // Use background context for initial data generation to avoid blocking UI
+            persistence.generateInitialDataInBackground { [weak self] success in
+                DispatchQueue.main.async {
+                    guard let self = self else { return }
+                    
+                    if success {
+                        // Initialize static data cache after database is ready
+                        // This will preload all static data to ensure immediate availability
+                        StaticDataCacheManager.shared.initialize(with: context)
+                        self.isLoading = false
+                    } else {
+                        self.persistenceError = "Failed to initialize app data. Please restart the app.".localized()
+                        self.showPersistenceErrorAlert = true
+                        self.isLoading = false
+                    }
+                }
+            }
+        } else {
+            // Initialize static data cache after database is ready
+            // This will preload all static data to ensure immediate availability
+            StaticDataCacheManager.shared.initialize(with: context)
+            isLoading = false
         }
-        
-        // Initialize static data cache after database is ready
-        // This will preload all static data to ensure immediate availability
-        StaticDataCacheManager.shared.initialize(with: context)
-        
-        isLoading = false
     }
 }

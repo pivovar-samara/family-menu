@@ -43,6 +43,15 @@ class MockProductListService: ProductListServiceProtocol {
         deleteProductsCalled = true
     }
     
+    func deleteProductsInBackground(products: [Product], completion: @escaping (Result<Void, Error>) -> Void) {
+        if let error = error {
+            completion(.failure(error))
+        } else {
+            deleteProductsCalled = true
+            completion(.success(()))
+        }
+    }
+    
     func addProduct(name: String, unit: Unit) throws {
         if let error = error {
             throw error
@@ -50,6 +59,37 @@ class MockProductListService: ProductListServiceProtocol {
         addProductCalled = true
         lastAddedProductName = name
         lastAddedUnitName = unit.name
+    }
+    
+    func addProductInBackground(name: String, unit: Unit, completion: @escaping (Result<Product, Error>) -> Void) {
+        if let error = error {
+            completion(.failure(error))
+        } else {
+            addProductCalled = true
+            lastAddedProductName = name
+            lastAddedUnitName = unit.name
+            
+            // Create a mock product to return - in real implementation this would be the created Core Data object
+            let mockProduct = Product()
+            mockProduct.name = name
+            mockProduct.unit = unit
+            completion(.success(mockProduct))
+        }
+    }
+    
+    func createProductsBulk(productData: [(name: String, unit: Unit)], completion: @escaping (Result<[Product], Error>) -> Void) {
+        if let error = error {
+            completion(.failure(error))
+        } else {
+            var createdProducts: [Product] = []
+            for data in productData {
+                let mockProduct = Product()
+                mockProduct.name = data.name
+                mockProduct.unit = data.unit
+                createdProducts.append(mockProduct)
+            }
+            completion(.success(createdProducts))
+        }
     }
     
     // Additional method for unit testing that doesn't require Core Data entities
