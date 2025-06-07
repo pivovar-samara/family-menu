@@ -20,6 +20,15 @@ final class FamilyMenuPlannerUITests: XCTestCase {
 
     override func tearDownWithError() throws {
         // Put teardown code here. This method is called after the invocation of each test method in the class.
+        
+        // Ensure all apps are terminated
+        let app = XCUIApplication()
+        if app.state == .runningForeground || app.state == .runningBackground {
+            app.terminate()
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        
+        try super.tearDownWithError()
     }
 
     func testLaunchPerformance() throws {
@@ -50,8 +59,14 @@ final class FamilyMenuPlannerUITests: XCTestCase {
                 let tabBar = app.tabBars.firstMatch
                 _ = tabBar.waitForExistence(timeout: 10)
                 
+                // Ensure app is ready before termination
+                Thread.sleep(forTimeInterval: 0.2)
+                
                 // Terminate app to ensure clean measurement cycles
                 app.terminate()
+                
+                // Wait for termination to complete before next iteration
+                Thread.sleep(forTimeInterval: 0.3)
             }
         }
     }

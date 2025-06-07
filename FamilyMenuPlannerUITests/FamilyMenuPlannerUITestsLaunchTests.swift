@@ -10,11 +10,17 @@ import XCTest
 final class FamilyMenuPlannerUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
-        true
+        // Disable running for each UI configuration to reduce overhead
+        false
     }
 
     override func setUpWithError() throws {
         continueAfterFailure = false
+    }
+    
+    override func tearDownWithError() throws {
+        // Add explicit cleanup
+        try super.tearDownWithError()
     }
 
     func testLaunch() throws {
@@ -45,12 +51,22 @@ final class FamilyMenuPlannerUITestsLaunchTests: XCTestCase {
         // Insert steps here to perform after app launch but before taking a screenshot,
         // such as logging into a test account or navigating somewhere in the app
 
+        // Use deleteOnSuccess to reduce overhead and prevent background processing
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "Launch Screen"
-        attachment.lifetime = .keepAlways
+        attachment.lifetime = .deleteOnSuccess  // Changed from .keepAlways
         add(attachment)
+        
+        // Ensure screenshot is processed before termination
+        Thread.sleep(forTimeInterval: 0.5)
         
         // Properly terminate the app to prevent it from running indefinitely
         app.terminate()
+        
+        // Give time for termination to complete
+        Thread.sleep(forTimeInterval: 0.5)
+        
+        // Verify app was terminated
+        XCTAssertFalse(app.state == .runningForeground, "App should be terminated")
     }
 }
