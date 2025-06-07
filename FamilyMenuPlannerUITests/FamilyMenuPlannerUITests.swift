@@ -32,17 +32,26 @@ final class FamilyMenuPlannerUITests: XCTestCase {
                 app.launchArguments = [
                     "-UITests",
                     "-DisableCloudKit", 
-                    "-XCTest"
+                    "-XCTest",
+                    "-InMemoryStore"
                 ]
                 
                 // Add environment variables for test detection
                 app.launchEnvironment = [
                     "UI_TESTS": "1",
                     "DISABLE_CLOUDKIT": "1",
-                    "XCTestBundlePath": "UITests"
+                    "XCTestBundlePath": "UITests",
+                    "TESTING_ENVIRONMENT": "1"
                 ]
                 
                 app.launch()
+                
+                // Wait for app to fully load to ensure measurement accuracy
+                let tabBar = app.tabBars.firstMatch
+                _ = tabBar.waitForExistence(timeout: 10)
+                
+                // Terminate app to ensure clean measurement cycles
+                app.terminate()
             }
         }
     }

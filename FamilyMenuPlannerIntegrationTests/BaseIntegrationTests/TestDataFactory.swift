@@ -87,6 +87,30 @@ class TestDataFactory {
         return dishes
     }
     
+    func createIngredientDetail(dish: Dish, product: Product, quantity: Double, unit: Unit) -> IngredientDetail {
+        let ingredient = IngredientDetail(context: context)
+        ingredient.dish = dish
+        ingredient.product = product
+        ingredient.quantity = quantity
+        ingredient.sortOrder = 0
+        saveContext()
+        return ingredient
+    }
+    
+    func createMenu(weekStartDate: Date, dish: Dish, mealType: MealType) -> Menu {
+        let calendar = Calendar.current
+        let weekComponents = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: weekStartDate)
+        let encodedWeek = (weekComponents.yearForWeekOfYear ?? 0) * 100 + (weekComponents.weekOfYear ?? 0)
+        
+        let menu = Menu(context: context)
+        menu.day = "Monday" // Default day for testing
+        menu.mealType = mealType.name // mealType property is a String, not MealType object
+        menu.calendarWeek = Int32(encodedWeek)
+        menu.addToDishes(dish)
+        saveContext()
+        return menu
+    }
+    
     private func saveContext() {
         guard context.hasChanges else { return }
         do {

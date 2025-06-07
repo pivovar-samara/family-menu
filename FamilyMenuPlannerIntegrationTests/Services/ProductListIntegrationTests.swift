@@ -319,7 +319,7 @@ class ProductListIntegrationTests: BaseIntegrationTest {
         cleanUpTestData()
         
         // Create test data
-        let (allProducts, _) = createTestData()
+        let (_, _) = createTestData()
         
         // Load initial state
         viewModel.loadProducts()

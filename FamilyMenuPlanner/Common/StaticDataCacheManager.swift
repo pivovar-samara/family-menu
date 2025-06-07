@@ -92,10 +92,17 @@ final class StaticDataCacheManager: ObservableObject {
     }
     
     /// Force reload all data (useful for development/testing)
-    func invalidateCache() {
+    func invalidateCache(completion: (() -> Void)? = nil) {
         cacheQueue.async {
             self.clearAllCache()
             self.preloadAllData()
+            
+            // Call completion on main thread if provided
+            if let completion = completion {
+                DispatchQueue.main.async {
+                    completion()
+                }
+            }
         }
     }
     
