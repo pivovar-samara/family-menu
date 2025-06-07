@@ -39,6 +39,8 @@ struct ProductListView: View {
             // Add new product
             Section(header: Text("Add New Product")) {
                 TextField("Product Name", text: $viewModel.newProductName)
+                    .autocorrectionDisabled(true)
+                    .textInputAutocapitalization(.words)
 
                 Picker("Unit", selection: Binding(
                     get: {

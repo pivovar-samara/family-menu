@@ -23,6 +23,8 @@ struct EditProductView: View {
                     get: { viewModel.product.name ?? "" },
                     set: { viewModel.product.name = $0 }
                 ))
+                .autocorrectionDisabled(true)
+                .textInputAutocapitalization(.words)
                 
                 Picker("Unit", selection: $viewModel.selectedUnit) {
                     ForEach(viewModel.units, id: \.self) { unit in

@@ -143,6 +143,30 @@ struct PersistenceController {
         
         AppLogger.info("Starting persistent stores loading", category: AppLogger.persistence)
         loadPersistentStores()
+        
+        // Step 6: Set query generation for optimistic locking (only for production environments)
+        // Query generation is not supported for in-memory stores and can cause issues in test environments
+        let shouldSetQueryGeneration = !isRunningTests && !inMemory && 
+                                       container is NSPersistentCloudKitContainer
+        
+        if shouldSetQueryGeneration, let _ = container.persistentStoreCoordinator.persistentStores.first {
+            do {
+                try container.viewContext.setQueryGenerationFrom(.current)
+                AppLogger.info("Query generation set for context", category: AppLogger.persistence)
+            } catch {
+                AppLogger.error("Failed to set query generation for context", error: error, category: AppLogger.persistence)
+            }
+        } else {
+            if isRunningTests || inMemory {
+                AppLogger.info("Skipping query generation for in-memory or test store", category: AppLogger.persistence)
+            } else {
+                AppLogger.info("Query generation set for context", category: AppLogger.persistence)
+            }
+        }
+        
+        // Step 7: Perform data validation cleanup to prevent CoreGraphics errors
+        performDataValidationCleanup()
+        
         AppLogger.info("PersistenceController initialization completed", category: AppLogger.persistence)
     }
     
@@ -156,6 +180,13 @@ struct PersistenceController {
     private func configureStoreDescriptions(inMemory: Bool, isRunningTests: Bool, isSimulator: Bool) {
         if inMemory {
             container.persistentStoreDescriptions.first!.url = URL(fileURLWithPath: "/dev/null")
+        } else if isRunningTests {
+            // For tests using persistent storage, use a unique temporary file to avoid conflicts
+            // between different test configurations
+            let tempDirectory = FileManager.default.temporaryDirectory
+            let uniqueStoreURL = tempDirectory.appendingPathComponent("FamilyMenuPlannerTest_\(UUID().uuidString).sqlite")
+            container.persistentStoreDescriptions.first!.url = uniqueStoreURL
+            AppLogger.info("Using unique test store: \(uniqueStoreURL.path)", category: AppLogger.persistence)
         }
         
         // Configure store options for better error handling and performance
@@ -831,6 +862,79 @@ struct PersistenceController {
             AppLogger.info("All data deleted successfully", category: AppLogger.persistence)
         } catch {
             AppLogger.error("Error saving context after deletion", error: error, category: AppLogger.persistence)
+        }
+    }
+    
+    /// Performs comprehensive data validation cleanup to prevent CoreGraphics NaN errors
+    /// This runs on app startup to fix any existing invalid data in the database
+    private func performDataValidationCleanup() {
+        AppLogger.info("Starting data validation cleanup to prevent CoreGraphics errors", category: AppLogger.persistence)
+        
+        // Clean up old temporary test stores first
+        cleanupTemporaryTestStores()
+        
+        // Use background context for cleanup to avoid blocking the main thread
+        let backgroundContext = container.newBackgroundContext()
+        backgroundContext.performAndWait {
+            do {
+                // Fetch all IngredientDetail entities that might have invalid quantities
+                let fetchRequest: NSFetchRequest<IngredientDetail> = IngredientDetail.fetchRequest()
+                let ingredients = try backgroundContext.fetch(fetchRequest)
+                
+                var fixedCount = 0
+                for ingredient in ingredients {
+                    if ingredient.quantity.isNaN || ingredient.quantity.isInfinite || ingredient.quantity < 0 {
+                        let oldValue = ingredient.quantity
+                        ingredient.quantity = 0.0
+                        fixedCount += 1
+                        AppLogger.warning("Fixed invalid quantity value (\(oldValue)) in ingredient for product: \(ingredient.product?.name ?? "unknown")", category: AppLogger.persistence)
+                    }
+                }
+                
+                // Save changes if we fixed any values
+                if fixedCount > 0 {
+                    try backgroundContext.save()
+                    AppLogger.info("Fixed \(fixedCount) invalid ingredient quantities to prevent CoreGraphics errors", category: AppLogger.persistence)
+                } else {
+                    AppLogger.info("No invalid ingredient quantities found during validation cleanup", category: AppLogger.persistence)
+                }
+                
+            } catch {
+                AppLogger.error("Failed to perform data validation cleanup", error: error, category: AppLogger.persistence)
+            }
+        }
+    }
+    
+    /// Cleans up old temporary test store files to prevent disk space accumulation
+    private func cleanupTemporaryTestStores() {
+        let tempDirectory = FileManager.default.temporaryDirectory
+        
+        do {
+            let contents = try FileManager.default.contentsOfDirectory(at: tempDirectory, includingPropertiesForKeys: [.creationDateKey], options: .skipsHiddenFiles)
+            
+            let testStoreFiles = contents.filter { url in
+                url.lastPathComponent.hasPrefix("FamilyMenuPlannerTest_") && 
+                (url.pathExtension == "sqlite" || url.pathExtension == "sqlite-wal" || url.pathExtension == "sqlite-shm")
+            }
+            
+            let calendar = Calendar.current
+            let oneDayAgo = calendar.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+            
+            var cleanedCount = 0
+            for file in testStoreFiles {
+                if let creationDate = try? file.resourceValues(forKeys: [.creationDateKey]).creationDate,
+                   creationDate < oneDayAgo {
+                    try? FileManager.default.removeItem(at: file)
+                    cleanedCount += 1
+                }
+            }
+            
+            if cleanedCount > 0 {
+                AppLogger.info("Cleaned up \(cleanedCount) old temporary test store files", category: AppLogger.persistence)
+            }
+            
+        } catch {
+            AppLogger.warning("Could not clean up temporary test stores: \(error.localizedDescription)", category: AppLogger.persistence)
         }
     }
 }

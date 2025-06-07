@@ -37,6 +37,18 @@ extension View {
     func emptyState(message: String) -> some View {
         self.modifier(EmptyStateModifier(message: message))
     }
+    
+    /// Prevents CoreGraphics NaN errors by validating frame dimensions
+    func safeFrame(width: CGFloat? = nil, height: CGFloat? = nil, alignment: Alignment = .center) -> some View {
+        let safeWidth = width?.isNaN == false && width?.isInfinite == false ? width : nil
+        let safeHeight = height?.isNaN == false && height?.isInfinite == false ? height : nil
+        
+        return self.frame(
+            width: safeWidth,
+            height: safeHeight,
+            alignment: alignment
+        )
+    }
 }
 
 extension List {

@@ -66,6 +66,38 @@ class DishDetailsViewModel: ObservableObject {
         alertManager.$currentAlert
                     .receive(on: RunLoop.main)
                     .assign(to: &$currentAlert)
+        
+        // Clean up any existing NaN data immediately to prevent CoreGraphics errors
+        performDataValidationCleanup()
+    }
+    
+    /// Performs comprehensive data validation and cleanup to prevent CoreGraphics NaN errors
+    private func performDataValidationCleanup() {
+        guard let dish = dish else { return }
+        
+        // Validate and fix ingredient quantities that may have been corrupted
+        if let ingredientDetails = dish.ingredientDetails as? Set<IngredientDetail> {
+            var hasChanges = false
+            
+            for detail in ingredientDetails {
+                if detail.quantity.isNaN || detail.quantity.isInfinite || detail.quantity < 0 {
+                    let oldValue = detail.quantity
+                    detail.quantity = 0.0
+                    hasChanges = true
+                    AppLogger.warning("Fixed invalid quantity value (\(oldValue)) in ingredient detail for dish: \(dish.name ?? "unknown")", category: AppLogger.viewModel)
+                }
+            }
+            
+            // Save changes if we fixed any NaN values
+            if hasChanges {
+                do {
+                    try dishDetailsService.saveChanges()
+                    AppLogger.info("Saved ingredient quantity fixes to prevent CoreGraphics errors", category: AppLogger.viewModel)
+                } catch {
+                    AppLogger.error("Failed to save ingredient quantity fixes", error: error, category: AppLogger.viewModel)
+                }
+            }
+        }
     }
     
     func loadDish() {
@@ -80,6 +112,13 @@ class DishDetailsViewModel: ObservableObject {
     
     func loadIngredients() {
         if let ingredientDetails = dish?.ingredientDetails as? Set<IngredientDetail> {
+            // Validate and fix any NaN quantities to prevent CoreGraphics errors
+            for detail in ingredientDetails {
+                if detail.quantity.isNaN || detail.quantity.isInfinite {
+                    detail.quantity = 0.0
+                    AppLogger.warning("Fixed NaN/Infinite quantity value in ingredient detail", category: AppLogger.viewModel)
+                }
+            }
             selectedIngredients = Array(ingredientDetails).sorted { $0.sortOrder < $1.sortOrder }
         }
     }
@@ -106,11 +145,14 @@ class DishDetailsViewModel: ObservableObject {
     func addIngredient(product: Product, quantity: Double) {
         guard let dish = dish else { return }
         
+        // Validate quantity to prevent NaN values that cause CoreGraphics errors
+        let validQuantity = validateQuantity(quantity)
+        
         do {
             let ingredientDetail = try dishDetailsService.createIngredient()
             ingredientDetail.dish = dish
             ingredientDetail.product = product
-            ingredientDetail.quantity = quantity
+            ingredientDetail.quantity = validQuantity
             
             try dishDetailsService.saveChanges()
             // Refresh ingredients list
@@ -201,5 +243,21 @@ class DishDetailsViewModel: ObservableObject {
     
     func dismissAlert() {
         alertManager.dismissCurrentAlert()
+    }
+    
+    // MARK: - Helper Methods
+    
+    /// Validates and sanitizes quantity values to prevent NaN/Infinite values that cause CoreGraphics errors
+    private func validateQuantity(_ quantity: Double) -> Double {
+        if quantity.isNaN || quantity.isInfinite {
+            return 0.0
+        }
+        return max(0.0, quantity)
+    }
+    
+    /// Safely updates ingredient quantity with validation to prevent CoreGraphics errors
+    func updateIngredientQuantity(_ ingredient: IngredientDetail, quantity: Double) {
+        let validQuantity = validateQuantity(quantity)
+        ingredient.quantity = validQuantity
     }
 }

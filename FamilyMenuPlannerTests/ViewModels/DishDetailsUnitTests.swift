@@ -345,4 +345,195 @@ class DishDetailsUnitTests: XCTestCase {
         XCTAssertTrue(saveCompleted, "Save should succeed with valid data")
         XCTAssertTrue(mockService.saveChangesCalled, "Save should be attempted with valid data")
     }
+    
+    // MARK: - NaN Validation Tests
+    
+    func testAddIngredientWithNaNQuantity() {
+        viewModel = DishDetailsViewModel(dishDetailsService: mockService)
+        viewModel.loadDish()
+        
+        let unit = testDataFactory.createUnit(name: "kg", sortOrder: 1)
+        let product = testDataFactory.createProduct(name: "Test Product", unit: unit)
+        
+        // Add ingredient with NaN quantity
+        viewModel.addIngredient(product: product, quantity: Double.nan)
+        
+        XCTAssertEqual(viewModel.selectedIngredients.count, 1, "Should have 1 ingredient detail")
+        XCTAssertEqual(viewModel.selectedIngredients.first?.quantity, 0.0, "NaN quantity should be converted to 0.0")
+        XCTAssertEqual(viewModel.selectedIngredients.first?.product, product)
+    }
+    
+    func testAddIngredientWithInfiniteQuantity() {
+        viewModel = DishDetailsViewModel(dishDetailsService: mockService)
+        viewModel.loadDish()
+        
+        let unit = testDataFactory.createUnit(name: "kg", sortOrder: 1)
+        let product = testDataFactory.createProduct(name: "Test Product", unit: unit)
+        
+        // Add ingredient with infinite quantity
+        viewModel.addIngredient(product: product, quantity: Double.infinity)
+        
+        XCTAssertEqual(viewModel.selectedIngredients.count, 1, "Should have 1 ingredient detail")
+        XCTAssertEqual(viewModel.selectedIngredients.first?.quantity, 0.0, "Infinite quantity should be converted to 0.0")
+        XCTAssertEqual(viewModel.selectedIngredients.first?.product, product)
+    }
+    
+    func testAddIngredientWithNegativeInfiniteQuantity() {
+        viewModel = DishDetailsViewModel(dishDetailsService: mockService)
+        viewModel.loadDish()
+        
+        let unit = testDataFactory.createUnit(name: "kg", sortOrder: 1)
+        let product = testDataFactory.createProduct(name: "Test Product", unit: unit)
+        
+        // Add ingredient with negative infinite quantity
+        viewModel.addIngredient(product: product, quantity: -Double.infinity)
+        
+        XCTAssertEqual(viewModel.selectedIngredients.count, 1, "Should have 1 ingredient detail")
+        XCTAssertEqual(viewModel.selectedIngredients.first?.quantity, 0.0, "Negative infinite quantity should be converted to 0.0")
+        XCTAssertEqual(viewModel.selectedIngredients.first?.product, product)
+    }
+    
+    func testLoadIngredientsWithNaNQuantity() {
+        viewModel = DishDetailsViewModel(dishDetailsService: mockService)
+        viewModel.loadDish()
+        
+        // Create ingredient with valid quantity first
+        let unit = testDataFactory.createUnit(name: "kg", sortOrder: 1)
+        let product = testDataFactory.createProduct(name: "Test Product", unit: unit)
+        viewModel.addIngredient(product: product, quantity: 1.0)
+        
+        // Manually corrupt the quantity to simulate existing bad data
+        if let ingredient = viewModel.selectedIngredients.first {
+            ingredient.quantity = Double.nan
+        }
+        
+        // Load ingredients should fix the NaN value
+        viewModel.loadIngredients()
+        
+        XCTAssertEqual(viewModel.selectedIngredients.count, 1, "Should still have 1 ingredient")
+        XCTAssertEqual(viewModel.selectedIngredients.first?.quantity, 0.0, "NaN quantity should be fixed to 0.0")
+        XCTAssertFalse(viewModel.selectedIngredients.first?.quantity.isNaN ?? true, "Quantity should no longer be NaN")
+    }
+    
+    func testAddIngredientWithNegativeQuantity() {
+        viewModel = DishDetailsViewModel(dishDetailsService: mockService)
+        viewModel.loadDish()
+        
+        let unit = testDataFactory.createUnit(name: "kg", sortOrder: 1)
+        let product = testDataFactory.createProduct(name: "Test Product", unit: unit)
+        
+        // Add ingredient with negative quantity
+        viewModel.addIngredient(product: product, quantity: -5.0)
+        
+        XCTAssertEqual(viewModel.selectedIngredients.count, 1, "Should have 1 ingredient detail")
+        XCTAssertEqual(viewModel.selectedIngredients.first?.quantity, 0.0, "Negative quantity should be converted to 0.0")
+        XCTAssertEqual(viewModel.selectedIngredients.first?.product, product)
+    }
+    
+    func testValidateQuantityHelperMethod() {
+        viewModel = DishDetailsViewModel(dishDetailsService: mockService)
+        
+        // Test through reflection since validateQuantity is private
+        // We'll test through public methods that use it
+        let unit = testDataFactory.createUnit(name: "kg", sortOrder: 1)
+        let product = testDataFactory.createProduct(name: "Test Product", unit: unit)
+        
+        viewModel.loadDish()
+        
+        // Test various edge cases through addIngredient
+        let testCases: [(input: Double, expected: Double)] = [
+            (1.0, 1.0),           // Normal positive value
+            (0.0, 0.0),           // Zero
+            (-1.0, 0.0),          // Negative
+            (Double.nan, 0.0),    // NaN
+            (Double.infinity, 0.0), // Positive infinity
+            (-Double.infinity, 0.0), // Negative infinity
+            (0.5, 0.5),           // Decimal
+            (1000.0, 1000.0)      // Large number
+        ]
+        
+        for (index, testCase) in testCases.enumerated() {
+            // Clear previous ingredients by deleting them properly
+            while !viewModel.selectedIngredients.isEmpty {
+                viewModel.deleteIngredient(at: IndexSet(integer: 0))
+            }
+            
+            viewModel.addIngredient(product: product, quantity: testCase.input)
+            
+            XCTAssertEqual(viewModel.selectedIngredients.count, 1, "Should have 1 ingredient for test case \(index)")
+            XCTAssertEqual(viewModel.selectedIngredients.first?.quantity, testCase.expected, 
+                          "Quantity validation failed for input \(testCase.input), expected \(testCase.expected)")
+        }
+    }
+    
+    func testUpdateIngredientQuantityWithValidation() {
+        viewModel = DishDetailsViewModel(dishDetailsService: mockService)
+        viewModel.loadDish()
+        
+        // Create test ingredient
+        let unit = testDataFactory.createUnit(name: "kg", sortOrder: 1)
+        let product = testDataFactory.createProduct(name: "Test Product", unit: unit)
+        viewModel.addIngredient(product: product, quantity: 1.0)
+        
+        guard let ingredient = viewModel.selectedIngredients.first else {
+            XCTFail("Should have created an ingredient")
+            return
+        }
+        
+        // Test various edge cases for updateIngredientQuantity
+        let testCases: [(input: Double, expected: Double)] = [
+            (2.5, 2.5),                    // Normal positive value
+            (0.0, 0.0),                    // Zero
+            (-1.0, 0.0),                   // Negative
+            (Double.nan, 0.0),             // NaN
+            (Double.infinity, 0.0),        // Positive infinity
+            (-Double.infinity, 0.0),       // Negative infinity
+            (100.5, 100.5)                 // Large number
+        ]
+        
+        for testCase in testCases {
+            viewModel.updateIngredientQuantity(ingredient, quantity: testCase.input)
+            
+            XCTAssertEqual(ingredient.quantity, testCase.expected,
+                          "updateIngredientQuantity failed for input \(testCase.input), expected \(testCase.expected)")
+            XCTAssertFalse(ingredient.quantity.isNaN, "Quantity should never be NaN after validation")
+            XCTAssertFalse(ingredient.quantity.isInfinite, "Quantity should never be infinite after validation")
+        }
+    }
+    
+    func testDataValidationCleanupOnInitialization() {
+        // Create a dish with corrupted ingredient data
+        let unit = testDataFactory.createUnit(name: "kg", sortOrder: 1)
+        let product = testDataFactory.createProduct(name: "Test Product", unit: unit)
+        let dish = testDataFactory.createDish(name: "Test Dish")
+        
+        // Create ingredient with NaN quantity directly in CoreData (simulating existing bad data)
+        let ingredient = IngredientDetail(context: context)
+        ingredient.dish = dish
+        ingredient.product = product
+        ingredient.quantity = Double.nan
+        
+        // Save the corrupted data
+        try! context.save()
+        
+        // Verify the NaN value exists before cleanup
+        XCTAssertTrue(ingredient.quantity.isNaN, "Ingredient should have NaN quantity before cleanup")
+        
+        // Initialize ViewModel with the corrupted dish - this should trigger cleanup
+        viewModel = DishDetailsViewModel(dishDetailsService: mockService, dish: dish)
+        
+        // Wait for any async operations to complete
+        let expectation = XCTestExpectation(description: "Data cleanup completed")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 1.0)
+        
+        // Refresh the context to see the updated data
+        context.refresh(ingredient, mergeChanges: false)
+        
+        // Verify the NaN value was fixed during initialization
+        XCTAssertFalse(ingredient.quantity.isNaN, "Ingredient quantity should no longer be NaN after ViewModel initialization")
+        XCTAssertEqual(ingredient.quantity, 0.0, "NaN quantity should be fixed to 0.0")
+    }
 } 

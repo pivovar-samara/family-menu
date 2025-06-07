@@ -9,11 +9,23 @@ import SwiftUI
 
 struct DishDetailsView: View {
     @Environment(\.dismiss) private var dismiss
+    @FocusState private var isTextFieldFocused: Bool
+    @FocusState private var isTextEditorFocused: Bool
     
     @StateObject private var viewModel: DishDetailsViewModel
     
     init(viewModel: DishDetailsViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
+    }
+    
+    /// Comprehensive keyboard dismissal to prevent constraint conflicts
+    private func dismissKeyboard() {
+        // SwiftUI focus management
+        isTextFieldFocused = false
+        isTextEditorFocused = false
+        
+        // UIKit fallback for complex scenarios
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
     
     var body: some View {
@@ -24,9 +36,15 @@ struct DishDetailsView: View {
                     get: { viewModel.dish?.name ?? "" },
                     set: { viewModel.dish?.name = $0 }
                 ))
+                .autocorrectionDisabled(true)
+                .textInputAutocapitalization(.words)
+                .focused($isTextFieldFocused)
 
                 TextEditor(text: $viewModel.descriptionText)
-                    .frame(height: 100)
+                    .safeFrame(height: 100)
+                    .autocorrectionDisabled(true)
+                    .textInputAutocapitalization(.sentences)
+                    .focused($isTextEditorFocused)
                     .onAppear {
                         viewModel.descriptionText = viewModel.dish?.details ?? ""
                     }
@@ -75,9 +93,15 @@ struct DishDetailsView: View {
                 ForEach(viewModel.selectedIngredients, id: \.self) { detail in
                     HStack {
                         Button(action: {
-                            viewModel.selectedIngredient = detail
-                            viewModel.isAddingIngredient = false
-                            viewModel.showProductSelection = true
+                            // Dismiss keyboard to prevent constraint conflicts
+                            dismissKeyboard()
+                            
+                            // Add small delay to ensure keyboard is fully dismissed
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                viewModel.selectedIngredient = detail
+                                viewModel.isAddingIngredient = false
+                                viewModel.showProductSelection = true
+                            }
                         }) {
                             HStack {
                                 Text(detail.product?.name ?? "Select a product")
@@ -91,23 +115,31 @@ struct DishDetailsView: View {
                         
                         TextField("Quantity", value: Binding(
                             get: { detail.quantity },
-                            set: { detail.quantity = $0 }
+                            set: { viewModel.updateIngredientQuantity(detail, quantity: $0) }
                         ), format: .number)
                         .multilineTextAlignment(.trailing)
-                        .frame(width: 60)
+                        .safeFrame(width: 60)
+                        .keyboardType(.decimalPad)
+                        .autocorrectionDisabled(true)
                         
                         Text((detail.product?.unit?.name ?? "").localized())
                             .foregroundColor(.secondary)
-                            .frame(width: 30, alignment: .leading)
+                            .safeFrame(width: 30, alignment: .leading)
                     }
                 }
                 .onMove(perform: viewModel.moveIngredient)
                 .onDelete(perform: viewModel.deleteIngredient)
 
                 Button("Add Ingredient") {
-                    viewModel.selectedIngredient = nil
-                    viewModel.isAddingIngredient = true
-                    viewModel.showProductSelection = true
+                    // Dismiss keyboard to prevent constraint conflicts
+                    dismissKeyboard()
+                    
+                    // Add small delay to ensure keyboard is fully dismissed
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        viewModel.selectedIngredient = nil
+                        viewModel.isAddingIngredient = true
+                        viewModel.showProductSelection = true
+                    }
                 }
                 .foregroundColor(Color("AccentColor"))
             }
