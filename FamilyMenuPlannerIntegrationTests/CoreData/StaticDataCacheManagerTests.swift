@@ -264,14 +264,7 @@ final class StaticDataCacheManagerTests: XCTestCase {
         XCTAssertEqual(staleUnits.count, 1, "Cache should still show 1 unit until manually invalidated")
         
         // Manually invalidate entire cache (since we removed selective invalidation)
-        cacheManager.invalidateCache()
-        
-        // Wait for async invalidation to complete
-        let expectation = XCTestExpectation(description: "Cache invalidation")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            expectation.fulfill()
-        }
-        wait(for: [expectation], timeout: 1.0)
+        cacheManager.invalidateCacheSync()
         
         // All caches should reload with fresh data
         let newUnits = cacheManager.getUnits()
@@ -307,15 +300,8 @@ final class StaticDataCacheManagerTests: XCTestCase {
         let unitsBeforeInvalidation = cacheManager.getUnits()
         XCTAssertEqual(unitsBeforeInvalidation.count, 1, "Cache should still show 1 unit before invalidation")
         
-        // Manually invalidate cache
-        cacheManager.invalidateCache()
-        
-        // Wait a moment for async invalidation to complete
-        let expectation = XCTestExpectation(description: "Cache invalidation")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            expectation.fulfill()
-        }
-        wait(for: [expectation], timeout: 1.0)
+        // Manually invalidate cache synchronously to avoid hanging
+        cacheManager.invalidateCacheSync()
         
         // Cache should be reloaded with new data (2 units)
         let updatedUnits = cacheManager.getUnits()
@@ -345,15 +331,8 @@ final class StaticDataCacheManagerTests: XCTestCase {
         let initialUnits = cacheManager.getUnits()
         XCTAssertEqual(initialUnits.count, 0, "Should start with no units")
         
-        // Manually invalidate to test the mechanism
-        cacheManager.invalidateCache()
-        
-        // Wait for async operation to complete
-        let expectation = XCTestExpectation(description: "Cache invalidation")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            expectation.fulfill()
-        }
-        wait(for: [expectation], timeout: 1.0)
+        // Manually invalidate to test the mechanism synchronously
+        cacheManager.invalidateCacheSync()
         
         // Verify it still works after invalidation
         let unitsAfterInvalidation = cacheManager.getUnits()
@@ -392,15 +371,8 @@ final class StaticDataCacheManagerTests: XCTestCase {
         let staleUnits = sharedManager.getUnits()
         XCTAssertEqual(staleUnits.count, 1, "Cache should still show 1 unit until manually refreshed")
         
-        // Manually refresh cache
-        sharedManager.invalidateCache()
-        
-        // Wait for async operation
-        let expectation = XCTestExpectation(description: "Manual refresh")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            expectation.fulfill()
-        }
-        wait(for: [expectation], timeout: 1.0)
+        // Manually refresh cache synchronously
+        sharedManager.invalidateCacheSync()
         
         // Cache should now show updated data
         let updatedUnits = sharedManager.getUnits()
