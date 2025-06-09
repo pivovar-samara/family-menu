@@ -490,16 +490,28 @@ struct PersistenceController {
     }
     
     func isDatabaseEmpty(context: NSManagedObjectContext) -> Bool {
-        let fetchRequest: NSFetchRequest<Unit> = Unit.fetchRequest()
-        fetchRequest.fetchLimit = 1
+        // Check for essential entities that are part of initial data
+        let entityNames = ["Unit", "MealType", "DishCategory", "Product"]
+        
+        for entityName in entityNames {
+            let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: entityName)
+            fetchRequest.fetchLimit = 1
 
-        do {
-            let count = try context.count(for: fetchRequest)
-            return count == 0
-        } catch {
-            print("Error checking database: \(error)")
-            return true
+            do {
+                let count = try context.count(for: fetchRequest)
+                if count > 0 {
+                    // If any essential entity has data, database is not empty
+                    return false
+                }
+            } catch {
+                AppLogger.error("Error checking \(entityName) count in database", error: error, category: AppLogger.persistence)
+                // If we can't check, assume not empty to be safe
+                return false
+            }
         }
+        
+        // All essential entities are empty
+        return true
     }
     
     func generateInitialData(context: NSManagedObjectContext) {
@@ -513,44 +525,95 @@ struct PersistenceController {
             let decoder = JSONDecoder()
             let jsonData = try decoder.decode(PreloadedData.self, from: data)
 
-            // Create Units
+            // Create Units with deduplication
             var unitMap: [String: Unit] = [:]
             for unitData in jsonData.units {
-                let unit = Unit(context: context)
-                unit.name = unitData.name
-                unit.sortOrder = unitData.sortOrder
-                unitMap[unitData.name] = unit
+                // Check if unit already exists
+                let fetchRequest: NSFetchRequest<Unit> = Unit.fetchRequest()
+                fetchRequest.predicate = NSPredicate(format: "name == %@", unitData.name)
+                fetchRequest.fetchLimit = 1
+                
+                let existingUnit = try context.fetch(fetchRequest).first
+                if let existingUnit = existingUnit {
+                    unitMap[unitData.name] = existingUnit
+                } else {
+                    let unit = Unit(context: context)
+                    unit.name = unitData.name
+                    unit.sortOrder = unitData.sortOrder
+                    unitMap[unitData.name] = unit
+                }
             }
             
-            // Create Meal types
+            // Create Meal types with deduplication
             var mealTypeMap: [String: MealType] = [:]
             for mealTypeData in jsonData.mealTypes {
-                let mealType = MealType(context: context)
-                mealType.name = mealTypeData.name
-                mealType.sortOrder = mealTypeData.sortOrder
-                mealTypeMap[mealTypeData.name] = mealType
+                // Check if meal type already exists
+                let fetchRequest: NSFetchRequest<MealType> = MealType.fetchRequest()
+                fetchRequest.predicate = NSPredicate(format: "name == %@", mealTypeData.name)
+                fetchRequest.fetchLimit = 1
+                
+                let existingMealType = try context.fetch(fetchRequest).first
+                if let existingMealType = existingMealType {
+                    mealTypeMap[mealTypeData.name] = existingMealType
+                } else {
+                    let mealType = MealType(context: context)
+                    mealType.name = mealTypeData.name
+                    mealType.sortOrder = mealTypeData.sortOrder
+                    mealTypeMap[mealTypeData.name] = mealType
+                }
             }
             
-            // Create Dish Categories
+            // Create Dish Categories with deduplication
             var dishCategoryMap: [String: DishCategory] = [:]
             for categoryData in jsonData.dishCategories {
-                let category = DishCategory(context: context)
-                category.name = categoryData.name
-                category.sortOrder = categoryData.sortOrder
-                dishCategoryMap[categoryData.name] = category
+                // Check if dish category already exists
+                let fetchRequest: NSFetchRequest<DishCategory> = DishCategory.fetchRequest()
+                fetchRequest.predicate = NSPredicate(format: "name == %@", categoryData.name)
+                fetchRequest.fetchLimit = 1
+                
+                let existingCategory = try context.fetch(fetchRequest).first
+                if let existingCategory = existingCategory {
+                    dishCategoryMap[categoryData.name] = existingCategory
+                } else {
+                    let category = DishCategory(context: context)
+                    category.name = categoryData.name
+                    category.sortOrder = categoryData.sortOrder
+                    dishCategoryMap[categoryData.name] = category
+                }
             }
 
-            // Create Products
+            // Create Products with deduplication
             var productMap: [String: Product] = [:]
             for productData in jsonData.products {
-                let product = Product(context: context)
-                product.name = productData.name
-                product.unit = unitMap[productData.unit]
-                productMap[productData.name] = product
+                // Check if product already exists
+                let fetchRequest: NSFetchRequest<Product> = Product.fetchRequest()
+                fetchRequest.predicate = NSPredicate(format: "name == %@", productData.name)
+                fetchRequest.fetchLimit = 1
+                
+                let existingProduct = try context.fetch(fetchRequest).first
+                if let existingProduct = existingProduct {
+                    productMap[productData.name] = existingProduct
+                } else {
+                    let product = Product(context: context)
+                    product.name = productData.name
+                    product.unit = unitMap[productData.unit]
+                    productMap[productData.name] = product
+                }
             }
 
-            // Create Dishes and Ingredients
+            // Create Dishes and Ingredients with deduplication
             for dishData in jsonData.dishes {
+                // Check if dish already exists
+                let fetchRequest: NSFetchRequest<Dish> = Dish.fetchRequest()
+                fetchRequest.predicate = NSPredicate(format: "name == %@", dishData.name)
+                fetchRequest.fetchLimit = 1
+                
+                let existingDish = try context.fetch(fetchRequest).first
+                if existingDish != nil {
+                    // Dish already exists, skip creation
+                    continue
+                }
+                
                 let dish = Dish(context: context)
                 dish.name = dishData.name
                 dish.details = dishData.details
@@ -585,7 +648,7 @@ struct PersistenceController {
             if context.hasChanges {
                 try context.save()
             }
-            AppLogger.info("Data preloaded successfully from preloadData.json", category: AppLogger.dataImport)
+            AppLogger.info("Data preloaded successfully from preloadData.json with deduplication", category: AppLogger.dataImport)
             
             // Refresh static data cache to ensure it has the newly created data
             StaticDataCacheManager.shared.invalidateCache()
@@ -757,44 +820,95 @@ struct PersistenceController {
             let decoder = JSONDecoder()
             let jsonData = try decoder.decode(PreloadedData.self, from: data)
 
-            // Create Units
+            // Create Units with deduplication
             var unitMap: [String: Unit] = [:]
             for unitData in jsonData.units {
-                let unit = Unit(context: context)
-                unit.name = unitData.name
-                unit.sortOrder = unitData.sortOrder
-                unitMap[unitData.name] = unit
+                // Check if unit already exists
+                let fetchRequest: NSFetchRequest<Unit> = Unit.fetchRequest()
+                fetchRequest.predicate = NSPredicate(format: "name == %@", unitData.name)
+                fetchRequest.fetchLimit = 1
+                
+                let existingUnit = try context.fetch(fetchRequest).first
+                if let existingUnit = existingUnit {
+                    unitMap[unitData.name] = existingUnit
+                } else {
+                    let unit = Unit(context: context)
+                    unit.name = unitData.name
+                    unit.sortOrder = unitData.sortOrder
+                    unitMap[unitData.name] = unit
+                }
             }
             
-            // Create Meal types
+            // Create Meal types with deduplication
             var mealTypeMap: [String: MealType] = [:]
             for mealTypeData in jsonData.mealTypes {
-                let mealType = MealType(context: context)
-                mealType.name = mealTypeData.name
-                mealType.sortOrder = mealTypeData.sortOrder
-                mealTypeMap[mealTypeData.name] = mealType
+                // Check if meal type already exists
+                let fetchRequest: NSFetchRequest<MealType> = MealType.fetchRequest()
+                fetchRequest.predicate = NSPredicate(format: "name == %@", mealTypeData.name)
+                fetchRequest.fetchLimit = 1
+                
+                let existingMealType = try context.fetch(fetchRequest).first
+                if let existingMealType = existingMealType {
+                    mealTypeMap[mealTypeData.name] = existingMealType
+                } else {
+                    let mealType = MealType(context: context)
+                    mealType.name = mealTypeData.name
+                    mealType.sortOrder = mealTypeData.sortOrder
+                    mealTypeMap[mealTypeData.name] = mealType
+                }
             }
             
-            // Create Dish Categories
+            // Create Dish Categories with deduplication
             var dishCategoryMap: [String: DishCategory] = [:]
             for categoryData in jsonData.dishCategories {
-                let category = DishCategory(context: context)
-                category.name = categoryData.name
-                category.sortOrder = categoryData.sortOrder
-                dishCategoryMap[categoryData.name] = category
+                // Check if dish category already exists
+                let fetchRequest: NSFetchRequest<DishCategory> = DishCategory.fetchRequest()
+                fetchRequest.predicate = NSPredicate(format: "name == %@", categoryData.name)
+                fetchRequest.fetchLimit = 1
+                
+                let existingCategory = try context.fetch(fetchRequest).first
+                if let existingCategory = existingCategory {
+                    dishCategoryMap[categoryData.name] = existingCategory
+                } else {
+                    let category = DishCategory(context: context)
+                    category.name = categoryData.name
+                    category.sortOrder = categoryData.sortOrder
+                    dishCategoryMap[categoryData.name] = category
+                }
             }
 
-            // Create Products
+            // Create Products with deduplication
             var productMap: [String: Product] = [:]
             for productData in jsonData.products {
-                let product = Product(context: context)
-                product.name = productData.name
-                product.unit = unitMap[productData.unit]
-                productMap[productData.name] = product
+                // Check if product already exists
+                let fetchRequest: NSFetchRequest<Product> = Product.fetchRequest()
+                fetchRequest.predicate = NSPredicate(format: "name == %@", productData.name)
+                fetchRequest.fetchLimit = 1
+                
+                let existingProduct = try context.fetch(fetchRequest).first
+                if let existingProduct = existingProduct {
+                    productMap[productData.name] = existingProduct
+                } else {
+                    let product = Product(context: context)
+                    product.name = productData.name
+                    product.unit = unitMap[productData.unit]
+                    productMap[productData.name] = product
+                }
             }
 
-            // Create Dishes and Ingredients
+            // Create Dishes and Ingredients with deduplication
             for dishData in jsonData.dishes {
+                // Check if dish already exists
+                let fetchRequest: NSFetchRequest<Dish> = Dish.fetchRequest()
+                fetchRequest.predicate = NSPredicate(format: "name == %@", dishData.name)
+                fetchRequest.fetchLimit = 1
+                
+                let existingDish = try context.fetch(fetchRequest).first
+                if existingDish != nil {
+                    // Dish already exists, skip creation
+                    continue
+                }
+                
                 let dish = Dish(context: context)
                 dish.name = dishData.name
                 dish.details = dishData.details
@@ -829,7 +943,7 @@ struct PersistenceController {
             if context.hasChanges {
                 try context.save()
             }
-            AppLogger.info("Initial data generated successfully in background context", category: AppLogger.dataImport)
+            AppLogger.info("Initial data generated successfully in background context with deduplication", category: AppLogger.dataImport)
             
         } catch {
             AppLogger.error("Error generating initial data in background context", error: error, category: AppLogger.dataImport)
@@ -935,6 +1049,235 @@ struct PersistenceController {
             
         } catch {
             AppLogger.warning("Could not clean up temporary test stores: \(error.localizedDescription)", category: AppLogger.persistence)
+        }
+    }
+    
+    /// Cleans up all duplicate static data entities that may have been created by CloudKit sync issues
+    /// This method should be called during app startup to fix existing duplicates
+    func cleanupAllDuplicateStaticData(context: NSManagedObjectContext) {
+        AppLogger.info("Starting comprehensive cleanup of duplicate static data", category: AppLogger.persistence)
+        
+        cleanupDuplicateMealTypes(context: context)
+        cleanupDuplicateUnits(context: context)
+        cleanupDuplicateDishCategories(context: context)
+        cleanupDuplicateProducts(context: context)
+        
+        AppLogger.info("Completed comprehensive cleanup of duplicate static data", category: AppLogger.persistence)
+    }
+    
+    /// Cleans up duplicate units
+    private func cleanupDuplicateUnits(context: NSManagedObjectContext) {
+        do {
+            let fetchRequest: NSFetchRequest<Unit> = Unit.fetchRequest()
+            let allUnits = try context.fetch(fetchRequest)
+            
+            var unitGroups: [String: [Unit]] = [:]
+            for unit in allUnits {
+                guard let name = unit.name else { continue }
+                if unitGroups[name] == nil {
+                    unitGroups[name] = []
+                }
+                unitGroups[name]?.append(unit)
+            }
+            
+            var duplicatesRemoved = 0
+            for (name, units) in unitGroups {
+                if units.count > 1 {
+                    let sortedUnits = units.sorted { ($0.sortOrder, $0.objectID.debugDescription) < ($1.sortOrder, $1.objectID.debugDescription) }
+                    let keepUnit = sortedUnits.first!
+                    let duplicatesToRemove = Array(sortedUnits.dropFirst())
+                    
+                    // Reassign products from duplicates to the keeper
+                    for duplicateUnit in duplicatesToRemove {
+                        if let products = duplicateUnit.products {
+                            for case let product as Product in products {
+                                product.unit = keepUnit
+                            }
+                        }
+                        context.delete(duplicateUnit)
+                        duplicatesRemoved += 1
+                    }
+                    
+                    AppLogger.info("Removed \(duplicatesToRemove.count) duplicate(s) of unit '\(name)'", category: AppLogger.persistence)
+                }
+            }
+            
+            if context.hasChanges {
+                try context.save()
+                AppLogger.info("Cleaned up \(duplicatesRemoved) duplicate units", category: AppLogger.persistence)
+            }
+            
+        } catch {
+            AppLogger.error("Error cleaning up duplicate units", error: error, category: AppLogger.persistence)
+        }
+    }
+    
+    /// Cleans up duplicate dish categories
+    private func cleanupDuplicateDishCategories(context: NSManagedObjectContext) {
+        do {
+            let fetchRequest: NSFetchRequest<DishCategory> = DishCategory.fetchRequest()
+            let allCategories = try context.fetch(fetchRequest)
+            
+            var categoryGroups: [String: [DishCategory]] = [:]
+            for category in allCategories {
+                guard let name = category.name else { continue }
+                if categoryGroups[name] == nil {
+                    categoryGroups[name] = []
+                }
+                categoryGroups[name]?.append(category)
+            }
+            
+            var duplicatesRemoved = 0
+            for (name, categories) in categoryGroups {
+                if categories.count > 1 {
+                    let sortedCategories = categories.sorted { ($0.sortOrder, $0.objectID.debugDescription) < ($1.sortOrder, $1.objectID.debugDescription) }
+                    let keepCategory = sortedCategories.first!
+                    let duplicatesToRemove = Array(sortedCategories.dropFirst())
+                    
+                    // Reassign dishes from duplicates to the keeper
+                    for duplicateCategory in duplicatesToRemove {
+                        if let dishes = duplicateCategory.dishes {
+                            for case let dish as Dish in dishes {
+                                dish.category = keepCategory
+                            }
+                        }
+                        context.delete(duplicateCategory)
+                        duplicatesRemoved += 1
+                    }
+                    
+                    AppLogger.info("Removed \(duplicatesToRemove.count) duplicate(s) of dish category '\(name)'", category: AppLogger.persistence)
+                }
+            }
+            
+            if context.hasChanges {
+                try context.save()
+                AppLogger.info("Cleaned up \(duplicatesRemoved) duplicate dish categories", category: AppLogger.persistence)
+            }
+            
+        } catch {
+            AppLogger.error("Error cleaning up duplicate dish categories", error: error, category: AppLogger.persistence)
+        }
+    }
+    
+    /// Cleans up duplicate products
+    private func cleanupDuplicateProducts(context: NSManagedObjectContext) {
+        do {
+            let fetchRequest: NSFetchRequest<Product> = Product.fetchRequest()
+            let allProducts = try context.fetch(fetchRequest)
+            
+            var productGroups: [String: [Product]] = [:]
+            for product in allProducts {
+                guard let name = product.name else { continue }
+                if productGroups[name] == nil {
+                    productGroups[name] = []
+                }
+                productGroups[name]?.append(product)
+            }
+            
+            var duplicatesRemoved = 0
+            for (name, products) in productGroups {
+                if products.count > 1 {
+                    // For products, also consider the unit when determining duplicates
+                    // Group by name + unit combination
+                    var productUnitGroups: [String: [Product]] = [:]
+                    for product in products {
+                        let key = "\(name)_\(product.unit?.name ?? "nil")"
+                        if productUnitGroups[key] == nil {
+                            productUnitGroups[key] = []
+                        }
+                        productUnitGroups[key]?.append(product)
+                    }
+                    
+                    for (_, unitProducts) in productUnitGroups {
+                        if unitProducts.count > 1 {
+                            let sortedProducts = unitProducts.sorted { $0.objectID.debugDescription < $1.objectID.debugDescription }
+                            let keepProduct = sortedProducts.first!
+                            let duplicatesToRemove = Array(sortedProducts.dropFirst())
+                            
+                            // Reassign ingredient details from duplicates to the keeper
+                            for duplicateProduct in duplicatesToRemove {
+                                if let ingredientDetails = duplicateProduct.ingredientDetails {
+                                    for case let ingredient as IngredientDetail in ingredientDetails {
+                                        ingredient.product = keepProduct
+                                    }
+                                }
+                                context.delete(duplicateProduct)
+                                duplicatesRemoved += 1
+                            }
+                            
+                            AppLogger.info("Removed \(duplicatesToRemove.count) duplicate(s) of product '\(name)'", category: AppLogger.persistence)
+                        }
+                    }
+                }
+            }
+            
+            if context.hasChanges {
+                try context.save()
+                AppLogger.info("Cleaned up \(duplicatesRemoved) duplicate products", category: AppLogger.persistence)
+            }
+            
+        } catch {
+            AppLogger.error("Error cleaning up duplicate products", error: error, category: AppLogger.persistence)
+        }
+    }
+    
+    /// Cleans up duplicate meal types
+    private func cleanupDuplicateMealTypes(context: NSManagedObjectContext) {
+        AppLogger.info("Checking for duplicate meal types to cleanup", category: AppLogger.persistence)
+        
+        do {
+            // Fetch all meal types
+            let fetchRequest: NSFetchRequest<MealType> = MealType.fetchRequest()
+            let allMealTypes = try context.fetch(fetchRequest)
+            
+            // Group meal types by name
+            var mealTypeGroups: [String: [MealType]] = [:]
+            for mealType in allMealTypes {
+                guard let name = mealType.name else { continue }
+                if mealTypeGroups[name] == nil {
+                    mealTypeGroups[name] = []
+                }
+                mealTypeGroups[name]?.append(mealType)
+            }
+            
+            var duplicatesRemoved = 0
+            
+            // For each group, keep only one meal type (preferably the one with the lowest sortOrder)
+            for (name, mealTypes) in mealTypeGroups {
+                if mealTypes.count > 1 {
+                    // Sort by sortOrder to keep the one with the lowest order
+                    let sortedMealTypes = mealTypes.sorted { ($0.sortOrder, $0.objectID.debugDescription) < ($1.sortOrder, $1.objectID.debugDescription) }
+                    let keepMealType = sortedMealTypes.first!
+                    let duplicatesToRemove = Array(sortedMealTypes.dropFirst())
+                    
+                    // Reassign dishes from duplicates to the keeper
+                    for duplicateMealType in duplicatesToRemove {
+                        if let dishes = duplicateMealType.dishes {
+                            for case let dish as Dish in dishes {
+                                dish.removeFromMealTypes(duplicateMealType)
+                                dish.addToMealTypes(keepMealType)
+                            }
+                        }
+                        
+                        // Delete the duplicate
+                        context.delete(duplicateMealType)
+                        duplicatesRemoved += 1
+                    }
+                    
+                    AppLogger.info("Removed \(duplicatesToRemove.count) duplicate(s) of meal type '\(name)'", category: AppLogger.persistence)
+                }
+            }
+            
+            // Save changes if any duplicates were removed
+            if context.hasChanges {
+                try context.save()
+                AppLogger.info("Cleaned up \(duplicatesRemoved) duplicate meal types", category: AppLogger.persistence)
+            } else {
+                AppLogger.info("No duplicate meal types found", category: AppLogger.persistence)
+            }
+            
+        } catch {
+            AppLogger.error("Error cleaning up duplicate meal types", error: error, category: AppLogger.persistence)
         }
     }
 }

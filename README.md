@@ -24,6 +24,7 @@ An iOS application for families to plan their weekly menu, built with SwiftUI us
 - **Background Context**: Heavy operations use background contexts to prevent UI blocking
 - **iCloud Sync**: Automatic synchronization using NSPersistentCloudKitContainer
 - **Performance**: Batch fetching, query optimization, and caching
+- **Deduplication**: Automatic cleanup of duplicate data from CloudKit sync conflicts
 
 ### Background Operations
 
@@ -112,10 +113,32 @@ Operations automatically choose between synchronous and background execution bas
 - **Cache Invalidation**: Automatic cache updates when underlying data changes
 - **Thread-Safe Caching**: Cache manager handles concurrent access safely
 
-### Query Optimization
-- **CoreDataFetchHelper**: Centralized fetch request optimization
-- **Appropriate Batch Sizes**: Different batch sizes for different use cases
-- **Predicate Optimization**: Efficient predicates for common queries
+### CloudKit Deduplication
+The app includes comprehensive deduplication logic to handle CloudKit sync conflicts that can create duplicate static data:
+
+#### Automatic Cleanup
+- **Startup Cleanup**: Automatic detection and removal of duplicate entities on app startup
+- **Relationship Preservation**: Duplicate entities are merged while preserving all relationships
+- **Background Processing**: Cleanup operations run in background to avoid UI blocking
+
+#### Deduplication Strategy
+- **Entity Detection**: Identifies duplicates based on entity name and key attributes
+- **Smart Merging**: Keeps the entity with the lowest sortOrder or earliest creation
+- **Relationship Migration**: Moves all relationships from duplicates to the kept entity
+- **Safe Deletion**: Ensures referential integrity during cleanup process
+
+#### Supported Entities
+- **MealTypes**: Removes duplicate meal types (Breakfast, Lunch, Dinner)
+- **Units**: Consolidates duplicate measurement units (kg, g, l, ml, pcs, etc.)
+- **DishCategories**: Merges duplicate dish categories
+- **Products**: Handles duplicate products considering name and unit combinations
+
+#### Prevention Measures
+- **Existence Checks**: New entity creation includes existence checks to prevent duplicates
+- **Database State Validation**: Comprehensive database emptiness check before initial data seeding
+- **CloudKit-Safe Seeding**: Initial data generation respects existing CloudKit synced data
+
+This ensures users never see duplicate meal types or other static data, even when CloudKit sync creates conflicts during app installation or updates.
 
 ## Development Guidelines
 

@@ -443,4 +443,35 @@ final class StaticDataCacheManagerTests: XCTestCase {
         
         wait(for: [expectation], timeout: 2.0)
     }
+    
+    func testDuplicateMealTypeCleanup() {
+        // Create duplicate meal types manually to simulate CloudKit sync issue
+        _ = createMealType(name: "Breakfast", sortOrder: 1, invalidateCache: false)
+        _ = createMealType(name: "Breakfast", sortOrder: 1, invalidateCache: false) // Duplicate
+        _ = createMealType(name: "Lunch", sortOrder: 2, invalidateCache: false)
+        _ = createMealType(name: "Lunch", sortOrder: 2, invalidateCache: false) // Duplicate
+        _ = createMealType(name: "Dinner", sortOrder: 3, invalidateCache: true)
+        
+        // Verify we have duplicates
+        let fetchRequest: NSFetchRequest<MealType> = MealType.fetchRequest()
+        let allMealTypes = try! context.fetch(fetchRequest)
+        XCTAssertEqual(allMealTypes.count, 5, "Should have 5 meal types including duplicates")
+        
+        // Run cleanup
+        let persistence = PersistenceController.shared
+        persistence.cleanupAllDuplicateStaticData(context: context)
+        
+        // Verify duplicates are removed
+        let cleanedMealTypes = try! context.fetch(fetchRequest)
+        XCTAssertEqual(cleanedMealTypes.count, 3, "Should have only 3 unique meal types after cleanup")
+        
+        // Verify we have the correct meal types
+        let mealTypeNames = cleanedMealTypes.compactMap { $0.name }.sorted()
+        XCTAssertEqual(mealTypeNames, ["Breakfast", "Dinner", "Lunch"])
+        
+        // Invalidate cache and verify cached data is correct
+        cacheManager.invalidateCacheSync()
+        let cachedMealTypes = cacheManager.getMealTypes()
+        XCTAssertEqual(cachedMealTypes.count, 3, "Cache should also have 3 meal types")
+    }
 } 
