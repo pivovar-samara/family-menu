@@ -75,6 +75,7 @@ struct FamilyMenuPlannerApp: App {
         UISearchBar.appearance().tintColor = UIColor(named: "AccentColor")
         
         UISegmentedControl.appearance().selectedSegmentTintColor = UIColor(named: "SecondaryBackgroundColor")
+        UISegmentedControl.appearance().backgroundColor = UIColor(named: "BackgroundColor")
     }
 
     var body: some Scene {

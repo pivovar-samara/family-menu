@@ -14,6 +14,7 @@ func createToolbarButton(title: String, systemImage: String, action: @escaping (
         Label(title, systemImage: systemImage)
     }
     .foregroundColor(Color("AccentColor"))
+    .tint(Color("AccentColor"))
 }
 
 struct EmptyStateModifier: ViewModifier {
