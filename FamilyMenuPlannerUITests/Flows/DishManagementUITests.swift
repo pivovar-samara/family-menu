@@ -472,7 +472,6 @@ final class DishManagementUITests: XCTestCase {
         
         // Step 1: Find a dish and ensure it has ingredients
         let dishesToTry = ["Beef Stew", "Cheese Omelette", "Cucumber Yogurt Salad"]
-        var foundDishWithIngredients = false
         var selectedDishName: String?
         
         // First try to find a known dish
@@ -1063,16 +1062,6 @@ final class DishManagementUITests: XCTestCase {
             print("✅ Validation working: Still on dish creation screen after invalid save attempt")
         } else {
             XCTAssertTrue(foundValidationError, "Validation error should appear in the form")
-        }
-    }
-}
-
-// MARK: - XCUIElement Extension for Scrolling
-extension XCUIElement {
-    func scrollToElement() {
-        while !isHittable {
-            let app = XCUIApplication()
-            app.swipeUp()
         }
     }
 } 

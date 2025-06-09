@@ -30,6 +30,7 @@ struct ProductListView: View {
                             Image(systemName: "pencil")
                                 .foregroundColor(Color("AccentColor"))
                         }
+                        .accessibilityIdentifier("EditProductButton")
                     }
                     .listRowBackground(Color("SecondaryBackgroundColor"))
                 }
@@ -41,6 +42,7 @@ struct ProductListView: View {
                 TextField("Product Name", text: $viewModel.newProductName)
                     .autocorrectionDisabled(true)
                     .textInputAutocapitalization(.words)
+                    .accessibilityIdentifier("ProductNameTextField")
 
                 Picker("Unit", selection: Binding(
                     get: {
@@ -54,11 +56,13 @@ struct ProductListView: View {
                         Text((unit.name ?? "").localized()).tag(unit as Unit?)
                     }
                 }
+                .accessibilityIdentifier("UnitPicker")
 
                 if let error = viewModel.validationError {
                     Text(error)
                         .foregroundColor(.red)
                         .font(.footnote)
+                        .accessibilityIdentifier("ValidationErrorText")
                 }
 
                 Button("Add Product") {
@@ -67,9 +71,11 @@ struct ProductListView: View {
                     }
                 }
                 .foregroundColor(Color("AccentColor"))
+                .accessibilityIdentifier("AddProductButton")
             }
             .listRowBackground(Color("SecondaryBackgroundColor"))
         }
+        .accessibilityIdentifier("ProductList")
         .searchable(text: $viewModel.searchText, prompt: "Search products...")
         .scrollContentBackground(.hidden)
         .background(Color("BackgroundColor"))
