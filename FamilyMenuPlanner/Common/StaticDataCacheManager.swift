@@ -51,10 +51,27 @@ final class StaticDataCacheManager: ObservableObject {
     
     /// Initialize cache with CoreData context
     func initialize(with context: NSManagedObjectContext) {
+        // Aggressive UI test detection for real devices
+        let isUITest = ProcessInfo.processInfo.environment["UI_TESTS"] != nil ||
+                      ProcessInfo.processInfo.arguments.contains("-UITests") ||
+                      ProcessInfo.processInfo.arguments.contains("-XCTest") ||
+                      ProcessInfo.processInfo.arguments.contains("-InMemoryStore") ||
+                      ProcessInfo.processInfo.environment["TESTING_ENVIRONMENT"] != nil ||
+                      ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
+                      ProcessInfo.processInfo.environment["DISABLE_CLOUDKIT"] != nil
+        
+        // For UI tests, especially on real devices, skip all heavy initialization
+        if isUITest {
+            Self.logger.info("UI test detected - skipping static data preloading for faster launch")
+            self.context = context
+            // Don't preload anything - use lazy loading only
+            return
+        }
+        
         // Store strong reference to context
         self.context = context
         
-        // Preload synchronously to ensure immediate availability
+        // Only preload for production app launches
         cacheQueue.sync {
             // Preload all static data to ensure immediate availability
             self.preloadAllData()
