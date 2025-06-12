@@ -18,8 +18,16 @@ struct FamilyMenuPlannerApp: App {
                             ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] != nil ||
                             ProcessInfo.processInfo.environment["CI"] != nil
         
-        if isRunningTests {
-            // For tests, use in-memory database to avoid interference
+        let isRunningUITests = ProcessInfo.processInfo.environment["UI_TESTS"] != nil ||
+                              ProcessInfo.processInfo.arguments.contains("-UITests") ||
+                              ProcessInfo.processInfo.arguments.contains("-DisableCloudKit")
+        
+        if isRunningUITests {
+            // For UI tests, use persistent storage (not in-memory) but disable CloudKit
+            AppLogger.info("UI test environment detected - using persistent storage without CloudKit", category: AppLogger.persistence)
+            self.persistenceController = PersistenceController(inMemory: false)
+        } else if isRunningTests {
+            // For other tests, use in-memory database to avoid interference
             self.persistenceController = PersistenceController(inMemory: true)
         } else {
             // For production, use the shared instance
