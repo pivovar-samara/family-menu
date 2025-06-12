@@ -67,6 +67,7 @@ struct DishDetailsView: View {
                 .onChange(of: viewModel.selectedCategory) { newCategory in
                     viewModel.setDishCategory(newCategory)
                 }
+                .tint(Color("AccentColor"))
             }
             .listRowBackground(Color("SecondaryBackgroundColor"))
             
