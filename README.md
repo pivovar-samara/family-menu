@@ -142,6 +142,11 @@ This ensures users never see duplicate meal types or other static data, even whe
 
 ## Development Guidelines
 
+### Data Management
+- **Data Validation System**: See `DATA_VALIDATION_GUIDE.md` for detailed information about the static data validation and population system
+- **Static Data**: Units, MealTypes, DishCategories are managed by the validation system with version tracking
+- **User Data Preservation**: The system ensures user-created dishes and menus are preserved during data updates
+
 ### Adding Background Operations
 When adding new heavy operations:
 

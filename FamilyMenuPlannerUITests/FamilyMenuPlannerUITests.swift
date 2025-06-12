@@ -53,20 +53,37 @@ final class FamilyMenuPlannerUITests: XCTestCase {
                 
                 app.launch()
                 
-                // Brief verification that the app launched successfully
-                _ = app.wait(for: .runningForeground, timeout: 5)
+                // More robust verification that the app launched successfully
+                // Check for basic UI elements rather than just app state
+                let exists = app.windows.firstMatch.waitForExistence(timeout: 10)
+                if !exists {
+                    // If app didn't launch properly, try to get some debug info
+                    print("⚠️ App window not found, app state: \(app.state)")
+                }
+                
+                // Give the app a moment to fully load
+                Thread.sleep(forTimeInterval: 0.5)
                 
                 app.terminate()
             }
             
-            // Apple's performance measurement system will automatically:
-            // - Track performance baselines
-            // - Flag significant performance regressions
-            // - Provide detailed measurements in test results
-            // You can see the results in the test report with detailed metrics
-            print("🚀 Launch Performance Test Completed Successfully")
-            print("📊 Check the test results for detailed Apple metrics")
-            print("⚡ Apple will automatically flag performance regressions")
+            print("🚀 Launch Performance Test Completed")
+        } else {
+            // Fallback for older versions
+            let app = XCUIApplication()
+            app.launchArguments = [
+                "-UITests",
+                "-DisableCloudKit", 
+                "-XCTest",
+                "-InMemoryStore"
+            ]
+            app.launch()
+            
+            // Simple verification
+            XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
+            
+            app.terminate()
+            print("🚀 Launch Test Completed (Legacy)")
         }
     }
 }

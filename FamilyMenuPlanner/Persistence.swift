@@ -146,7 +146,7 @@ struct PersistenceController {
         
         // Step 6: Set query generation for optimistic locking (only for production environments)
         // Query generation is not supported for in-memory stores and can cause issues in test environments
-        let shouldSetQueryGeneration = !isRunningTests && !inMemory && 
+        let shouldSetQueryGeneration = !isRunningTests && !inMemory &&
                                        container is NSPersistentCloudKitContainer
         
         if shouldSetQueryGeneration, let _ = container.persistentStoreCoordinator.persistentStores.first {
@@ -479,9 +479,9 @@ struct PersistenceController {
     
     /// Attempts to recover from errors and reinitialize the store asynchronously
     func attemptRecovery(completion: @escaping (Bool) -> Void) {
-        guard !stateManager.isReady else { 
+        guard !stateManager.isReady else {
             completion(true)
-            return 
+            return
         }
         
         print("🔄 Manual recovery attempt initiated...")
@@ -514,6 +514,182 @@ struct PersistenceController {
         return true
     }
     
+    private static let preloadDataVersionKey = "PreloadDataVersion"
+    private static let currentPreloadDataVersion = "1.0" // Increment this when preload data changes
+    
+    func isDatabaseEmptyOrOutdated(context: NSManagedObjectContext) -> Bool {
+        // First check if database is completely empty
+        if isDatabaseEmpty(context: context) {
+            AppLogger.info("Database is empty - initial population needed", category: AppLogger.persistence)
+            return true
+        }
+        
+        // Check if static data schema matches current preload data
+        if !isStaticDataValid(context: context) {
+            AppLogger.info("Static data schema is outdated - re-population needed", category: AppLogger.persistence)
+            return true
+        }
+        
+        return false
+    }
+    
+    private func isStaticDataValid(context: NSManagedObjectContext) -> Bool {
+        // Check stored version
+        let storedVersion = UserDefaults.standard.string(forKey: Self.preloadDataVersionKey)
+        if storedVersion != Self.currentPreloadDataVersion {
+            AppLogger.info("Preload data version mismatch. Stored: \(storedVersion ?? "none"), Current: \(Self.currentPreloadDataVersion)", category: AppLogger.persistence)
+            return false
+        }
+        
+        // Load current preload data to validate against
+        guard let preloadData = loadCurrentPreloadData() else {
+            AppLogger.error("Cannot load current preload data for validation", category: AppLogger.persistence)
+            return false
+        }
+        
+        // Validate units
+        if !validateUnits(context: context, expectedUnits: preloadData.units) {
+            return false
+        }
+        
+        // Validate meal types
+        if !validateMealTypes(context: context, expectedMealTypes: preloadData.mealTypes) {
+            return false
+        }
+        
+        // Validate dish categories
+        if !validateDishCategories(context: context, expectedCategories: preloadData.dishCategories) {
+            return false
+        }
+        
+        AppLogger.info("Static data validation passed", category: AppLogger.persistence)
+        return true
+    }
+    
+    private func loadCurrentPreloadData() -> PreloadedData? {
+        guard let url = Bundle.main.url(forResource: "preloadData", withExtension: "json") else {
+            AppLogger.error("Failed to find preloadData.json in bundle", category: AppLogger.dataImport)
+            return nil
+        }
+        
+        do {
+            let data = try Data(contentsOf: url)
+            let decoder = JSONDecoder()
+            return try decoder.decode(PreloadedData.self, from: data)
+        } catch {
+            AppLogger.error("Error loading preload data for validation", error: error, category: AppLogger.dataImport)
+            return nil
+        }
+    }
+    
+    private func validateUnits(context: NSManagedObjectContext, expectedUnits: [UnitData]) -> Bool {
+        do {
+            let fetchRequest: NSFetchRequest<Unit> = Unit.fetchRequest()
+            let existingUnits = try context.fetch(fetchRequest)
+            
+            // Check if we have the expected number of units
+            if existingUnits.count != expectedUnits.count {
+                AppLogger.info("Units count mismatch. Expected: \(expectedUnits.count), Found: \(existingUnits.count)", category: AppLogger.persistence)
+                return false
+            }
+            
+            // Check if all expected units exist with correct sort order
+            let existingUnitNames = Set(existingUnits.compactMap { $0.name })
+            let expectedUnitNames = Set(expectedUnits.map { $0.name })
+            
+            if existingUnitNames != expectedUnitNames {
+                AppLogger.info("Units name mismatch. Missing or extra units detected", category: AppLogger.persistence)
+                return false
+            }
+            
+            // Validate sort orders
+            for expectedUnit in expectedUnits {
+                if let existingUnit = existingUnits.first(where: { $0.name == expectedUnit.name }),
+                   existingUnit.sortOrder != expectedUnit.sortOrder {
+                    AppLogger.info("Unit '\(expectedUnit.name)' has incorrect sort order", category: AppLogger.persistence)
+                    return false
+                }
+            }
+            
+            return true
+        } catch {
+            AppLogger.error("Error validating units", error: error, category: AppLogger.persistence)
+            return false
+        }
+    }
+    
+    private func validateMealTypes(context: NSManagedObjectContext, expectedMealTypes: [MealTypeData]) -> Bool {
+        do {
+            let fetchRequest: NSFetchRequest<MealType> = MealType.fetchRequest()
+            let existingMealTypes = try context.fetch(fetchRequest)
+            
+            // Check if we have the expected number of meal types
+            if existingMealTypes.count != expectedMealTypes.count {
+                AppLogger.info("MealTypes count mismatch. Expected: \(expectedMealTypes.count), Found: \(existingMealTypes.count)", category: AppLogger.persistence)
+                return false
+            }
+            
+            // Check if all expected meal types exist with correct sort order
+            let existingMealTypeNames = Set(existingMealTypes.compactMap { $0.name })
+            let expectedMealTypeNames = Set(expectedMealTypes.map { $0.name })
+            
+            if existingMealTypeNames != expectedMealTypeNames {
+                AppLogger.info("MealTypes name mismatch. Missing or extra meal types detected", category: AppLogger.persistence)
+                return false
+            }
+            
+            // Validate sort orders
+            for expectedMealType in expectedMealTypes {
+                if let existingMealType = existingMealTypes.first(where: { $0.name == expectedMealType.name }),
+                   existingMealType.sortOrder != expectedMealType.sortOrder {
+                    AppLogger.info("MealType '\(expectedMealType.name)' has incorrect sort order", category: AppLogger.persistence)
+                    return false
+                }
+            }
+            
+            return true
+        } catch {
+            AppLogger.error("Error validating meal types", error: error, category: AppLogger.persistence)
+            return false
+        }
+    }
+    
+    private func validateDishCategories(context: NSManagedObjectContext, expectedCategories: [DishCategoryData]) -> Bool {
+        do {
+            let fetchRequest: NSFetchRequest<DishCategory> = DishCategory.fetchRequest()
+            let existingCategories = try context.fetch(fetchRequest)
+            
+            // Check if we have the expected number of categories
+            if existingCategories.count != expectedCategories.count {
+                AppLogger.info("DishCategories count mismatch. Expected: \(expectedCategories.count), Found: \(existingCategories.count)", category: AppLogger.persistence)
+                return false
+            }
+            
+            // Check if all expected categories exist with correct sort order
+            let existingCategoryNames = Set(existingCategories.compactMap { $0.name })
+            let expectedCategoryNames = Set(expectedCategories.map { $0.name })
+            
+            if existingCategoryNames != expectedCategoryNames {
+                AppLogger.info("DishCategories name mismatch. Missing or extra categories detected", category: AppLogger.persistence)
+                return false
+            }
+            
+            // Validate sort orders
+            for expectedCategory in expectedCategories {
+                if let existingCategory = existingCategories.first(where: { $0.name == expectedCategory.name }),
+                   existingCategory.sortOrder != expectedCategory.sortOrder {
+                    AppLogger.info("DishCategory '\(expectedCategory.name)' has incorrect sort order", category: AppLogger.persistence)
+                    return false
+                }
+            }
+            
+            return true
+        } catch {
+            AppLogger.error("Error validating dish categories", error: error, category: AppLogger.persistence)
+            return false
+        }
+    }
+    
     func generateInitialData(context: NSManagedObjectContext) {
         guard let url = Bundle.main.url(forResource: "preloadData", withExtension: "json") else {
             AppLogger.error("Failed to find preloadData.json in bundle", category: AppLogger.dataImport)
@@ -524,6 +700,12 @@ struct PersistenceController {
             let data = try Data(contentsOf: url)
             let decoder = JSONDecoder()
             let jsonData = try decoder.decode(PreloadedData.self, from: data)
+
+            // Clear existing static data if this is a re-population
+            if !isDatabaseEmpty(context: context) {
+                AppLogger.info("Re-populating static data - clearing existing static entities", category: AppLogger.dataImport)
+                clearStaticData(context: context)
+            }
 
             // Create Units with deduplication
             var unitMap: [String: Unit] = [:]
@@ -648,7 +830,11 @@ struct PersistenceController {
             if context.hasChanges {
                 try context.save()
             }
-            AppLogger.info("Data preloaded successfully from preloadData.json with deduplication", category: AppLogger.dataImport)
+            
+            // Mark current version as loaded
+            UserDefaults.standard.set(Self.currentPreloadDataVersion, forKey: Self.preloadDataVersionKey)
+            
+            AppLogger.info("Data preloaded successfully from preloadData.json with deduplication (version \(Self.currentPreloadDataVersion))", category: AppLogger.dataImport)
             
             // Refresh static data cache to ensure it has the newly created data
             StaticDataCacheManager.shared.invalidateCache()
@@ -657,30 +843,28 @@ struct PersistenceController {
         }
     }
     
-    func deleteAllData(context: NSManagedObjectContext) {
-        guard let entities = context.persistentStoreCoordinator?.managedObjectModel.entities else { return }
-
-        for entity in entities {
-            guard let entityName = entity.name else { continue }
-
+    private func clearStaticData(context: NSManagedObjectContext) {
+        let staticEntities = ["Unit", "MealType", "DishCategory"]
+        
+        for entityName in staticEntities {
             let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
             let batchDeleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
+            batchDeleteRequest.resultType = .resultTypeObjectIDs
 
             do {
-                try context.execute(batchDeleteRequest)
-                print("✅ Successfully deleted all data from \(entityName)")
+                let result = try context.execute(batchDeleteRequest) as? NSBatchDeleteResult
+                if let objectIDs = result?.result as? [NSManagedObjectID] {
+                    let changes = [NSDeletedObjectsKey: objectIDs]
+                    NSManagedObjectContext.mergeChanges(fromRemoteContextSave: changes, into: [context])
+                }
+                AppLogger.info("Successfully cleared static data from \(entityName)", category: AppLogger.persistence)
             } catch {
-                print("❌ Error deleting data from \(entityName): \(error)")
+                AppLogger.error("Error clearing static data from \(entityName)", error: error, category: AppLogger.persistence)
             }
         }
-
-        do {
-            try context.save()
-            print("✅ All data deleted successfully.")
-        } catch {
-            print("❌ Error saving context after deletion: \(error)")
-        }
     }
+
+    // ... existing code ...
     
     // MARK: - Context Management
     
@@ -708,7 +892,7 @@ struct PersistenceController {
         
         // Check if any store is in-memory or uses /dev/null (which doesn't support query generation)
         let hasUnsupportedStore = coordinator.persistentStores.contains { store in
-            store.type == NSInMemoryStoreType || 
+            store.type == NSInMemoryStoreType ||
             store.url?.path == "/dev/null"
         }
         
@@ -729,7 +913,12 @@ struct PersistenceController {
     /// Generates initial data in background for better app startup performance
     func generateInitialDataInBackground(completion: @escaping (Bool) -> Void) {
         BackgroundOperationManager.shared.executeBulkOperation { backgroundContext in
-            self.performInitialDataGeneration(context: backgroundContext)
+            let needsPopulation = self.isDatabaseEmptyOrOutdated(context: backgroundContext)
+            if needsPopulation {
+                self.performInitialDataGeneration(context: backgroundContext)
+            } else {
+                AppLogger.info("Background data generation skipped - data is already valid", category: AppLogger.persistence)
+            }
         } completion: { result in
             switch result {
             case .success:
@@ -1027,7 +1216,7 @@ struct PersistenceController {
             let contents = try FileManager.default.contentsOfDirectory(at: tempDirectory, includingPropertiesForKeys: [.creationDateKey], options: .skipsHiddenFiles)
             
             let testStoreFiles = contents.filter { url in
-                url.lastPathComponent.hasPrefix("FamilyMenuPlannerTest_") && 
+                url.lastPathComponent.hasPrefix("FamilyMenuPlannerTest_") &&
                 (url.pathExtension == "sqlite" || url.pathExtension == "sqlite-wal" || url.pathExtension == "sqlite-shm")
             }
             
@@ -1280,6 +1469,27 @@ struct PersistenceController {
             AppLogger.error("Error cleaning up duplicate meal types", error: error, category: AppLogger.persistence)
         }
     }
+    
+    func forceDataSchemaUpdate(context: NSManagedObjectContext) {
+        AppLogger.info("Forcing data schema update", category: AppLogger.persistence)
+        
+        // Clear the stored version to force re-population
+        UserDefaults.standard.removeObject(forKey: Self.preloadDataVersionKey)
+        
+        // Clear static data cache
+        StaticDataCacheManager.shared.invalidateCache()
+        
+        // Trigger data generation
+        generateInitialData(context: context)
+    }
+    
+    func getCurrentPreloadDataVersion() -> String {
+        return Self.currentPreloadDataVersion
+    }
+    
+    func getStoredPreloadDataVersion() -> String? {
+        return UserDefaults.standard.string(forKey: Self.preloadDataVersionKey)
+    }
 }
 
 // MARK: - Codable Structures for JSON
@@ -1323,4 +1533,3 @@ struct DishCategoryData: Codable {
     let name: String
     let sortOrder: Int16
 }
-

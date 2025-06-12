@@ -177,12 +177,13 @@ final class AppStateManager: ObservableObject {
         }
         
         let context = persistence.container.viewContext
-        isDatabaseEmpty = persistence.isDatabaseEmpty(context: context)
+        
+        let needsDataPopulation = persistence.isDatabaseEmptyOrOutdated(context: context)
         
         // Clean up any existing duplicate static data from previous CloudKit sync issues
         persistence.cleanupAllDuplicateStaticData(context: context)
         
-        if isDatabaseEmpty {
+        if needsDataPopulation {
             // Use background context for initial data generation to avoid blocking UI
             persistence.generateInitialDataInBackground { [weak self] success in
                 DispatchQueue.main.async {

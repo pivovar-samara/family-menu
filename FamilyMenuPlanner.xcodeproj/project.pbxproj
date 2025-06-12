@@ -65,6 +65,7 @@
 		4866AC462DF35BD0006942F3 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Common/DataManagementDebugView.swift,
 				Common/ViewHelper.swift,
 				ContentView.swift,
 				Dishes/DishDetails/DishDetailsCoordinator.swift,
@@ -92,6 +93,7 @@
 		4866AC472DF35BD0006942F3 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Common/DataManagementDebugView.swift,
 				Common/ViewHelper.swift,
 				ContentView.swift,
 				Dishes/DishDetails/DishDetailsCoordinator.swift,
@@ -119,6 +121,7 @@
 		4866AC482DF35BD0006942F3 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Common/DataManagementDebugView.swift,
 				Common/ViewHelper.swift,
 				ContentView.swift,
 				Dishes/DishDetails/DishDetailsCoordinator.swift,

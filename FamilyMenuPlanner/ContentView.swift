@@ -59,6 +59,15 @@ struct ContentView: View {
                 .tabItem {
                     Label("Dishes", systemImage: "fork.knife")
                 }
+                
+                #if DEBUG
+                NavigationStack {
+                    DataManagementDebugView()
+                }
+                .tabItem {
+                    Label("Debug", systemImage: "wrench.and.screwdriver")
+                }
+                #endif
             }
         }
     }
