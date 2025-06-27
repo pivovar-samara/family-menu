@@ -17,7 +17,7 @@ struct ProductListView: View {
     var body: some View {
         List {
             // Product list
-            Section(header: Text("Products")) {
+            Section() {
                 ForEach(viewModel.filteredProducts, id: \.self) { product in
                     HStack {
                         Text(product.name ?? "Unnamed Product")
