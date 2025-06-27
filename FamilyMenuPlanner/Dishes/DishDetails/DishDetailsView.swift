@@ -172,7 +172,7 @@ struct DishDetailsView: View {
                 }
             }
         }
-        .navigationTitle("Edit Dish")
+        .navigationTitle(viewModel.isCreatingNewDish ? "Add Dish" : "Edit Dish")
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {

@@ -40,160 +40,147 @@ final class ProductManagementUITests: XCTestCase {
     func testCreateNewProduct() throws {
         navigateToProductList()
         
-        // First scroll to the bottom of the products list where the "Add New Product" section is located
-        // The text field is in the "Add New Product" section at the bottom of the list
-        let productList = app.tables.firstMatch
-        if productList.waitForExistence(timeout: 5) {
-            // Scroll to the bottom of the list where the "Add New Product" section should be
-            productList.swipeUp()
-            productList.swipeUp() // Multiple swipes to ensure we reach the bottom
-            Thread.sleep(forTimeInterval: 1.0) // Give time for scroll to complete
+        // Wait for the product list to load
+        // Try different element types since SwiftUI List can render as table, collection view, or other types
+        var productList: XCUIElement?
+        if app.tables["ProductList"].waitForExistence(timeout: 2) {
+            productList = app.tables["ProductList"]
+        } else if app.collectionViews["ProductList"].waitForExistence(timeout: 2) {
+            productList = app.collectionViews["ProductList"]
         } else {
-            // If no table, try scrolling the main view
-            app.swipeUp()
-            app.swipeUp()
-            Thread.sleep(forTimeInterval: 1.0)
+            productList = app.otherElements["ProductList"]
         }
         
-        // Wait for initial data loading to complete
-        // The app needs time to generate initial data including units
-        let loadingTimeout: TimeInterval = 10.0
-        var productNameField: XCUIElement
-        var waitTime: TimeInterval = 0
-        let checkInterval: TimeInterval = 0.5
+        XCTAssertTrue(productList?.waitForExistence(timeout: 3) ?? false, "Product list should exist")
         
-        repeat {
-            productNameField = app.textFields["ProductNameTextField"]
-            if productNameField.exists {
-                break
-            }
-            // Continue scrolling while waiting for the field to appear
-            app.swipeUp()
-            Thread.sleep(forTimeInterval: checkInterval)
-            waitTime += checkInterval
-        } while waitTime < loadingTimeout
+        // Find and tap the "Add Product" button in the toolbar
+        let addProductButton = app.navigationBars["Products"].buttons["Add Product"]
+        XCTAssertTrue(addProductButton.waitForExistence(timeout: 3), "Add Product toolbar button should exist")
+        addProductButton.tap()
         
-        // Verify the form is now available
-        XCTAssertTrue(productNameField.exists, "Product Name field should exist after initial data loading and scrolling to bottom")
+        // Wait for the add product sheet to appear
+        let addProductNavBar = app.navigationBars["Add Product"]
+        XCTAssertTrue(addProductNavBar.waitForExistence(timeout: 3), "Add Product sheet should appear")
         
-        // Scroll to make the text field visible before interacting with it
-        productNameField.scrollToElement()
+        // Find the product name text field in the form
+        let productNameField = app.textFields["Product Name"]
+        XCTAssertTrue(productNameField.waitForExistence(timeout: 3), "Product Name field should exist in the add form")
         
-        // Verify we have units available by checking the picker exists
-        let unitPicker = app.buttons["UnitPicker"]
-        XCTAssertTrue(unitPicker.waitForExistence(timeout: 2), "Unit picker should be available with units from preload data")
-        
-        // Fill in product details
+        // Fill in the product name
         productNameField.tap()
         productNameField.typeText("Test Product UI")
         
-        // Find and tap the "Add Product" button
-        let addProductButton = app.buttons["AddProductButton"]
-        XCTAssertTrue(addProductButton.waitForExistence(timeout: 3), "Add Product button should exist")
-        addProductButton.tap()
-        
-        // Wait a moment for the add operation to complete
-        Thread.sleep(forTimeInterval: 1.0)
-        
-        // Verify the product was created by checking if:
-        // 1. The text field was cleared (successful form submission)
-        // 2. Or the product appears in the list
-        let clearedField = app.textFields["ProductNameTextField"]
-        let fieldValue = clearedField.value as? String
-        let isFieldCleared = fieldValue?.isEmpty ?? true
-        
-        if isFieldCleared {
-            // Field was cleared - product was likely created successfully
-            XCTAssertTrue(true, "Product creation appears successful - field was cleared")
-        } else {
-            // Check if product appears in the list
-            let createdProduct = app.staticTexts["Test Product UI"]
-            XCTAssertTrue(createdProduct.waitForExistence(timeout: 3), "Created product should appear in the list")
+        // Verify unit picker exists and select a unit if needed
+        let unitPicker = app.buttons.containing(NSPredicate(format: "label CONTAINS 'Unit'")).firstMatch
+        if unitPicker.exists {
+            unitPicker.tap()
+            // Select the first available unit from the picker
+            let firstUnit = app.pickerWheels.firstMatch
+            if firstUnit.exists {
+                // Pick a unit value - the unit picker should have default values
+                firstUnit.adjust(toPickerWheelValue: "pcs")
+            }
+            // Tap outside picker to dismiss it (if it's a modal picker)
+            productNameField.tap()
         }
         
-        // Additional verification: try to create another product to ensure the form is still functional
-        productNameField.scrollToElement()  // Scroll again in case the list changed
-        productNameField.tap()
-        if !isFieldCleared {
-            // Clear the field first if it wasn't cleared automatically
-            productNameField.clearAndEnterText("")
+        // Find and tap the Save button
+        let saveButton = app.navigationBars["Add Product"].buttons["Save"]
+        XCTAssertTrue(saveButton.exists, "Save button should exist in the navigation bar")
+        saveButton.tap()
+        
+        // Wait for the sheet to dismiss and return to product list
+        XCTAssertTrue(app.navigationBars["Products"].waitForExistence(timeout: 5), "Should return to Products list after saving")
+        
+        // Verify the product was created by checking if it appears in the list
+        // The product might be added below the visible area, so scroll to find it
+        let createdProduct = app.staticTexts["Test Product UI"]
+        
+        // First try to find it without scrolling
+        if !createdProduct.waitForExistence(timeout: 2) {
+            // If not found, scroll down to look for the product
+            if let productListElement = productList {
+                // Scroll down a few times to find the new product
+                for _ in 0..<5 {
+                    productListElement.swipeUp()
+                    Thread.sleep(forTimeInterval: 0.5)
+                    if createdProduct.exists {
+                        break
+                    }
+                }
+            }
         }
-        productNameField.typeText("Second Test Product")
         
-        // Verify the second product can be added
+        XCTAssertTrue(createdProduct.exists, "Created product should appear in the product list (after scrolling if needed)")
+        
+        // Additional verification: Test creating another product to ensure functionality still works
         addProductButton.tap()
-        Thread.sleep(forTimeInterval: 1.0)
+        XCTAssertTrue(addProductNavBar.waitForExistence(timeout: 3), "Add Product sheet should appear again")
         
-        // At this point we've successfully tested the product creation functionality
-        XCTAssertTrue(true, "Product creation functionality is working correctly")
+        let secondProductNameField = app.textFields["Product Name"]
+        secondProductNameField.tap()
+        secondProductNameField.typeText("Second Test Product")
+        
+        let secondSaveButton = app.navigationBars["Add Product"].buttons["Save"]
+        secondSaveButton.tap()
+        
+        // Verify return to list and second product creation
+        XCTAssertTrue(app.navigationBars["Products"].waitForExistence(timeout: 5), "Should return to Products list after second save")
+        let secondCreatedProduct = app.staticTexts["Second Test Product"]
+        XCTAssertTrue(secondCreatedProduct.waitForExistence(timeout: 3), "Second product should also appear in the list")
     }
     
     func testCreateProductValidation() throws {
         navigateToProductList()
         
-        // First scroll to the bottom of the products list where the "Add New Product" section is located
-        // The text field is in the "Add New Product" section at the bottom of the list
-        let productList = app.tables.firstMatch
-        if productList.waitForExistence(timeout: 5) {
-            // Scroll to the bottom of the list where the "Add New Product" section should be
-            productList.swipeUp()
-            productList.swipeUp() // Multiple swipes to ensure we reach the bottom
-            Thread.sleep(forTimeInterval: 1.0) // Give time for scroll to complete
+        // Wait for the product list to load
+        // Try different element types since SwiftUI List can render as table, collection view, or other types
+        var productList: XCUIElement?
+        if app.tables["ProductList"].waitForExistence(timeout: 2) {
+            productList = app.tables["ProductList"]
+        } else if app.collectionViews["ProductList"].waitForExistence(timeout: 2) {
+            productList = app.collectionViews["ProductList"]
         } else {
-            // If no table, try scrolling the main view
-            app.swipeUp()
-            app.swipeUp()
-            Thread.sleep(forTimeInterval: 1.0)
+            productList = app.otherElements["ProductList"]
         }
         
-        // Wait for initial data loading to complete (same as in testCreateNewProduct)
-        let loadingTimeout: TimeInterval = 10.0
-        var productNameField: XCUIElement
-        var waitTime: TimeInterval = 0
-        let checkInterval: TimeInterval = 0.5
+        XCTAssertTrue(productList?.waitForExistence(timeout: 3) ?? false, "Product list should exist")
         
-        repeat {
-            productNameField = app.textFields["ProductNameTextField"]
-            if productNameField.exists {
-                break
-            }
-            // Continue scrolling while waiting for the field to appear
-            app.swipeUp()
-            Thread.sleep(forTimeInterval: checkInterval)
-            waitTime += checkInterval
-        } while waitTime < loadingTimeout
+        // Find and tap the "Add Product" button in the toolbar
+        let addProductButton = app.navigationBars["Products"].buttons["Add Product"]
+        XCTAssertTrue(addProductButton.waitForExistence(timeout: 3), "Add Product toolbar button should exist")
+        addProductButton.tap()
         
-        XCTAssertTrue(productNameField.exists, "Product Name field should exist after initial data loading and scrolling to bottom")
+        // Wait for the add product sheet to appear
+        let addProductNavBar = app.navigationBars["Add Product"]
+        XCTAssertTrue(addProductNavBar.waitForExistence(timeout: 3), "Add Product sheet should appear")
         
-        // Scroll to make the text field visible before interacting with it
-        productNameField.scrollToElement()
+        // Find the product name text field in the form
+        let productNameField = app.textFields["Product Name"]
+        XCTAssertTrue(productNameField.waitForExistence(timeout: 3), "Product Name field should exist in the add form")
         
-        // Find the "Add Product" button
-        let addProductButton = app.buttons["AddProductButton"]
-        XCTAssertTrue(addProductButton.waitForExistence(timeout: 3), "Add Product button should exist")
-        
-        // Try to add product with empty name (test validation)
+        // Test validation with empty name
         // Ensure the text field is empty
         productNameField.tap()
         productNameField.clearAndEnterText("")
         
-        // Tap the Add Product button without entering a name
-        addProductButton.tap()
+        // Try to save without entering a name
+        let saveButton = app.navigationBars["Add Product"].buttons["Save"]
+        XCTAssertTrue(saveButton.exists, "Save button should exist in the navigation bar")
+        saveButton.tap()
         
         // Wait a moment for validation to process
         Thread.sleep(forTimeInterval: 1.0)
         
-        // Check for validation error using the accessibility identifier
-        let validationError = app.staticTexts["ValidationErrorText"]
-        if validationError.waitForExistence(timeout: 2) {
-            XCTAssertTrue(validationError.exists, "Validation error should appear for empty product name")
-        } else {
-            // Fallback: check for common validation error texts
+        // Check for validation error - since this is an alert, look for alert elements
+        let alertTitle = app.alerts.firstMatch
+        if alertTitle.waitForExistence(timeout: 2) {
+            // Look for common validation error texts in the alert
             let errorTexts = [
+                "Error",
                 "Product name cannot be empty",
                 "cannot be empty",
-                "Name is required",
-                "Please enter a product name"
+                "Name is required"
             ]
             
             var validationErrorFound = false
@@ -201,37 +188,51 @@ final class ProductManagementUITests: XCTestCase {
                 let errorElement = app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] %@", errorText)).firstMatch
                 if errorElement.exists {
                     validationErrorFound = true
-                    XCTAssertTrue(true, "Validation error found: \(errorText)")
+                    XCTAssertTrue(true, "Validation error found in alert: \(errorText)")
+                    
+                    // Dismiss the alert
+                    let okButton = app.buttons["OK"]
+                    if okButton.exists {
+                        okButton.tap()
+                    }
                     break
                 }
             }
             
-            if !validationErrorFound {
-                // If no specific error text found, verify we're still on the same screen
-                // and the field remains empty (validation prevented submission)
-                XCTAssertTrue(app.navigationBars["Products"].exists, "Should still be on Products screen after validation failure")
-                let fieldValue = productNameField.value as? String
-                XCTAssertTrue(fieldValue?.isEmpty ?? true, "Field should remain empty after validation failure")
-            }
+            XCTAssertTrue(validationErrorFound, "Validation error should appear for empty product name")
+        } else {
+            // If no alert appeared, verify we're still on the Add Product screen (validation prevented submission)
+            XCTAssertTrue(addProductNavBar.exists, "Should still be on Add Product screen after validation failure")
         }
         
         // Now test that validation allows valid input
-        // Scroll again to ensure the field is visible for the next interaction
-        productNameField.scrollToElement()
         productNameField.tap()
         productNameField.clearAndEnterText("Valid Product Name")
-        addProductButton.tap()
+        saveButton.tap()
         
-        // Wait for the operation to complete
-        Thread.sleep(forTimeInterval: 1.0)
+        // Verify that valid input was accepted - sheet should dismiss and return to product list
+        XCTAssertTrue(app.navigationBars["Products"].waitForExistence(timeout: 5), "Should return to Products list after valid input")
         
-        // Verify that valid input was accepted (field cleared or product appears)
-        let clearedField = app.textFields["ProductNameTextField"]
-        let finalFieldValue = clearedField.value as? String
-        let wasAccepted = finalFieldValue?.isEmpty ?? true
+        // Verify the product with valid name was created
+        // The product might be added below the visible area, so scroll to find it
+        let validProduct = app.staticTexts["Valid Product Name"]
         
-        XCTAssertTrue(wasAccepted || app.staticTexts["Valid Product Name"].exists, 
-                     "Valid product name should be accepted")
+        // First try to find it without scrolling
+        if !validProduct.waitForExistence(timeout: 2) {
+            // If not found, scroll down to look for the product
+            if let productListElement = productList {
+                // Scroll down a few times to find the new product
+                for _ in 0..<5 {
+                    productListElement.swipeUp()
+                    Thread.sleep(forTimeInterval: 0.5)
+                    if validProduct.exists {
+                        break
+                    }
+                }
+            }
+        }
+        
+        XCTAssertTrue(validProduct.exists, "Valid product should appear in the list (after scrolling if needed)")
     }
     
     // MARK: - Test Product Editing
@@ -253,7 +254,7 @@ final class ProductManagementUITests: XCTestCase {
             
             // Look for product cells
             let cells = productList.cells
-            if cells.count > 0 {
+            if cells.firstMatch.exists {
                 let firstCell = cells.firstMatch
                 XCTAssertTrue(firstCell.exists, "First product cell should exist")
                 foundProductToEdit = true
@@ -413,16 +414,16 @@ final class ProductManagementUITests: XCTestCase {
         let allCells = app.cells
         let knownProducts = ["Beef", "Butter", "Carrot", "Chicken", "Egg", "Milk", "Onion"]
         
-        print("🔍 Scanning \(allCells.count) total cells for products...")
+        print("🔍 Scanning cells for products...")
         
         // Look for product cells (similar to how dish test finds ingredient cells)
-        for i in 0..<min(allCells.count, 20) {
+        for i in 0..<20 {
             let cell = allCells.element(boundBy: i)
             if cell.exists {
                 let cellTexts = cell.staticTexts
                 var cellLabels: [String] = []
                 
-                for j in 0..<cellTexts.count {
+                for j in 0..<10 { // Limit to reasonable number of text elements
                     let text = cellTexts.element(boundBy: j)
                     if text.exists && !text.label.isEmpty {
                         cellLabels.append(text.label)
@@ -496,7 +497,7 @@ final class ProductManagementUITests: XCTestCase {
             var productDeleted = false
             
             // Test swipe-to-delete on product cells (using proven working pattern)
-            if actualProductCells.count > 0 {
+            if !actualProductCells.isEmpty {
                 print("📝 Testing swipe-to-delete on \(actualProductCells.count) identified product cells")
                 
                 for (index, cell) in actualProductCells.enumerated() {
@@ -507,7 +508,7 @@ final class ProductManagementUITests: XCTestCase {
                     // Get cell content before deletion
                     let cellTexts = cell.staticTexts
                     var cellContent = "unknown"
-                    if cellTexts.count > 0 {
+                    if cellTexts.firstMatch.exists {
                         let firstText = cellTexts.element(boundBy: 0)
                         if firstText.exists {
                             cellContent = firstText.label
@@ -531,7 +532,7 @@ final class ProductManagementUITests: XCTestCase {
                         } else {
                             // Check if cell content changed
                             let updatedTexts = cell.staticTexts
-                            if updatedTexts.count == 0 {
+                            if !updatedTexts.firstMatch.exists {
                                 print("✅ SUCCESS: Product content removed from cell")
                                 productDeleted = true
                                 break

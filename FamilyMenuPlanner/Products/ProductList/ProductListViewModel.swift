@@ -11,10 +11,7 @@ import Combine
 
 class ProductListViewModel: ObservableObject {
     @Published var selectedProduct: Product?       // Product for editing
-    
-    @Published var newProductName: String = ""
-    @Published var selectedUnit: Unit? = nil
-    @Published var validationError: LocalizedStringKey?
+    @Published var isAddingNewProduct: Bool = false
     
     @Published var currentAlert: AlertItem?
     
@@ -36,7 +33,7 @@ class ProductListViewModel: ObservableObject {
         }
     }
     
-    private let productListService: ProductListServiceProtocol
+    private var productListService: ProductListServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     private let alertManager = AlertQueueManager()
 
@@ -56,6 +53,9 @@ class ProductListViewModel: ObservableObject {
         alertManager.$currentAlert
                     .receive(on: RunLoop.main)
                     .assign(to: &$currentAlert)
+        
+        // Set up delegate to receive automatic updates
+        self.productListService.delegate = self
     }
     
     private func setupSearchBindings() {
@@ -72,13 +72,7 @@ class ProductListViewModel: ObservableObject {
     }
     
     func loadProducts() {
-        allProducts = productListService.fetchAllProducts()
-    }
-    
-    func updateSelectedUnit() {
-        if selectedUnit == nil {
-            selectedUnit = units.first
-        }
+        productListService.fetchAllProducts()
     }
     
     // Delete products from Core Data
@@ -98,42 +92,6 @@ class ProductListViewModel: ObservableObject {
             enqueueAlert(title: "Error", message: "Error deleting product. Please try again.")
         }
     }
-    
-    func addProduct() {
-        do {
-            guard let unit = selectedUnit ?? units.first else {
-                throw NSError(domain: "com.familymenuplanner.error",
-                              code: 1,
-                              userInfo: [NSLocalizedDescriptionKey: "Unit is not selected and no default unit is available."])
-            }
-            try productListService.addProduct(name: newProductName, unit: unit)
-
-            newProductName = ""
-            validationError = nil
-            
-            loadProducts()
-        } catch let error as NSError {
-            enqueueAlert(title: "Error", message: error.localizedDescription)
-        } catch {
-            enqueueAlert(title: "Error", message: "Error adding product. Please try again.")
-        }
-    }
-    
-    func validateNewProduct() -> Bool {
-        validationError = nil
-
-        if newProductName.isEmpty {
-            validationError = "Product name cannot be empty."
-            return false
-        }
-
-        if selectedUnit == nil {
-            validationError = "Please select a unit for the product."
-            return false
-        }
-
-        return true
-    }
 
     func enqueueAlert(title: String, message: String, action: (() -> Void)? = nil) {
         let alert = AlertItem(title: title.localized(), message: message.localized(), action: action)
@@ -142,5 +100,11 @@ class ProductListViewModel: ObservableObject {
     
     func dismissAlert() {
         alertManager.dismissCurrentAlert()
+    }
+}
+
+extension ProductListViewModel: ProductListServiceDelegate {
+    func serviceDidChangeContent(_ products: [Product]) {
+        self.allProducts = products
     }
 }

@@ -20,8 +20,8 @@ struct EditProductView: View {
         Form {
             Section(header: Text("Product Details")) {
                 TextField("Product Name", text: Binding(
-                    get: { viewModel.product.name ?? "" },
-                    set: { viewModel.product.name = $0 }
+                    get: { viewModel.product?.name ?? "" },
+                    set: { viewModel.product?.name = $0 }
                 ))
                 .autocorrectionDisabled(true)
                 .textInputAutocapitalization(.words)
@@ -32,14 +32,14 @@ struct EditProductView: View {
                     }
                 }
                 .onChange(of: viewModel.selectedUnit) { newUnit in
-                    viewModel.product.unit = newUnit
+                    viewModel.product?.unit = newUnit
                 }
             }
             .listRowBackground(Color("SecondaryBackgroundColor"))
         }
         .scrollContentBackground(.hidden)
         .background(Color("BackgroundColor"))
-        .navigationTitle("Edit Product")
+        .navigationTitle(viewModel.isCreatingNewProduct ? "Add Product" : "Edit Product")
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
@@ -58,6 +58,7 @@ struct EditProductView: View {
             }
         }
         .onAppear {
+            viewModel.loadProduct()
             viewModel.setupSelectedUnit()
         }
         .alert(item: Binding(

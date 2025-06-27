@@ -27,7 +27,7 @@ class ServicePerformanceTests: BaseIntegrationTest {
         let service = ProductListService(context: context)
         
         measure {
-            _ = service.fetchAllProducts()
+            service.fetchAllProducts()
         }
     }
     
@@ -76,7 +76,7 @@ class ServicePerformanceTests: BaseIntegrationTest {
         
         measure {
             // All services should work without explicit setQueryGenerationFrom calls
-            let _ = productListService.fetchAllProducts()
+            productListService.fetchAllProducts()
             let _ = dishDetailsService.fetchAllUnits()
             let _ = dishDetailsService.fetchAllMealTypes()
             let _ = dishDetailsService.fetchAllDishCategories()

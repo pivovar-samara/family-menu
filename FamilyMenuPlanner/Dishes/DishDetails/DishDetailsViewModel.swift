@@ -25,6 +25,7 @@ class DishDetailsViewModel: ObservableObject {
     @Published var selectedIngredients: [IngredientDetail] = []
     @Published var isAddingIngredient: Bool = false
     @Published var dish: Dish?
+    @Published var isCreatingNewDish: Bool = false
     
     private let dishDetailsService: DishDetailsServiceProtocol
     private let alertManager = AlertQueueManager()
@@ -33,6 +34,7 @@ class DishDetailsViewModel: ObservableObject {
     init(dishDetailsService: DishDetailsServiceProtocol, dish: Dish? = nil) {
         self.dishDetailsService = dishDetailsService
         self.dish = dish
+        self.isCreatingNewDish = dish == nil
         
         // Load initial static data
         self.units = StaticDataCacheManager.shared.getUnits()

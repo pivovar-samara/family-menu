@@ -8,7 +8,7 @@
 import SwiftUI
 
 class EditProductCoordinator {
-    func createEditProductView(product: Product, editProductService: EditProductServiceProtocol = EditProductService(context: PersistenceController.shared.container.viewContext)) -> some View {
+    func createEditProductView(product: Product? = nil, editProductService: EditProductServiceProtocol = EditProductService(context: PersistenceController.shared.container.viewContext)) -> some View {
         let viewModel = EditProductViewModel(
             product: product,
             editProductService: editProductService

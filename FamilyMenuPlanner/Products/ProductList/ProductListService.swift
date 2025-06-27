@@ -8,38 +8,64 @@
 import CoreData
 
 protocol ProductListServiceProtocol {
-    func fetchAllProducts() -> [Product]
+    func fetchAllProducts()
     func fetchAllUnits() -> [Unit]
     func deleteProducts(products: [Product]) throws
     func deleteProductsInBackground(products: [Product], completion: @escaping (Result<Void, Error>) -> Void)
-    func addProduct(name: String, unit: Unit) throws
-    func addProductInBackground(name: String, unit: Unit, completion: @escaping (Result<Product, Error>) -> Void)
-    func createProductsBulk(productData: [(name: String, unit: Unit)], completion: @escaping (Result<[Product], Error>) -> Void)
+    
+    var delegate: ProductListServiceDelegate? { get set }
 }
 
 extension ProductListService: ProductListServiceProtocol {}
 
-class ProductListService {
+protocol ProductListServiceDelegate {
+    func serviceDidChangeContent(_ products: [Product])
+}
+
+class ProductListService: NSObject {
     private let context: NSManagedObjectContext
     private let backgroundOperationManager: BackgroundOperationManagerProtocol
+    private let fetchedResultsController: NSFetchedResultsController<Product>
+    var delegate: ProductListServiceDelegate? = nil
+    
+    // Performance optimization: debounce rapid changes
+    private var changeDebounceTimer: Timer?
+    private var hasPendingChanges = false
+    private let debounceInterval: TimeInterval
 
-    init(context: NSManagedObjectContext, backgroundOperationManager: BackgroundOperationManagerProtocol = BackgroundOperationManager.shared) {
+    init(context: NSManagedObjectContext, debounceInterval: TimeInterval = 0.1, backgroundOperationManager: BackgroundOperationManagerProtocol = BackgroundOperationManager.shared) {
         self.context = context
         self.backgroundOperationManager = backgroundOperationManager
-    }
-    
-    func fetchAllProducts() -> [Product] {
+        self.debounceInterval = debounceInterval
+        
         let fetchRequest: NSFetchRequest<Product> = Product.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Product.name, ascending: true)]
         
         // Configure batch fetching for better performance
         CoreDataFetchHelper.configure(fetchRequest, batchSize: CoreDataFetchHelper.standardBatchSize)
-
+        
+        self.fetchedResultsController = NSFetchedResultsController(
+            fetchRequest: fetchRequest,
+            managedObjectContext: context,
+            sectionNameKeyPath: nil,
+            cacheName: nil
+        )
+        
+        super.init()
+        
+        self.fetchedResultsController.delegate = self
+    }
+    
+    deinit {
+        changeDebounceTimer?.invalidate()
+    }
+    
+    func fetchAllProducts() {
         do {
-            return try context.fetch(fetchRequest)
+            try fetchedResultsController.performFetch()
+            notifyDelegate(immediate: true)
         } catch {
-            print("Error loading products: \(error)")
-            return []
+            print("Error fetching products: \(error)")
         }
     }
     
@@ -94,117 +120,36 @@ class ProductListService {
         }
     }
     
-    // Add product to Core Data (synchronous - for backward compatibility)
-    func addProduct(name: String, unit: Unit) throws {
-        let product = Product(context: context)
-        product.name = name
-        product.unit = unit
-        try context.save()
-    }
+    // MARK: - Private Methods
     
-    // Add product using background context for better UI responsiveness
-    func addProductInBackground(name: String, unit: Unit, completion: @escaping (Result<Product, Error>) -> Void) {
-        let unitObjectID = unit.objectID
+    private func notifyDelegate(immediate: Bool = false) {
+        guard let delegate = delegate else { return }
         
-        backgroundOperationManager.executeHeavyOperation { backgroundContext in
-            // Get unit in background context
-            guard let backgroundUnit = try? backgroundContext.existingObject(with: unitObjectID) as? Unit else {
-                throw ProductListServiceError.unitNotFound
-            }
-            
-            // Create new product
-            let product = Product(context: backgroundContext)
-            product.name = name
-            product.unit = backgroundUnit
-            
-            // Save in background context
-            if backgroundContext.hasChanges {
-                try backgroundContext.save()
-            }
-            
-            return product.objectID
-        } completion: { result in
-            switch result {
-            case .success(let objectID):
-                // Get the product in main context
-                do {
-                    let mainProduct = try self.context.existingObject(with: objectID) as! Product
-                    completion(.success(mainProduct))
-                } catch {
-                    completion(.failure(error))
-                }
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
-    }
-    
-    // MARK: - Bulk Operations
-    
-    /// Creates multiple products in a single background operation
-    func createProductsBulk(productData: [(name: String, unit: Unit)], completion: @escaping (Result<[Product], Error>) -> Void) {
-        guard !productData.isEmpty else {
-            completion(.success([]))
+        if immediate {
+            // For direct calls (like fetchAllProducts), notify immediately
+            let products = fetchedResultsController.fetchedObjects ?? []
+            delegate.serviceDidChangeContent(products)
             return
         }
         
-        // For small batches, use regular synchronous approach
-        if productData.count <= 5 {
-            do {
-                var createdProducts: [Product] = []
-                for data in productData {
-                    let product = Product(context: context)
-                    product.name = data.name
-                    product.unit = data.unit
-                    createdProducts.append(product)
-                }
-                try context.save()
-                completion(.success(createdProducts))
-            } catch {
-                completion(.failure(error))
-            }
-            return
-        }
+        // Debounce rapid changes for better performance
+        changeDebounceTimer?.invalidate()
+        hasPendingChanges = true
         
-        // For larger batches, use background context
-        let unitObjectIDs = productData.map { $0.unit.objectID }
-        
-        backgroundOperationManager.executeHeavyOperation { backgroundContext in
-            var createdProducts: [Product] = []
+        changeDebounceTimer = Timer.scheduledTimer(withTimeInterval: debounceInterval, repeats: false) { [weak self] _ in
+            guard let self = self, self.hasPendingChanges else { return }
             
-            for (index, data) in productData.enumerated() {
-                guard let backgroundUnit = try? backgroundContext.existingObject(with: unitObjectIDs[index]) as? Unit else {
-                    throw ProductListServiceError.unitNotFound
-                }
-                
-                let product = Product(context: backgroundContext)
-                product.name = data.name
-                product.unit = backgroundUnit
-                createdProducts.append(product)
-            }
-            
-            if backgroundContext.hasChanges {
-                try backgroundContext.save()
-            }
-            
-            // Collect object IDs only after saving
-            return createdProducts.map { $0.objectID }
-        } completion: { result in
-            switch result {
-            case .success(let objectIDs):
-                // Get products in main context
-                do {
-                    let mainProducts = try objectIDs.map { objectID in
-                        try self.context.existingObject(with: objectID) as! Product
-                    }
-                    completion(.success(mainProducts))
-                } catch {
-                    completion(.failure(error))
-                }
-            case .failure(let error):
-                completion(.failure(error))
-            }
+            let products = self.fetchedResultsController.fetchedObjects ?? []
+            delegate.serviceDidChangeContent(products)
+            self.hasPendingChanges = false
         }
+    }
+}
+
+// MARK: - NSFetchedResultsControllerDelegate
+extension ProductListService: NSFetchedResultsControllerDelegate {
+    func controllerDidChangeContent(_ controller: NSFetchedResultsController<NSFetchRequestResult>) {
+        notifyDelegate(immediate: false)
     }
 }
 

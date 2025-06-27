@@ -27,7 +27,7 @@ class CoreDataPerformanceTests: BaseIntegrationTest {
         let productListService = ProductListService(context: context)
         
         measure {
-            _ = productListService.fetchAllProducts()
+            productListService.fetchAllProducts()
         }
     }
     

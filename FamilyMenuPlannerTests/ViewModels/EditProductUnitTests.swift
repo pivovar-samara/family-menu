@@ -43,6 +43,15 @@ class MockEditProductService: EditProductServiceProtocol {
         // Convert MockUnit to Unit - in real tests we'd return the mock objects
         return []
     }
+    
+    func createProduct() throws -> Product {
+        if let error = error {
+            throw error
+        }
+        // Return a mock product for testing
+        let product = Product()
+        return product
+    }
 }
 
 // MARK: - View Model for Unit Tests
