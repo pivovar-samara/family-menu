@@ -16,25 +16,30 @@ struct ProductListView: View {
     
     var body: some View {
         List {
-            // Product list
-            Section() {
-                ForEach(viewModel.filteredProducts, id: \.self) { product in
-                    HStack {
-                        Text(product.name ?? "Unnamed Product")
-                        Spacer()
-                        Text((product.unit?.name ?? "").localized())
-                            .foregroundColor(.secondary)
-                        Button(action: {
-                            viewModel.selectedProduct = product
-                        }) {
-                            Image(systemName: "pencil")
-                                .foregroundColor(Color("AccentColor"))
+            if viewModel.filteredProducts.isEmpty {
+                Color.clear.emptyState(message: "No results found".localized())
+                    .accessibilityIdentifier("product_list_empty_state")
+            } else {
+                // Product list
+                Section() {
+                    ForEach(viewModel.filteredProducts, id: \.self) { product in
+                        HStack {
+                            Text(product.name ?? "Unnamed Product")
+                            Spacer()
+                            Text((product.unit?.name ?? "").localized())
+                                .foregroundColor(.secondary)
+                            Button(action: {
+                                viewModel.selectedProduct = product
+                            }) {
+                                Image(systemName: "pencil")
+                                    .foregroundColor(Color("AccentColor"))
+                            }
+                            .accessibilityIdentifier("EditProductButton")
                         }
-                        .accessibilityIdentifier("EditProductButton")
+                        .listRowBackground(Color("SecondaryBackgroundColor"))
                     }
-                    .listRowBackground(Color("SecondaryBackgroundColor"))
+                    .onDelete(perform: viewModel.deleteProducts)
                 }
-                .onDelete(perform: viewModel.deleteProducts)
             }
         }
         .accessibilityIdentifier("ProductList")
