@@ -39,13 +39,13 @@ class DishListViewModel: ObservableObject {
             guard let name = dish.name else { return false }
             let matchesName = name.localizedCaseInsensitiveContains(searchText)
             let matchesDetails = dish.details?.localizedCaseInsensitiveContains(searchText) ?? false
-            let matchesCategory = dish.category?.name?.localizedCaseInsensitiveContains(searchText) ?? false
+            let matchesCategory = dish.category?.name?.localized().localizedCaseInsensitiveContains(searchText) ?? false
             
             // Check meal types
             let matchesMealType: Bool = {
                 guard let mealTypes = dish.mealTypes as? Set<MealType> else { return false }
                 return mealTypes.contains { mealType in
-                    mealType.name?.localizedCaseInsensitiveContains(searchText) ?? false
+                    mealType.name?.localized().localizedCaseInsensitiveContains(searchText) ?? false
                 }
             }()
             
