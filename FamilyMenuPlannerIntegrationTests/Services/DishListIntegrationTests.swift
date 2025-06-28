@@ -57,9 +57,9 @@ class DishListIntegrationTests: BaseIntegrationTest {
         let exp = expectation(description: "Loading dishes")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             // Verify dishes are loaded
-            XCTAssertEqual(self.viewModel.dishes.count, 2)
-            XCTAssertTrue(self.viewModel.dishes.contains { $0.name == dishes[0].name })
-            XCTAssertTrue(self.viewModel.dishes.contains { $0.name == dishes[1].name })
+            XCTAssertEqual(self.viewModel.filteredDishes.count, 2)
+            XCTAssertTrue(self.viewModel.filteredDishes.contains { $0.name == dishes[0].name })
+            XCTAssertTrue(self.viewModel.filteredDishes.contains { $0.name == dishes[1].name })
             exp.fulfill()
         }
         
@@ -82,13 +82,13 @@ class DishListIntegrationTests: BaseIntegrationTest {
         // Wait for initial load
         var initialLoadCompleted = false
         Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
-            if self.viewModel.dishes.count == 2 && !initialLoadCompleted {
+            if self.viewModel.filteredDishes.count == 2 && !initialLoadCompleted {
                 initialLoadCompleted = true
                 
                 // Verify initial state
-                XCTAssertEqual(self.viewModel.dishes.count, 2)
-                XCTAssertTrue(self.viewModel.dishes.contains { $0.name == firstDishName })
-                XCTAssertTrue(self.viewModel.dishes.contains { $0.name == secondDishName })
+                XCTAssertEqual(self.viewModel.filteredDishes.count, 2)
+                XCTAssertTrue(self.viewModel.filteredDishes.contains { $0.name == firstDishName })
+                XCTAssertTrue(self.viewModel.filteredDishes.contains { $0.name == secondDishName })
                 
                 loadExp.fulfill()
                 timer.invalidate()
@@ -96,18 +96,18 @@ class DishListIntegrationTests: BaseIntegrationTest {
                 // Now perform the deletion
                 DispatchQueue.main.async {
                     // Get the index of the first dish in the current array
-                    if let indexToDelete = self.viewModel.dishes.firstIndex(where: { $0.name == firstDishName }) {
+                    if let indexToDelete = self.viewModel.filteredDishes.firstIndex(where: { $0.name == firstDishName }) {
                         self.viewModel.deleteDishes(at: IndexSet(integer: indexToDelete))
                         
                         // Wait for the FetchedResultsController to update the dishes array
                         Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
-                            if self.viewModel.dishes.count == 1 {
+                            if self.viewModel.filteredDishes.count == 1 {
                                 timer.invalidate()
                                 
                                 // Verify the correct dish was deleted
-                                XCTAssertEqual(self.viewModel.dishes.count, 1)
-                                XCTAssertFalse(self.viewModel.dishes.contains { $0.name == firstDishName })
-                                XCTAssertTrue(self.viewModel.dishes.contains { $0.name == secondDishName })
+                                XCTAssertEqual(self.viewModel.filteredDishes.count, 1)
+                                XCTAssertFalse(self.viewModel.filteredDishes.contains { $0.name == firstDishName })
+                                XCTAssertTrue(self.viewModel.filteredDishes.contains { $0.name == secondDishName })
                                 
                                 deleteExp.fulfill()
                             }
@@ -147,7 +147,7 @@ class DishListIntegrationTests: BaseIntegrationTest {
         
         var initialLoadCompleted = false
         Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
-            if self.viewModel.dishes.count == 5 && !initialLoadCompleted {
+            if self.viewModel.filteredDishes.count == 5 && !initialLoadCompleted {
                 initialLoadCompleted = true
                 loadExp.fulfill()
                 timer.invalidate()
@@ -158,9 +158,9 @@ class DishListIntegrationTests: BaseIntegrationTest {
                     
                     // Wait for the FetchedResultsController to update
                     Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
-                        if self.viewModel.dishes.count == 2 {
+                        if self.viewModel.filteredDishes.count == 2 {
                             timer.invalidate()
-                            XCTAssertEqual(self.viewModel.dishes.count, 2)
+                            XCTAssertEqual(self.viewModel.filteredDishes.count, 2)
                             deleteExp.fulfill()
                         }
                     }
@@ -188,7 +188,7 @@ class DishListIntegrationTests: BaseIntegrationTest {
         let exp = expectation(description: "Loading dishes")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             // Verify dish exists in new view model
-            XCTAssertTrue(newViewModel.dishes.contains { $0.name == "Persistent Dish" })
+            XCTAssertTrue(newViewModel.filteredDishes.contains { $0.name == "Persistent Dish" })
             exp.fulfill()
         }
         
@@ -206,7 +206,7 @@ class DishListIntegrationTests: BaseIntegrationTest {
         let exp = expectation(description: "Loading empty dish list")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             // Verify list is empty
-            XCTAssertTrue(self.viewModel.dishes.isEmpty)
+            XCTAssertTrue(self.viewModel.filteredDishes.isEmpty)
             exp.fulfill()
         }
         

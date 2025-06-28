@@ -16,15 +16,17 @@ struct DishListView: View {
 
     var body: some View {
         List {
-            if viewModel.dishes.isEmpty {
+            if viewModel.filteredDishes.isEmpty {
                 Color.clear.emptyState(message: "No results found".localized())
+                    .accessibilityIdentifier("dish_list_empty_state")
             } else {
-                ForEach(viewModel.dishes, id: \.self) { dish in
+                ForEach(viewModel.filteredDishes, id: \.self) { dish in
                     HStack {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Text(dish.name ?? "Unnamed Dish".localized())
                                     .font(.headline)
+                                    .accessibilityIdentifier("dish_name_\(dish.name ?? "unnamed")")
                                 
                                 // Show category badge if available
                                 if let categoryName = dish.category?.name {
@@ -54,10 +56,13 @@ struct DishListView: View {
                         }
                     }
                     .listRowBackground(Color("SecondaryBackgroundColor"))
+                    .accessibilityIdentifier("dish_list_item_\(dish.name ?? "unnamed")")
                 }
                 .onDelete(perform: viewModel.deleteDishes)
             }
         }
+        .accessibilityIdentifier("dish_list")
+        .searchable(text: $viewModel.searchText, prompt: "Search dishes...")
         .scrollContentBackground(.hidden)
         .background(Color("BackgroundColor"))
         .alert(item: Binding(
@@ -89,6 +94,7 @@ struct DishListView: View {
                 createToolbarButton(title: "Add New Dish".localized(), systemImage: "plus") {
                     viewModel.isAddingNewDish = true
                 }
+                .accessibilityIdentifier("add_dish_button")
             }
         }
         .onAppear() {
