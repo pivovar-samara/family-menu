@@ -5,11 +5,11 @@ alwaysApply: true
 ---
 Project is an iOS application for families for planning their weekly menu. It is written with SwiftUI with MVVM with coordinators architecture pattern. Uses CoreData with iCloud sync. 
 
-Every logic part is covered with unit, integration tests. If creating new, add new tests. If change anything, correct test. 
+Every logic part is covered with unit, integration tests. If creating new, add new tests. If change anything, correct test. Do not cover debug view functionality with tests.
 
 For every new change look at the existing patterns used in project. Correcting code analyze similar classes, files, where the same error can occur and fix it too.
 
-Always localize new and changed string constants which can be viewed by user.
+Always localize new and changed string constants which can be viewed by user, except changes for debug only views.
 
 Don't create new documentation files until it is requested obviously.
 

@@ -869,6 +869,56 @@ class PersistenceController {
         isDataGenerationInProgress = false
     }
     
+    /// Force regenerate initial data without version checks (for debug/testing purposes)
+    func forceRegenerateInitialData(context: NSManagedObjectContext) {
+        // Thread-safe data generation to prevent multiple simultaneous executions
+        dataGenerationLock.lock()
+        defer { dataGenerationLock.unlock() }
+        
+        if isDataGenerationInProgress {
+            AppLogger.info("Data generation already in progress - skipping duplicate execution", category: AppLogger.persistence)
+            return
+        }
+        
+        isDataGenerationInProgress = true
+        AppLogger.info("Starting FORCED data regeneration (bypassing version checks)", category: AppLogger.persistence)
+        
+        // Clear ALL existing data first
+        clearAllDataForRegeneration(context: context)
+        
+        guard let url = Bundle.main.url(forResource: "preloadData", withExtension: "json") else {
+            AppLogger.error("Failed to find preloadData.json in bundle", category: AppLogger.dataImport)
+            isDataGenerationInProgress = false
+            return
+        }
+
+        do {
+            let data = try Data(contentsOf: url)
+            let decoder = JSONDecoder()
+            let jsonData = try decoder.decode(PreloadedData.self, from: data)
+
+            // Always use traditional data generation for forced regeneration
+            generateDataTraditional(context: context, jsonData: jsonData)
+            
+            // Reset version tracking to ensure proper tracking
+            DispatchQueue.main.async {
+                UserDefaults.standard.set(Self.currentPreloadDataVersion, forKey: Self.preloadDataVersionKey)
+                UserDefaults.standard.set(Self.currentPreloadDataVersion, forKey: Self.versionSyncKey)
+                UserDefaults.standard.synchronize()
+            }
+            
+            AppLogger.info("FORCED data regeneration completed successfully", category: AppLogger.dataImport)
+            
+            // Force refresh of static data cache
+            StaticDataCacheManager.shared.invalidateCache()
+            
+        } catch {
+            AppLogger.error("Error in forced data regeneration", error: error, category: AppLogger.dataImport)
+        }
+        
+        isDataGenerationInProgress = false
+    }
+    
     private func generateDataWithCloudKitConflictResolution(context: NSManagedObjectContext, jsonData: PreloadedData) {
         AppLogger.info("Using CloudKit conflict resolution for data generation", category: AppLogger.dataImport)
         
@@ -1230,6 +1280,39 @@ class PersistenceController {
             } catch {
                 AppLogger.error("Error clearing static data from \(entityName)", error: error, category: AppLogger.persistence)
             }
+        }
+    }
+    
+    /// Clear all data including preloaded data for complete regeneration
+    private func clearAllDataForRegeneration(context: NSManagedObjectContext) {
+        // Clear all entities that contain preloaded data
+        let allEntities = ["IngredientDetail", "Dish", "Product", "Unit", "MealType", "DishCategory"]
+        
+        for entityName in allEntities {
+            let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
+            let batchDeleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
+            batchDeleteRequest.resultType = .resultTypeObjectIDs
+
+            do {
+                let result = try context.execute(batchDeleteRequest) as? NSBatchDeleteResult
+                if let objectIDs = result?.result as? [NSManagedObjectID] {
+                    let changes = [NSDeletedObjectsKey: objectIDs]
+                    NSManagedObjectContext.mergeChanges(fromRemoteContextSave: changes, into: [context])
+                }
+                AppLogger.info("Successfully cleared all data from \(entityName) for regeneration", category: AppLogger.persistence)
+            } catch {
+                AppLogger.error("Error clearing all data from \(entityName) for regeneration", error: error, category: AppLogger.persistence)
+            }
+        }
+        
+        // Save the context to commit the deletions
+        do {
+            if context.hasChanges {
+                try context.save()
+            }
+            AppLogger.info("All data cleared successfully for regeneration", category: AppLogger.persistence)
+        } catch {
+            AppLogger.error("Error saving context after clearing data for regeneration", error: error, category: AppLogger.persistence)
         }
     }
 
