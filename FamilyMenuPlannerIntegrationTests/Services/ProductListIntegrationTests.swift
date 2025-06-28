@@ -154,10 +154,12 @@ class ProductListIntegrationTests: BaseIntegrationTest {
         let apple = Product(context: context)
         apple.name = "Apple"
         apple.unit = pieces
+        apple.isDraft = false  // Mark as complete for tests
         
         let banana = Product(context: context)
         banana.name = "Banana"
         banana.unit = pieces
+        banana.isDraft = false  // Mark as complete for tests
         
         try? context.save()
         context.refreshAllObjects()

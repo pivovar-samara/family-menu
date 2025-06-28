@@ -183,6 +183,12 @@ final class AppStateManager: ObservableObject {
         // Clean up any existing duplicate static data from previous CloudKit sync issues
         persistence.cleanupAllDuplicateStaticData(context: context)
         
+        // One-time migration: Restore user data that was incorrectly marked as drafts
+        restoreUserDataFromDrafts(context: context)
+        
+        // Clean up any abandoned draft entities from incomplete creation flows
+        cleanupAbandonedDrafts(context: context)
+        
         if needsDataPopulation {
             // Use background context for initial data generation to avoid blocking UI
             persistence.generateInitialDataInBackground { [weak self] success in
@@ -206,6 +212,154 @@ final class AppStateManager: ObservableObject {
             // This will preload all static data to ensure immediate availability
             StaticDataCacheManager.shared.initialize(with: context)
             isLoading = false
+        }
+    }
+    
+    /// Cleans up abandoned draft entities that were created but never completed
+    /// Only deletes truly empty draft entities, not user data
+    private func cleanupAbandonedDrafts(context: NSManagedObjectContext) {
+        AppLogger.info("Cleaning up abandoned draft entities", category: AppLogger.appState)
+        
+        context.performAndWait {
+            var entitiesDeleted = 0
+            
+            // Clean up truly empty draft dishes
+            let dishFetchRequest: NSFetchRequest<Dish> = Dish.fetchRequest()
+            dishFetchRequest.predicate = NSPredicate(format: "isDraft == YES")
+            
+            do {
+                let draftDishes = try context.fetch(dishFetchRequest)
+                for dish in draftDishes {
+                    // Only delete if it's truly empty (no meaningful content)
+                    let hasName = !(dish.name?.isEmpty ?? true)
+                    let hasIngredients = (dish.ingredientDetails?.count ?? 0) > 0
+                    let hasMealTypes = (dish.mealTypes?.count ?? 0) > 0
+                    
+                    if !hasName && !hasIngredients && !hasMealTypes {
+                        context.delete(dish)
+                        entitiesDeleted += 1
+                    } else {
+                        AppLogger.warning("Found draft dish with content that should have been restored: \(dish.name ?? "unnamed")", category: AppLogger.appState)
+                    }
+                }
+                AppLogger.info("Found \(draftDishes.count) draft dishes, deleted \(entitiesDeleted) empty ones", category: AppLogger.appState)
+            } catch {
+                AppLogger.error("Failed to fetch draft dishes for cleanup", error: error, category: AppLogger.appState)
+            }
+            
+            // Clean up truly empty draft products
+            let productFetchRequest: NSFetchRequest<Product> = Product.fetchRequest()
+            productFetchRequest.predicate = NSPredicate(format: "isDraft == YES")
+            
+            do {
+                let draftProducts = try context.fetch(productFetchRequest)
+                let initialDeletedCount = entitiesDeleted
+                for product in draftProducts {
+                    // Only delete if it's truly empty (no meaningful content)
+                    let hasName = !(product.name?.isEmpty ?? true)
+                    let hasUnit = product.unit != nil
+                    
+                    if !hasName && !hasUnit {
+                        context.delete(product)
+                        entitiesDeleted += 1
+                    } else {
+                        AppLogger.warning("Found draft product with content that should have been restored: \(product.name ?? "unnamed")", category: AppLogger.appState)
+                    }
+                }
+                AppLogger.info("Found \(draftProducts.count) draft products, deleted \(entitiesDeleted - initialDeletedCount) empty ones", category: AppLogger.appState)
+            } catch {
+                AppLogger.error("Failed to fetch draft products for cleanup", error: error, category: AppLogger.appState)
+            }
+            
+            // Save changes if any entities were deleted
+            if entitiesDeleted > 0 {
+                do {
+                    try context.save()
+                    AppLogger.info("Successfully cleaned up \(entitiesDeleted) truly abandoned draft entities", category: AppLogger.appState)
+                } catch {
+                    AppLogger.error("Failed to save after cleaning up draft entities", error: error, category: AppLogger.appState)
+                }
+            } else {
+                AppLogger.info("No truly abandoned draft entities found", category: AppLogger.appState)
+            }
+        }
+    }
+    
+    /// One-time migration: Restores user data that was incorrectly marked as drafts
+    /// This fixes the issue where existing entities were marked as drafts during the initial implementation
+    private func restoreUserDataFromDrafts(context: NSManagedObjectContext) {
+        // Check if this migration has already been performed
+        let migrationKey = "DraftMigrationCompleted_v1"
+        if UserDefaults.standard.bool(forKey: migrationKey) {
+            AppLogger.info("Draft migration already completed, skipping", category: AppLogger.appState)
+            return
+        }
+        
+        AppLogger.info("Performing one-time migration to restore user data from incorrect draft status", category: AppLogger.appState)
+        
+        context.performAndWait {
+            var entitiesRestored = 0
+            
+            // Restore dishes that have meaningful content
+            let dishFetchRequest: NSFetchRequest<Dish> = Dish.fetchRequest()
+            dishFetchRequest.predicate = NSPredicate(format: "isDraft == YES")
+            
+            do {
+                let draftDishes = try context.fetch(dishFetchRequest)
+                for dish in draftDishes {
+                    // If dish has a name and either ingredients or meal types, it's likely user data
+                    let hasName = !(dish.name?.isEmpty ?? true)
+                    let hasIngredients = (dish.ingredientDetails?.count ?? 0) > 0
+                    let hasMealTypes = (dish.mealTypes?.count ?? 0) > 0
+                    
+                    if hasName && (hasIngredients || hasMealTypes) {
+                        dish.isDraft = false
+                        entitiesRestored += 1
+                        AppLogger.info("Restored dish: \(dish.name ?? "unnamed")", category: AppLogger.appState)
+                    }
+                }
+            } catch {
+                AppLogger.error("Failed to fetch draft dishes for migration", error: error, category: AppLogger.appState)
+            }
+            
+            // Restore products that have meaningful content
+            let productFetchRequest: NSFetchRequest<Product> = Product.fetchRequest()
+            productFetchRequest.predicate = NSPredicate(format: "isDraft == YES")
+            
+            do {
+                let draftProducts = try context.fetch(productFetchRequest)
+                for product in draftProducts {
+                    // If product has a name and unit, it's likely user data
+                    let hasName = !(product.name?.isEmpty ?? true)
+                    let hasUnit = product.unit != nil
+                    
+                    if hasName && hasUnit {
+                        product.isDraft = false
+                        entitiesRestored += 1
+                        AppLogger.info("Restored product: \(product.name ?? "unnamed")", category: AppLogger.appState)
+                    }
+                }
+            } catch {
+                AppLogger.error("Failed to fetch draft products for migration", error: error, category: AppLogger.appState)
+            }
+            
+            // Save changes if any entities were restored
+            if entitiesRestored > 0 {
+                do {
+                    try context.save()
+                    AppLogger.info("Successfully restored \(entitiesRestored) user entities from incorrect draft status", category: AppLogger.appState)
+                } catch {
+                    AppLogger.error("Failed to save after restoring entities from draft status", error: error, category: AppLogger.appState)
+                    return
+                }
+            } else {
+                AppLogger.info("No user entities found to restore from draft status", category: AppLogger.appState)
+            }
+            
+            // Mark migration as completed
+            UserDefaults.standard.set(true, forKey: migrationKey)
+            UserDefaults.standard.synchronize()
+            AppLogger.info("Draft migration completed successfully", category: AppLogger.appState)
         }
     }
 }

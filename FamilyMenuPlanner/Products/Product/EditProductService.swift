@@ -119,6 +119,7 @@ class EditProductService {
     
     func createProduct() throws -> Product {
         let product = Product(context: context)
+        product.isDraft = true
         return product
     }
     

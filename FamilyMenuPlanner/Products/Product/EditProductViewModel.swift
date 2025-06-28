@@ -64,6 +64,10 @@ class EditProductViewModel: ObservableObject {
                 enqueueAlert(title: "Error", message: "Product name cannot be empty.")
                 return
             }
+            
+            // Mark product as complete when successfully saved
+            product?.isDraft = false
+            
             try editProductService.saveChanges()
             onSuccess()
         } catch let error as NSError {

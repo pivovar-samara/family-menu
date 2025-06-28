@@ -77,6 +77,7 @@ class DishDetailsService {
     
     func createDish() throws -> Dish {
         let dish = Dish(context: context)
+        dish.isDraft = true
         return dish
     }
     

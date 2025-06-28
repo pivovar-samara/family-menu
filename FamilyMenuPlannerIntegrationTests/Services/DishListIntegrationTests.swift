@@ -34,11 +34,13 @@ class DishListIntegrationTests: BaseIntegrationTest {
         dish1.name = "Spaghetti Carbonara"
         dish1.details = "Classic Italian pasta dish"
         dish1.category = mainCourseCategory
+        dish1.isDraft = false  // Mark as complete for tests
         
         let dish2 = Dish(context: context)
         dish2.name = "Caesar Salad"
         dish2.details = "Fresh salad with croutons"
         dish2.category = garnishCategory
+        dish2.isDraft = false  // Mark as complete for tests
         
         try? context.save()
         context.refreshAllObjects()
@@ -133,6 +135,7 @@ class DishListIntegrationTests: BaseIntegrationTest {
             let dish = Dish(context: context)
             dish.name = name
             dish.details = "Details for \(name)"
+            dish.isDraft = false  // Mark as complete for tests
         }
         
         try? context.save()
@@ -176,6 +179,7 @@ class DishListIntegrationTests: BaseIntegrationTest {
         let dish = Dish(context: context)
         dish.name = "Persistent Dish"
         dish.details = "This dish should persist"
+        dish.isDraft = false  // Mark as complete for tests
         try? context.save()
         
         // Create new view model instance

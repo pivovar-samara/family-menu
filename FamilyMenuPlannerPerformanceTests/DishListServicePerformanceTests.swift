@@ -58,6 +58,7 @@ class DishListServicePerformanceTests: BaseIntegrationTest {
                 let dish = Dish(context: self.context)
                 dish.name = "Performance Test Dish \(i)"
                 dish.category = category
+                dish.isDraft = false  // Mark as complete for performance tests
             }
             try! self.context.save()
         }
@@ -74,6 +75,7 @@ class DishListServicePerformanceTests: BaseIntegrationTest {
                     let dish = Dish(context: self.context)
                     dish.name = "Perf Dish \(i)"
                     dish.category = category
+                    dish.isDraft = false  // Mark as complete for performance tests
                 }
                 try! self.context.save()
             }

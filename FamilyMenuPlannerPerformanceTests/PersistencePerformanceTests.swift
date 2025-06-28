@@ -124,6 +124,7 @@ class PersistencePerformanceTests: BaseIntegrationTest {
                     let product = Product(context: context)
                     product.name = "Batch Product \(i)"
                     product.unit = unit
+                    product.isDraft = false  // Mark as complete for performance tests
                 }
                 try! context.save()
             }

@@ -38,6 +38,7 @@ class TestDataFactory {
         let product = Product(context: context)
         product.name = name
         product.unit = unit
+        product.isDraft = false  // Test products are complete
         saveContext()
         return product
     }
@@ -48,6 +49,7 @@ class TestDataFactory {
         dish.details = details
         dish.mealTypes = mealTypes as NSSet
         dish.category = category
+        dish.isDraft = false  // Test dishes are complete
         saveContext()
         return dish
     }
@@ -61,6 +63,7 @@ class TestDataFactory {
                 let product = Product(context: context)
                 product.name = "\(namePrefix) \(i)"
                 product.unit = unit
+                product.isDraft = false  // Test products are complete
                 products.append(product)
             }
             saveContext()
@@ -79,6 +82,7 @@ class TestDataFactory {
                 dish.details = "Test details for \(namePrefix) \(i)"
                 dish.category = category
                 dish.mealTypes = mealTypes as NSSet
+                dish.isDraft = false  // Test dishes are complete
                 dishes.append(dish)
             }
             saveContext()

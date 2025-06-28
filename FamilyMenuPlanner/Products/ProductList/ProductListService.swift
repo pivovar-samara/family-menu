@@ -41,6 +41,9 @@ class ProductListService: NSObject {
         let fetchRequest: NSFetchRequest<Product> = Product.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Product.name, ascending: true)]
         
+        // Filter out draft products from the list (show only complete products)
+        fetchRequest.predicate = NSPredicate(format: "isDraft == NO OR isDraft == nil")
+        
         // Configure batch fetching for better performance
         CoreDataFetchHelper.configure(fetchRequest, batchSize: CoreDataFetchHelper.standardBatchSize)
         

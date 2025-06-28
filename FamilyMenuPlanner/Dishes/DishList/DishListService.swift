@@ -40,6 +40,9 @@ class DishListService: NSObject {
         let fetchRequest: NSFetchRequest<Dish> = Dish.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Dish.name, ascending: true)]
         
+        // Filter out draft dishes from the list (show only complete dishes)
+        fetchRequest.predicate = NSPredicate(format: "isDraft == NO OR isDraft == nil")
+        
         // Configure batch fetching for better performance
         CoreDataFetchHelper.configure(fetchRequest, batchSize: CoreDataFetchHelper.standardBatchSize)
         
@@ -123,6 +126,7 @@ class DishListService: NSObject {
                     dish.details = data.details
                     dish.category = data.category
                     dish.mealTypes = data.mealTypes as NSSet
+                    dish.isDraft = false  // Bulk created dishes are complete
                     createdDishes.append(dish)
                 }
                 try context.save()
@@ -141,6 +145,7 @@ class DishListService: NSObject {
                 let dish = Dish(context: backgroundContext)
                 dish.name = data.name
                 dish.details = data.details
+                dish.isDraft = false  // Bulk created dishes are complete
                 
                 // Transfer category to background context
                 if let categoryID = data.category?.objectID,

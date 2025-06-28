@@ -99,6 +99,7 @@ class MockDishDetailsService: DishDetailsServiceProtocol {
             throw error
         }
         let dish = Dish(context: context)
+        dish.isDraft = true  // Mock service creates drafts like the real service
         createdDish = dish
         return dish
     }

@@ -2,6 +2,7 @@
 <model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23788" systemVersion="24F74" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="YES" userDefinedModelVersionIdentifier="1.0">
     <entity name="Dish" representedClassName=".Dish" syncable="YES" codeGenerationType="class">
         <attribute name="details" optional="YES" attributeType="String"/>
+        <attribute name="isDraft" optional="YES" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
         <attribute name="name" optional="YES" attributeType="String"/>
         <relationship name="category" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="DishCategory" inverseName="dishes" inverseEntity="DishCategory"/>
         <relationship name="ingredientDetails" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="IngredientDetail" inverseName="dish" inverseEntity="IngredientDetail"/>
@@ -33,6 +34,7 @@
         <relationship name="dishes" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Dish" inverseName="menus" inverseEntity="Dish"/>
     </entity>
     <entity name="Product" representedClassName=".Product" syncable="YES" codeGenerationType="class">
+        <attribute name="isDraft" optional="YES" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
         <attribute name="isSelected" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="name" optional="YES" attributeType="String"/>
         <relationship name="dishes" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Dish" inverseName="products" inverseEntity="Dish"/>

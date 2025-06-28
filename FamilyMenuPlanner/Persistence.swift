@@ -968,6 +968,7 @@ class PersistenceController {
                 let product = Product(context: context)
                 product.name = productData.name
                 product.unit = unitMap[productData.unit]
+                product.isDraft = false  // Preloaded products are complete
                 productMap[productData.name] = product
             }
         }
@@ -1017,6 +1018,7 @@ class PersistenceController {
                 targetDish = Dish(context: context)
                 targetDish.name = dishData.name
                 targetDish.details = dishData.details
+                targetDish.isDraft = false  // Preloaded dishes are complete
                 
                 // Set category
                 if let categoryName = dishData.category,
@@ -1144,6 +1146,7 @@ class PersistenceController {
                     let product = Product(context: context)
                     product.name = productData.name
                     product.unit = unitMap[productData.unit]
+                    product.isDraft = false  // Preloaded products are complete
                     productMap[productData.name] = product
                 }
             } catch {
@@ -1167,6 +1170,7 @@ class PersistenceController {
                 let dish = Dish(context: context)
                 dish.name = dishData.name
                 dish.details = dishData.details
+                dish.isDraft = false  // Preloaded dishes are complete
                 
                 // Set category
                 if let categoryName = dishData.category,
@@ -1518,6 +1522,7 @@ class PersistenceController {
                     let product = Product(context: context)
                     product.name = productData.name
                     product.unit = unitMap[productData.unit]
+                    product.isDraft = false  // Preloaded products are complete
                     productMap[productData.name] = product
                 }
             }
@@ -1538,6 +1543,7 @@ class PersistenceController {
                 let dish = Dish(context: context)
                 dish.name = dishData.name
                 dish.details = dishData.details
+                dish.isDraft = false  // Preloaded dishes are complete
                 
                 // Set category
                 if let categoryName = dishData.category,

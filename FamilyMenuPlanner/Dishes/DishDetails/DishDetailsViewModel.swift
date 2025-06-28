@@ -199,6 +199,10 @@ class DishDetailsViewModel: ObservableObject {
             guard self.validate(), validationError == nil else {
                 return
             }
+            
+            // Mark dish as complete when successfully saved
+            dish?.isDraft = false
+            
             try dishDetailsService.saveChanges()
             onSuccess()
         } catch let error as NSError {
