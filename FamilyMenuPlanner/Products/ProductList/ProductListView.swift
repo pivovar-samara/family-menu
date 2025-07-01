@@ -16,70 +16,51 @@ struct ProductListView: View {
     
     var body: some View {
         List {
-            // Product list
-            Section(header: Text("Products")) {
-                ForEach(viewModel.filteredProducts, id: \.self) { product in
-                    HStack {
-                        Text(product.name ?? "Unnamed Product")
-                        Spacer()
-                        Text((product.unit?.name ?? "").localized())
-                            .foregroundColor(.secondary)
-                        Button(action: {
-                            viewModel.selectedProduct = product
-                        }) {
-                            Image(systemName: "pencil")
-                                .foregroundColor(Color("AccentColor"))
+            if viewModel.filteredProducts.isEmpty {
+                Color.clear.emptyState(message: "No results found".localized())
+                    .accessibilityIdentifier("product_list_empty_state")
+            } else {
+                // Product list
+                Section() {
+                    ForEach(viewModel.filteredProducts, id: \.self) { product in
+                        HStack {
+                            Text(product.name ?? "Unnamed Product")
+                            Spacer()
+                            Text((product.unit?.name ?? "").localized())
+                                .foregroundColor(.secondary)
+                            Button(action: {
+                                viewModel.selectedProduct = product
+                            }) {
+                                Image(systemName: "pencil")
+                                    .foregroundColor(Color("AccentColor"))
+                            }
+                            .accessibilityIdentifier("EditProductButton")
                         }
-                        .accessibilityIdentifier("EditProductButton")
+                        .listRowBackground(Color("SecondaryBackgroundColor"))
                     }
-                    .listRowBackground(Color("SecondaryBackgroundColor"))
+                    .onDelete(perform: viewModel.deleteProducts)
                 }
-                .onDelete(perform: viewModel.deleteProducts)
             }
-            
-            // Add new product
-            Section(header: Text("Add New Product")) {
-                TextField("Product Name", text: $viewModel.newProductName)
-                    .autocorrectionDisabled(true)
-                    .textInputAutocapitalization(.words)
-                    .accessibilityIdentifier("ProductNameTextField")
-
-                Picker("Unit", selection: Binding(
-                    get: {
-                        viewModel.selectedUnit ?? viewModel.units.first
-                    },
-                    set: {
-                        viewModel.selectedUnit = $0
-                    }
-                )) {
-                    ForEach(viewModel.units, id: \.self) { unit in
-                        Text((unit.name ?? "").localized()).tag(unit as Unit?)
-                    }
-                }
-                .accessibilityIdentifier("UnitPicker")
-
-                if let error = viewModel.validationError {
-                    Text(error)
-                        .foregroundColor(.red)
-                        .font(.footnote)
-                        .accessibilityIdentifier("ValidationErrorText")
-                }
-
-                Button("Add Product") {
-                    if viewModel.validateNewProduct() {
-                        viewModel.addProduct()
-                    }
-                }
-                .foregroundColor(Color("AccentColor"))
-                .accessibilityIdentifier("AddProductButton")
-            }
-            .listRowBackground(Color("SecondaryBackgroundColor"))
         }
         .accessibilityIdentifier("ProductList")
         .searchable(text: $viewModel.searchText, prompt: "Search products...")
         .scrollContentBackground(.hidden)
         .background(Color("BackgroundColor"))
         .navigationTitle("Products")
+        .sheet(isPresented: $viewModel.isAddingNewProduct, onDismiss: {
+            viewModel.isAddingNewProduct = false
+        }) {
+            NavigationStack {
+                EditProductCoordinator().createEditProductView()
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                createToolbarButton(title: "Add Product".localized(), systemImage: "plus") {
+                    viewModel.isAddingNewProduct = true
+                }
+            }
+        }
         // Show sheet only when selectedProduct is set
         .sheet(item: $viewModel.selectedProduct) { product in
             NavigationStack {
@@ -100,9 +81,7 @@ struct ProductListView: View {
         }
         .onAppear {
             viewModel.loadProducts()
-            viewModel.updateSelectedUnit()
         }
-
     }
     
 }

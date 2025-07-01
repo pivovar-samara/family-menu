@@ -57,10 +57,32 @@ class PersistencePerformanceTests: BaseIntegrationTest {
         
         // Test that services work without explicit setQueryGenerationFrom calls
         let productListService = ProductListService(context: context)
-        let products = productListService.fetchAllProducts()
         
-        XCTAssertEqual(products.count, 1)
-        XCTAssertEqual(products.first?.name, "Test Product")
+        // Set up expectation for delegate callback
+        let expectation = XCTestExpectation(description: "Products fetched")
+        
+        // Mock delegate to capture the results
+        class MockDelegate: ProductListServiceDelegate {
+            var products: [Product] = []
+            var expectation: XCTestExpectation?
+            
+            func serviceDidChangeContent(_ products: [Product]) {
+                self.products = products
+                expectation?.fulfill()
+            }
+        }
+        
+        let mockDelegate = MockDelegate()
+        mockDelegate.expectation = expectation
+        productListService.delegate = mockDelegate
+        
+        // Trigger fetch
+        productListService.fetchAllProducts()
+        
+        wait(for: [expectation], timeout: 1.0)
+        
+        XCTAssertEqual(mockDelegate.products.count, 1)
+        XCTAssertEqual(mockDelegate.products.first?.name, "Test Product")
     }
     
     func testContextConfigurationIsProperlyApplied() {
@@ -102,6 +124,7 @@ class PersistencePerformanceTests: BaseIntegrationTest {
                     let product = Product(context: context)
                     product.name = "Batch Product \(i)"
                     product.unit = unit
+                    product.isDraft = false  // Mark as complete for performance tests
                 }
                 try! context.save()
             }

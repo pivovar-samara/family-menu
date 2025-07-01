@@ -10,7 +10,8 @@ import SwiftUI
 import Combine
 
 class EditProductViewModel: ObservableObject {
-    @Published var product: Product
+    @Published var product: Product?
+    @Published var isCreatingNewProduct: Bool = false
     
     @Published var selectedUnit: Unit?
     @Published var currentAlert: AlertItem?
@@ -20,8 +21,9 @@ class EditProductViewModel: ObservableObject {
     private let alertManager = AlertQueueManager()
     private var cancellables = Set<AnyCancellable>()
     
-    init(product: Product, editProductService: EditProductServiceProtocol) {
+    init(product: Product? = nil, editProductService: EditProductServiceProtocol) {
         self.product = product
+        self.isCreatingNewProduct = product == nil
         self.editProductService = editProductService
         
         // Load initial units
@@ -38,8 +40,18 @@ class EditProductViewModel: ObservableObject {
                     .assign(to: &$currentAlert)
     }
     
+    func loadProduct() {
+        guard product == nil else { return }
+        
+        do {
+            try product = editProductService.createProduct()
+        } catch {
+            AppLogger.error("Failed to create a new product", error: error, category: AppLogger.viewModel)
+        }
+    }
+    
     func setupSelectedUnit() {
-        selectedUnit = product.unit ?? units.first
+        selectedUnit = product?.unit ?? units.first
     }
     
     func rollback() {
@@ -48,10 +60,14 @@ class EditProductViewModel: ObservableObject {
     
     func saveChanges(onSuccess: ()->Void) {
         do {
-            guard let name = product.name, !name.isEmpty else {
+            guard let name = product?.name, !name.isEmpty else {
                 enqueueAlert(title: "Error", message: "Product name cannot be empty.")
                 return
             }
+            
+            // Mark product as complete when successfully saved
+            product?.isDraft = false
+            
             try editProductService.saveChanges()
             onSuccess()
         } catch let error as NSError {

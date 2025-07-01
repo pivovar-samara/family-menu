@@ -27,7 +27,7 @@ class CoreDataPerformanceTests: BaseIntegrationTest {
         let productListService = ProductListService(context: context)
         
         measure {
-            _ = productListService.fetchAllProducts()
+            productListService.fetchAllProducts()
         }
     }
     
@@ -74,6 +74,7 @@ class CoreDataPerformanceTests: BaseIntegrationTest {
                     let product = Product(context: context)
                     product.name = "Bulk Product \(i)"
                     product.unit = unit
+                    product.isDraft = false  // Mark as complete for performance tests
                 }
                 
                 do {

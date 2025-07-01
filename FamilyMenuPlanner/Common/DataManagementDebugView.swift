@@ -168,7 +168,7 @@ struct DataManagementDebugView: View {
     }
     
     private func regenerateInitialData() {
-        PersistenceController.shared.generateInitialData(context: viewContext)
+        PersistenceController.shared.forceRegenerateInitialData(context: viewContext)
         showAlert(title: "Data Generation", message: "Initial data has been regenerated.")
     }
     

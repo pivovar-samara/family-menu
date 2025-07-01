@@ -24,7 +24,7 @@
 "Search products..." = "Поиск продуктов...";
 "Search dishes..." = "Поиск блюд...";
 "Dish Details" = "Детали блюда";
-"Meal Types" = "Типы приёма пищи";
+"Meal Types" = "Время приёма пищи";
 "Ingredients" = "Ингредиенты";
 "Unnamed Ingredient" = "Безымянный ингредиент";
 "Unnamed Dish" = "Безымянное блюдо";
@@ -88,6 +88,63 @@
 "Dessert" = "Десерт";
 "Appetizer" = "Закуска";
 "Sauce" = "Соус";
+
+// Modernized Dish Details Form
+"Basic Information" = "Основная информация";
+"Review" = "Проверка";
+"Next" = "Далее";
+"Back" = "Назад";
+"Step %d of %d" = "Шаг %d из %d";
+"Add Photo" = "Добавить фото";
+"Enter dish name" = "Введите название блюда";
+"Recipe" = "Рецепт";
+"Description" = "Описание";
+"Optional" = "По желанию";
+"Edit" = "Редактировать";
+"Delete" = "Удалить";
+"Large quantity" = "Большое количество";
+"Category" = "Категория";
+"When is this dish served?" = "Когда подаётся это блюдо?";
+"Select all meal types that apply" = "Выберите все подходящие времена приёма пищи";
+"%d selected" = "Выбрано: %d";
+"Ingredients List" = "Список ингредиентов";
+
+"What ingredients do you need?" = "Какие ингредиенты вам нужны?";
+"Add and organize your ingredients" = "Добавьте и организуйте ваши ингредиенты";
+"No ingredients yet" = "Пока нет ингредиентов";
+"Start by adding your first ingredient" = "Начните с добавления первого ингредиента";
+"Add First Ingredient" = "Добавить первый ингредиент";
+"Tap to edit • Long press for options" = "Нажмите для редактирования • Удерживайте для опций";
+"Default" = "По умолчанию";
+"A-Z" = "А-Я";
+"Z-A" = "Я-А";
+"Quantity: High to Low" = "Количество: по убыванию";
+"Quantity: Low to High" = "Количество: по возрастанию";
+"By Unit Type" = "По типу единиц";
+"per %@" = "за %@";
+"Ready to save?" = "Готовы к сохранению?";
+"Review your dish details" = "Проверьте детали блюда";
+"Dish Summary" = "Сводка блюда";
+"Name" = "Название";
+"No meal types selected" = "Время приёма пищи не выбрано";
+"Ingredients (%d)" = "Ингредиенты (%d)";
+"No ingredients added" = "Ингредиенты не добавлены";
+"Unknown Product" = "Неизвестный продукт";
+"Validation" = "Проверка";
+"All good!" = "Всё в порядке!";
+"Your dish is ready to save!" = "Ваше блюдо готово к сохранению!";
+"Dish name is required" = "Название блюда обязательно";
+"Add a descriptive name for your dish" = "Добавьте описательное название для вашего блюда";
+"At least one meal type is required" = "Требуется хотя бы один тип приёма пищи";
+"Select when this dish is typically served" = "Выберите, когда обычно подаётся это блюдо";
+"At least one ingredient is required" = "Требуется хотя бы один ингредиент";
+"Add the ingredients needed for this dish" = "Добавьте ингредиенты, необходимые для этого блюда";
+"%d ingredient(s) missing product selection" = "%d ингредиент(ов) без выбора продукта";
+"Complete product selection for all ingredients" = "Завершите выбор продуктов для всех ингредиентов";
+"Some quantities seem unusually large" = "Некоторые количества кажутся необычно большими";
+"Double-check ingredient quantities" = "Проверьте количества ингредиентов";
+"Need to make changes?" = "Нужно внести изменения?";
+"Use the Back button or swipe to return to previous steps and make any necessary changes." = "Используйте кнопку Назад или смахивание, чтобы вернуться к предыдущим шагам и внести необходимые изменения.";
 
 // Error Handling and Recovery
 "Failed to load data store: %@" = "Ошибка загрузки данных: %@";

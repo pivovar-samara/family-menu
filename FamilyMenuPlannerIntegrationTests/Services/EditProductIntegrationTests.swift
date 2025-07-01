@@ -49,7 +49,7 @@ class EditProductIntegrationTests: BaseIntegrationTest {
     
     func testEditProductName() {
         // Change product name
-        viewModel.product.name = "Updated Product"
+        viewModel.product!.name = "Updated Product"
         
         // Save changes
         var saveSuccessful = false
@@ -79,7 +79,7 @@ class EditProductIntegrationTests: BaseIntegrationTest {
         
         // Change unit
         viewModel.selectedUnit = newUnit
-        viewModel.product.unit = newUnit
+        viewModel.product!.unit = newUnit
         
         // Save changes
         var saveSuccessful = false
@@ -102,7 +102,7 @@ class EditProductIntegrationTests: BaseIntegrationTest {
         let originalUnit = testProduct.unit
         
         // Make changes
-        viewModel.product.name = "Changed Name"
+        viewModel.product!.name = "Changed Name"
         if let differentUnit = viewModel.units.first(where: { $0 != originalUnit }) {
             viewModel.selectedUnit = differentUnit
         }
@@ -117,7 +117,7 @@ class EditProductIntegrationTests: BaseIntegrationTest {
     
     func testValidation() {
         // Test empty name
-        viewModel.product.name = ""
+        viewModel.product!.name = ""
         var saveSuccessful = false
         viewModel.saveChanges {
             saveSuccessful = true
@@ -125,7 +125,7 @@ class EditProductIntegrationTests: BaseIntegrationTest {
         XCTAssertFalse(saveSuccessful)
         
         // Test valid name
-        viewModel.product.name = "Valid Name"
+        viewModel.product!.name = "Valid Name"
         saveSuccessful = false
         viewModel.saveChanges {
             saveSuccessful = true
@@ -153,7 +153,7 @@ class EditProductIntegrationTests: BaseIntegrationTest {
     
     func testSaveWithNilName() {
         // Set name to nil
-        viewModel.product.name = nil
+        viewModel.product!.name = nil
         
         // Create expectation for alert
         let exp = expectation(description: "Alert shown")
@@ -194,7 +194,7 @@ class EditProductIntegrationTests: BaseIntegrationTest {
         context.refreshAllObjects()
         
         // Now try to save our changes
-        viewModel.product.name = "Our change"
+        viewModel.product!.name = "Our change"
         var saveSuccessful = false
         viewModel.saveChanges {
             saveSuccessful = true
@@ -220,7 +220,7 @@ class EditProductIntegrationTests: BaseIntegrationTest {
     
     func testUnitValidation() {
         // Remove unit
-        viewModel.product.unit = nil
+        viewModel.product!.unit = nil
         viewModel.selectedUnit = nil
         
         // Try to save

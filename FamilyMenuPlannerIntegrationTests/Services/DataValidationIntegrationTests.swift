@@ -81,6 +81,7 @@ final class DataValidationIntegrationTests: BaseIntegrationTest {
         UserDefaults.standard.removeObject(forKey: "PreloadDataVersion")
     }
     
+
     // MARK: - Test Helper Methods
     
     /// Test-safe implementation of database empty check

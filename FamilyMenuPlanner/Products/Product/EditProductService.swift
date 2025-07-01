@@ -11,6 +11,7 @@ protocol EditProductServiceProtocol {
     func fetchAllUnits() -> [Unit]
     func saveChanges() throws
     func saveChangesInBackground(completion: @escaping (Result<Void, Error>) -> Void)
+    func createProduct() throws -> Product
     func rollback()
 }
 
@@ -114,6 +115,12 @@ class EditProductService {
                 completion(.failure(error))
             }
         }
+    }
+    
+    func createProduct() throws -> Product {
+        let product = Product(context: context)
+        product.isDraft = true
+        return product
     }
     
     func rollback() {

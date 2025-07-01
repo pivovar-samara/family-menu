@@ -80,45 +80,17 @@ final class AppStateManager: ObservableObject {
     }
 
     private func checkICloudAccountStatus() {
-        // Enhanced test environment detection - same as in PersistenceController with additional CI checks
-        // Also check for UI test environment which launches the actual app
+        // Check if running in test or CI environment
         let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
-                            NSClassFromString("XCTestCase") != nil ||
                             ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] != nil ||
                             ProcessInfo.processInfo.environment["CI"] != nil ||
-                            ProcessInfo.processInfo.environment["BUILD_NUMBER"] != nil ||    // Xcode Cloud
-                            ProcessInfo.processInfo.arguments.contains("test") ||
-                            ProcessInfo.processInfo.arguments.contains("-XCTest") ||
-                            ProcessInfo.processInfo.arguments.contains("xctest") ||         // Additional test detection
-                            ProcessInfo.processInfo.environment["XCTestBundlePath"] != nil || // UI test detection
-                            Bundle.main.bundlePath.contains("UITests") ||                   // UI test bundle detection
-                            ProcessInfo.processInfo.processName.contains("test") ||        // Process name contains test
-                            ProcessInfo.processInfo.environment["UI_TESTS"] != nil ||      // UI test environment variable
-                            ProcessInfo.processInfo.environment["DISABLE_CLOUDKIT"] != nil || // CloudKit disable flag
-                            ProcessInfo.processInfo.arguments.contains("-UITests") ||      // UI test launch argument
-                            ProcessInfo.processInfo.arguments.contains("-DisableCloudKit") // CloudKit disable argument
+                            ProcessInfo.processInfo.arguments.contains("-UITests") ||
+                            ProcessInfo.processInfo.arguments.contains("-DisableCloudKit") ||
+                            NSClassFromString("XCTestCase") != nil
         
-        // Skip CloudKit checks in test/CI environments - be extra defensive
+        // Skip CloudKit checks in test/CI environments
         if isRunningTests {
             AppLogger.debug("Running in test/CI environment - skipping iCloud account status check", category: AppLogger.appState)
-            DispatchQueue.main.async {
-                self.isICloudAvailable = false
-            }
-            return
-        }
-        
-        // Additional safety check - wrap CloudKit access in try-catch equivalent
-        guard !ProcessInfo.processInfo.arguments.contains("-UITests") else {
-            AppLogger.debug("UI test launch argument detected - skipping CloudKit", category: AppLogger.appState)
-            DispatchQueue.main.async {
-                self.isICloudAvailable = false
-            }
-            return
-        }
-        
-        // Check for explicit CloudKit disable arguments
-        guard !ProcessInfo.processInfo.arguments.contains("-DisableCloudKit") else {
-            AppLogger.debug("CloudKit disabled by launch argument", category: AppLogger.appState)
             DispatchQueue.main.async {
                 self.isICloudAvailable = false
             }
@@ -183,6 +155,12 @@ final class AppStateManager: ObservableObject {
         // Clean up any existing duplicate static data from previous CloudKit sync issues
         persistence.cleanupAllDuplicateStaticData(context: context)
         
+        // One-time migration: Restore user data that was incorrectly marked as drafts
+        restoreUserDataFromDrafts(context: context)
+        
+        // Clean up any abandoned draft entities from incomplete creation flows
+        cleanupAbandonedDrafts(context: context)
+        
         if needsDataPopulation {
             // Use background context for initial data generation to avoid blocking UI
             persistence.generateInitialDataInBackground { [weak self] success in
@@ -206,6 +184,243 @@ final class AppStateManager: ObservableObject {
             // This will preload all static data to ensure immediate availability
             StaticDataCacheManager.shared.initialize(with: context)
             isLoading = false
+        }
+    }
+    
+    /// Cleans up abandoned draft entities that were created but never completed
+    /// Uses intelligent cleanup strategy to balance safety with database cleanliness
+    private func cleanupAbandonedDrafts(context: NSManagedObjectContext) {
+        // Configuration - can be adjusted based on user feedback or made user-configurable
+        let maxDraftDishesToKeep = UserDefaults.standard.object(forKey: "MaxDraftDishesToKeep") as? Int ?? 10
+        let maxDraftProductsToKeep = UserDefaults.standard.object(forKey: "MaxDraftProductsToKeep") as? Int ?? 5
+        AppLogger.info("Cleaning up abandoned draft entities", category: AppLogger.appState)
+        
+        context.performAndWait {
+            var entitiesDeleted = 0
+            
+            // Clean up draft dishes using tiered approach
+            let dishFetchRequest: NSFetchRequest<Dish> = Dish.fetchRequest()
+            dishFetchRequest.predicate = NSPredicate(format: "isDraft == YES")
+            
+            do {
+                let draftDishes = try context.fetch(dishFetchRequest)
+                var actuallyDeleted = 0
+                let maxDraftsToKeep = maxDraftDishesToKeep
+                
+                // Separate dishes into categories
+                var emptyDishes: [Dish] = []
+                var minimalContentDishes: [Dish] = []
+                var substantialContentDishes: [Dish] = []
+                
+                for dish in draftDishes {
+                    let hasName = !(dish.name?.isEmpty ?? true)
+                    let hasIngredients = (dish.ingredientDetails?.count ?? 0) > 0
+                    let hasMealTypes = (dish.mealTypes?.count ?? 0) > 0
+                    let hasCategory = dish.category != nil
+                    let hasDetails = !(dish.details?.isEmpty ?? true)
+                    
+                    if !hasName && !hasIngredients && !hasMealTypes && !hasCategory && !hasDetails {
+                        // Completely empty - always safe to delete
+                        emptyDishes.append(dish)
+                    } else if hasIngredients || hasMealTypes || (hasName && (hasDetails || hasCategory)) {
+                        // Has substantial content - preserve
+                        substantialContentDishes.append(dish)
+                    } else {
+                        // Minimal content (e.g., just name) - delete if too many
+                        minimalContentDishes.append(dish)
+                    }
+                }
+                
+                // Always delete completely empty dishes
+                for dish in emptyDishes {
+                    context.delete(dish)
+                    actuallyDeleted += 1
+                }
+                
+                // Delete excess minimal content dishes (keep most recent ones)
+                if minimalContentDishes.count > maxDraftsToKeep {
+                    let excessCount = minimalContentDishes.count - maxDraftsToKeep
+                    // Sort by object ID to get consistent ordering (older objects typically have lower IDs)
+                    let sortedMinimal = minimalContentDishes.sorted { $0.objectID.description < $1.objectID.description }
+                    
+                    for i in 0..<excessCount {
+                        context.delete(sortedMinimal[i])
+                        actuallyDeleted += 1
+                    }
+                }
+                
+                entitiesDeleted += actuallyDeleted
+                AppLogger.info("Found \(draftDishes.count) draft dishes: \(emptyDishes.count) empty, \(minimalContentDishes.count) minimal, \(substantialContentDishes.count) substantial. Deleted \(actuallyDeleted) drafts.", category: AppLogger.appState)
+            } catch {
+                AppLogger.error("Failed to fetch draft dishes for cleanup", error: error, category: AppLogger.appState)
+            }
+            
+            // Clean up draft products using tiered approach
+            let productFetchRequest: NSFetchRequest<Product> = Product.fetchRequest()
+            productFetchRequest.predicate = NSPredicate(format: "isDraft == YES")
+            
+            do {
+                let draftProducts = try context.fetch(productFetchRequest)
+                var actuallyDeleted = 0
+                let maxProductDraftsToKeep = maxDraftProductsToKeep
+                
+                // Separate products into categories
+                var emptyProducts: [Product] = []
+                var minimalContentProducts: [Product] = []
+                var substantialContentProducts: [Product] = []
+                
+                for product in draftProducts {
+                    let hasName = !(product.name?.isEmpty ?? true)
+                    let hasUnit = product.unit != nil
+                    let hasIngredientUsage = (product.ingredientDetails?.count ?? 0) > 0
+                    
+                    if !hasName && !hasUnit {
+                        // Completely empty - always safe to delete
+                        emptyProducts.append(product)
+                    } else if hasUnit && hasName {
+                        // Has both name and unit - preserve
+                        substantialContentProducts.append(product)
+                    } else if hasIngredientUsage {
+                        // Already used in dishes - preserve
+                        substantialContentProducts.append(product)
+                    } else {
+                        // Minimal content (just name OR just unit) - delete if too many
+                        minimalContentProducts.append(product)
+                    }
+                }
+                
+                // Always delete completely empty products
+                for product in emptyProducts {
+                    context.delete(product)
+                    actuallyDeleted += 1
+                }
+                
+                // Delete excess minimal content products
+                if minimalContentProducts.count > maxProductDraftsToKeep {
+                    let excessCount = minimalContentProducts.count - maxProductDraftsToKeep
+                    let sortedMinimal = minimalContentProducts.sorted { $0.objectID.description < $1.objectID.description }
+                    
+                    for i in 0..<excessCount {
+                        context.delete(sortedMinimal[i])
+                        actuallyDeleted += 1
+                    }
+                }
+                
+                entitiesDeleted += actuallyDeleted
+                AppLogger.info("Found \(draftProducts.count) draft products: \(emptyProducts.count) empty, \(minimalContentProducts.count) minimal, \(substantialContentProducts.count) substantial. Deleted \(actuallyDeleted) drafts.", category: AppLogger.appState)
+            } catch {
+                AppLogger.error("Failed to fetch draft products for cleanup", error: error, category: AppLogger.appState)
+            }
+            
+            // Save changes if any entities were deleted
+            if entitiesDeleted > 0 {
+                do {
+                    try context.save()
+                    AppLogger.info("Successfully cleaned up \(entitiesDeleted) truly abandoned draft entities", category: AppLogger.appState)
+                } catch {
+                    AppLogger.error("Failed to save after cleaning up draft entities", error: error, category: AppLogger.appState)
+                }
+            } else {
+                AppLogger.info("No truly abandoned draft entities found", category: AppLogger.appState)
+            }
+        }
+    }
+    
+    // MARK: - Draft Cleanup Configuration
+    
+    /// Updates the maximum number of draft entities to keep during cleanup
+    /// - Parameters:
+    ///   - maxDishes: Maximum draft dishes to preserve (default: 10)
+    ///   - maxProducts: Maximum draft products to preserve (default: 5)
+    static func configureDraftCleanupLimits(maxDishes: Int = 10, maxProducts: Int = 5) {
+        UserDefaults.standard.set(maxDishes, forKey: "MaxDraftDishesToKeep")
+        UserDefaults.standard.set(maxProducts, forKey: "MaxDraftProductsToKeep")
+        UserDefaults.standard.synchronize()
+        AppLogger.info("Updated draft cleanup limits: dishes=\(maxDishes), products=\(maxProducts)", category: AppLogger.appState)
+    }
+    
+    /// Gets current draft cleanup configuration
+    static func getDraftCleanupLimits() -> (dishes: Int, products: Int) {
+        let dishes = UserDefaults.standard.object(forKey: "MaxDraftDishesToKeep") as? Int ?? 10
+        let products = UserDefaults.standard.object(forKey: "MaxDraftProductsToKeep") as? Int ?? 5
+        return (dishes: dishes, products: products)
+    }
+    
+    /// One-time migration: Restores user data that was incorrectly marked as drafts
+    /// This fixes the issue where existing entities were marked as drafts during the initial implementation
+    private func restoreUserDataFromDrafts(context: NSManagedObjectContext) {
+        // Check if this migration has already been performed
+        let migrationKey = "DraftMigrationCompleted_v1"
+        if UserDefaults.standard.bool(forKey: migrationKey) {
+            AppLogger.info("Draft migration already completed, skipping", category: AppLogger.appState)
+            return
+        }
+        
+        AppLogger.info("Performing one-time migration to restore user data from incorrect draft status", category: AppLogger.appState)
+        
+        context.performAndWait {
+            var entitiesRestored = 0
+            
+            // Restore dishes that have meaningful content
+            let dishFetchRequest: NSFetchRequest<Dish> = Dish.fetchRequest()
+            dishFetchRequest.predicate = NSPredicate(format: "isDraft == YES")
+            
+            do {
+                let draftDishes = try context.fetch(dishFetchRequest)
+                for dish in draftDishes {
+                    // If dish has a name and either ingredients or meal types, it's likely user data
+                    let hasName = !(dish.name?.isEmpty ?? true)
+                    let hasIngredients = (dish.ingredientDetails?.count ?? 0) > 0
+                    let hasMealTypes = (dish.mealTypes?.count ?? 0) > 0
+                    
+                    if hasName && (hasIngredients || hasMealTypes) {
+                        dish.isDraft = false
+                        entitiesRestored += 1
+                        AppLogger.info("Restored dish: \(dish.name ?? "unnamed")", category: AppLogger.appState)
+                    }
+                }
+            } catch {
+                AppLogger.error("Failed to fetch draft dishes for migration", error: error, category: AppLogger.appState)
+            }
+            
+            // Restore products that have meaningful content
+            let productFetchRequest: NSFetchRequest<Product> = Product.fetchRequest()
+            productFetchRequest.predicate = NSPredicate(format: "isDraft == YES")
+            
+            do {
+                let draftProducts = try context.fetch(productFetchRequest)
+                for product in draftProducts {
+                    // If product has a name and unit, it's likely user data
+                    let hasName = !(product.name?.isEmpty ?? true)
+                    let hasUnit = product.unit != nil
+                    
+                    if hasName && hasUnit {
+                        product.isDraft = false
+                        entitiesRestored += 1
+                        AppLogger.info("Restored product: \(product.name ?? "unnamed")", category: AppLogger.appState)
+                    }
+                }
+            } catch {
+                AppLogger.error("Failed to fetch draft products for migration", error: error, category: AppLogger.appState)
+            }
+            
+            // Save changes if any entities were restored
+            if entitiesRestored > 0 {
+                do {
+                    try context.save()
+                    AppLogger.info("Successfully restored \(entitiesRestored) user entities from incorrect draft status", category: AppLogger.appState)
+                } catch {
+                    AppLogger.error("Failed to save after restoring entities from draft status", error: error, category: AppLogger.appState)
+                    return
+                }
+            } else {
+                AppLogger.info("No user entities found to restore from draft status", category: AppLogger.appState)
+            }
+            
+            // Mark migration as completed
+            UserDefaults.standard.set(true, forKey: migrationKey)
+            UserDefaults.standard.synchronize()
+            AppLogger.info("Draft migration completed successfully", category: AppLogger.appState)
         }
     }
 }
