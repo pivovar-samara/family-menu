@@ -537,4 +537,286 @@ class DishDetailsUnitTests: XCTestCase {
         XCTAssertFalse(ingredient.quantity.isNaN, "Ingredient quantity should no longer be NaN after ViewModel initialization")
         XCTAssertEqual(ingredient.quantity, 0.0, "NaN quantity should be fixed to 0.0")
     }
+    
+    // MARK: - Ingredient Sorting Tests
+    
+    func testIngredientSortOptionsEnum() {
+        // Test all enum cases exist and have proper values
+        let allCases = IngredientSortOption.allCases
+        XCTAssertEqual(allCases.count, 6, "Should have 6 sort options")
+        
+        // Test specific cases and their properties
+        XCTAssertEqual(IngredientSortOption.custom.rawValue, "Default")
+        XCTAssertEqual(IngredientSortOption.alphabetical.rawValue, "A-Z")
+        XCTAssertEqual(IngredientSortOption.reverseAlphabetical.rawValue, "Z-A")
+        XCTAssertEqual(IngredientSortOption.quantityHighToLow.rawValue, "Quantity: High to Low")
+        XCTAssertEqual(IngredientSortOption.quantityLowToHigh.rawValue, "Quantity: Low to High")
+        XCTAssertEqual(IngredientSortOption.unitType.rawValue, "By Unit Type")
+        
+        // Test icons
+        XCTAssertEqual(IngredientSortOption.custom.icon, "list.number")
+        XCTAssertEqual(IngredientSortOption.alphabetical.icon, "textformat.abc")
+        XCTAssertEqual(IngredientSortOption.reverseAlphabetical.icon, "textformat")
+        XCTAssertEqual(IngredientSortOption.quantityHighToLow.icon, "arrow.down.square")
+        XCTAssertEqual(IngredientSortOption.quantityLowToHigh.icon, "arrow.up.square")
+        XCTAssertEqual(IngredientSortOption.unitType.icon, "scale.3d")
+    }
+    
+    func testSortPreferencePersistence() {
+        // Clear any existing preferences
+        UserDefaults.standard.removeObject(forKey: "IngredientSortPreference")
+        
+        // Test default preference loading (should be custom)
+        viewModel = DishDetailsViewModel(dishDetailsService: mockService)
+        XCTAssertEqual(viewModel.currentSortOption, .custom, "Default sort option should be custom")
+        
+        // Create test ingredients for sorting
+        setupTestIngredientsForSorting()
+        
+        // Test preference saving and loading for each sort option
+        for sortOption in IngredientSortOption.allCases {
+            viewModel.sortIngredients(by: sortOption)
+            XCTAssertEqual(viewModel.currentSortOption, sortOption, "Current sort option should match selected option")
+            
+            // Create new ViewModel to test persistence
+            let newViewModel = DishDetailsViewModel(dishDetailsService: mockService)
+            XCTAssertEqual(newViewModel.currentSortOption, sortOption, "Sort preference should persist after ViewModel recreation")
+        }
+    }
+    
+    func testAlphabeticalSorting() {
+        viewModel = DishDetailsViewModel(dishDetailsService: mockService)
+        viewModel.loadDish()
+        
+        // Create products with specific names for alphabetical testing
+        let unit = testDataFactory.createUnit(name: "kg", sortOrder: 1)
+        let products = [
+            testDataFactory.createProduct(name: "Carrots", unit: unit),
+            testDataFactory.createProduct(name: "Apples", unit: unit),
+            testDataFactory.createProduct(name: "Bananas", unit: unit)
+        ]
+        
+        // Add ingredients in random order
+        viewModel.addIngredient(product: products[0], quantity: 1.0) // Carrots
+        viewModel.addIngredient(product: products[2], quantity: 2.0) // Bananas  
+        viewModel.addIngredient(product: products[1], quantity: 3.0) // Apples
+        
+        // Sort alphabetically
+        viewModel.sortIngredients(by: .alphabetical)
+        
+        // Verify alphabetical order
+        let sortedNames = viewModel.selectedIngredients.map { $0.product?.name ?? "" }
+        XCTAssertEqual(sortedNames, ["Apples", "Bananas", "Carrots"], "Ingredients should be sorted alphabetically")
+        XCTAssertEqual(viewModel.currentSortOption, .alphabetical, "Current sort option should be alphabetical")
+    }
+    
+    func testReverseAlphabeticalSorting() {
+        viewModel = DishDetailsViewModel(dishDetailsService: mockService)
+        viewModel.loadDish()
+        
+        // Create products with specific names
+        let unit = testDataFactory.createUnit(name: "kg", sortOrder: 1)
+        let products = [
+            testDataFactory.createProduct(name: "Apples", unit: unit),
+            testDataFactory.createProduct(name: "Bananas", unit: unit),
+            testDataFactory.createProduct(name: "Carrots", unit: unit)
+        ]
+        
+        // Add ingredients in random order
+        for product in products {
+            viewModel.addIngredient(product: product, quantity: 1.0)
+        }
+        
+        // Sort reverse alphabetically
+        viewModel.sortIngredients(by: .reverseAlphabetical)
+        
+        // Verify reverse alphabetical order
+        let sortedNames = viewModel.selectedIngredients.map { $0.product?.name ?? "" }
+        XCTAssertEqual(sortedNames, ["Carrots", "Bananas", "Apples"], "Ingredients should be sorted reverse alphabetically")
+        XCTAssertEqual(viewModel.currentSortOption, .reverseAlphabetical, "Current sort option should be reverse alphabetical")
+    }
+    
+    func testQuantitySorting() {
+        viewModel = DishDetailsViewModel(dishDetailsService: mockService)
+        viewModel.loadDish()
+        
+        // Create products with specific quantities
+        let unit = testDataFactory.createUnit(name: "kg", sortOrder: 1)
+        let products = [
+            testDataFactory.createProduct(name: "Product A", unit: unit),
+            testDataFactory.createProduct(name: "Product B", unit: unit),
+            testDataFactory.createProduct(name: "Product C", unit: unit)
+        ]
+        
+        // Add ingredients with different quantities
+        viewModel.addIngredient(product: products[0], quantity: 2.5)
+        viewModel.addIngredient(product: products[1], quantity: 1.0)
+        viewModel.addIngredient(product: products[2], quantity: 5.0)
+        
+        // Test high to low sorting
+        viewModel.sortIngredients(by: .quantityHighToLow)
+        let quantitiesHighToLow = viewModel.selectedIngredients.map { $0.quantity }
+        XCTAssertEqual(quantitiesHighToLow, [5.0, 2.5, 1.0], "Ingredients should be sorted by quantity high to low")
+        XCTAssertEqual(viewModel.currentSortOption, .quantityHighToLow, "Current sort option should be quantity high to low")
+        
+        // Test low to high sorting
+        viewModel.sortIngredients(by: .quantityLowToHigh)
+        let quantitiesLowToHigh = viewModel.selectedIngredients.map { $0.quantity }
+        XCTAssertEqual(quantitiesLowToHigh, [1.0, 2.5, 5.0], "Ingredients should be sorted by quantity low to high")
+        XCTAssertEqual(viewModel.currentSortOption, .quantityLowToHigh, "Current sort option should be quantity low to high")
+    }
+    
+    func testUnitTypeSorting() {
+        viewModel = DishDetailsViewModel(dishDetailsService: mockService)
+        viewModel.loadDish()
+        
+        // Create units with different names
+        let units = [
+            testDataFactory.createUnit(name: "kg", sortOrder: 1),
+            testDataFactory.createUnit(name: "pcs", sortOrder: 2),
+            testDataFactory.createUnit(name: "l", sortOrder: 3)
+        ]
+        
+        // Create products with different units
+        let products = [
+            testDataFactory.createProduct(name: "Flour", unit: units[0]),      // kg
+            testDataFactory.createProduct(name: "Apples", unit: units[1]),     // pcs
+            testDataFactory.createProduct(name: "Milk", unit: units[2]),       // l
+            testDataFactory.createProduct(name: "Sugar", unit: units[0])       // kg (same unit as flour)
+        ]
+        
+        // Add ingredients in mixed order
+        for product in products {
+            viewModel.addIngredient(product: product, quantity: 1.0)
+        }
+        
+        // Sort by unit type
+        viewModel.sortIngredients(by: .unitType)
+        
+        // Verify sorting by unit type (kg, l, pcs in alphabetical order of units)
+        // Within same unit, should be alphabetical by product name
+        let sortedData = viewModel.selectedIngredients.map { 
+            (productName: $0.product?.name ?? "", unitName: $0.product?.unit?.name ?? "") 
+        }
+        
+        // Expected order: kg items (Flour, Sugar alphabetically), then l items (Milk), then pcs items (Apples)
+        XCTAssertEqual(sortedData[0].unitName, "kg", "First unit should be kg")
+        XCTAssertEqual(sortedData[1].unitName, "kg", "Second unit should be kg")
+        XCTAssertEqual(sortedData[2].unitName, "l", "Third unit should be l")
+        XCTAssertEqual(sortedData[3].unitName, "pcs", "Fourth unit should be pcs")
+        
+        // Within kg unit, should be alphabetical: Flour, Sugar
+        XCTAssertTrue(sortedData[0].productName == "Flour" || sortedData[0].productName == "Sugar")
+        XCTAssertTrue(sortedData[1].productName == "Flour" || sortedData[1].productName == "Sugar")
+        XCTAssertNotEqual(sortedData[0].productName, sortedData[1].productName, "Flour and Sugar should be in different positions")
+        
+        XCTAssertEqual(viewModel.currentSortOption, .unitType, "Current sort option should be unit type")
+    }
+    
+    func testCustomSorting() {
+        viewModel = DishDetailsViewModel(dishDetailsService: mockService)
+        viewModel.loadDish()
+        
+        // Create test ingredients
+        let unit = testDataFactory.createUnit(name: "kg", sortOrder: 1)
+        let products = [
+            testDataFactory.createProduct(name: "Product A", unit: unit),
+            testDataFactory.createProduct(name: "Product B", unit: unit),
+            testDataFactory.createProduct(name: "Product C", unit: unit)
+        ]
+        
+        // Add ingredients
+        for product in products {
+            viewModel.addIngredient(product: product, quantity: 1.0)
+        }
+        
+        // Sort by custom order (should use sortOrder property)
+        viewModel.sortIngredients(by: .custom)
+        
+        // Verify that sortOrder was updated for custom sorting
+        for (index, ingredient) in viewModel.selectedIngredients.enumerated() {
+            XCTAssertEqual(ingredient.sortOrder, Int16(index), "Sort order should match array index for custom sorting")
+        }
+        
+        XCTAssertEqual(viewModel.currentSortOption, .custom, "Current sort option should be custom")
+        XCTAssertTrue(mockService.saveChangesCalled, "Save should be called when updating custom sort order")
+    }
+    
+    func testSortingWithEmptyIngredients() {
+        viewModel = DishDetailsViewModel(dishDetailsService: mockService)
+        viewModel.loadDish()
+        
+        // Test sorting with no ingredients (should not crash)
+        for sortOption in IngredientSortOption.allCases {
+            viewModel.sortIngredients(by: sortOption)
+            XCTAssertTrue(viewModel.selectedIngredients.isEmpty, "Ingredients should remain empty")
+            XCTAssertEqual(viewModel.currentSortOption, sortOption, "Sort option should be updated even with empty ingredients")
+        }
+    }
+    
+    func testSortingWithSingleIngredient() {
+        viewModel = DishDetailsViewModel(dishDetailsService: mockService)
+        viewModel.loadDish()
+        
+        // Add single ingredient
+        let unit = testDataFactory.createUnit(name: "kg", sortOrder: 1)
+        let product = testDataFactory.createProduct(name: "Single Product", unit: unit)
+        viewModel.addIngredient(product: product, quantity: 1.0)
+        
+        // Test all sorting options with single ingredient
+        for sortOption in IngredientSortOption.allCases {
+            viewModel.sortIngredients(by: sortOption)
+            XCTAssertEqual(viewModel.selectedIngredients.count, 1, "Should maintain single ingredient")
+            XCTAssertEqual(viewModel.selectedIngredients.first?.product?.name, "Single Product", "Product should remain unchanged")
+            XCTAssertEqual(viewModel.currentSortOption, sortOption, "Sort option should be updated")
+        }
+    }
+    
+    func testNewIngredientSortOrder() {
+        viewModel = DishDetailsViewModel(dishDetailsService: mockService)
+        viewModel.loadDish()
+        
+        // Create test products
+        let unit = testDataFactory.createUnit(name: "kg", sortOrder: 1)
+        let products = [
+            testDataFactory.createProduct(name: "First Product", unit: unit),
+            testDataFactory.createProduct(name: "Second Product", unit: unit),
+            testDataFactory.createProduct(name: "Third Product", unit: unit)
+        ]
+        
+        // Test adding first ingredient (should have sortOrder 0)
+        viewModel.addIngredient(product: products[0], quantity: 1.0)
+        XCTAssertEqual(viewModel.selectedIngredients.count, 1, "Should have 1 ingredient")
+        XCTAssertEqual(viewModel.selectedIngredients[0].sortOrder, 0, "First ingredient should have sortOrder 0")
+        
+        // Test adding second ingredient (should have sortOrder 1)
+        viewModel.addIngredient(product: products[1], quantity: 2.0)
+        XCTAssertEqual(viewModel.selectedIngredients.count, 2, "Should have 2 ingredients")
+        XCTAssertEqual(viewModel.selectedIngredients[1].sortOrder, 1, "Second ingredient should have sortOrder 1")
+        
+        // Test adding third ingredient (should have sortOrder 2)
+        viewModel.addIngredient(product: products[2], quantity: 3.0)
+        XCTAssertEqual(viewModel.selectedIngredients.count, 3, "Should have 3 ingredients")
+        XCTAssertEqual(viewModel.selectedIngredients[2].sortOrder, 2, "Third ingredient should have sortOrder 2")
+        
+        // Verify ingredients are in the correct order when using default sorting
+        viewModel.sortIngredients(by: .custom)
+        let productNames = viewModel.selectedIngredients.map { $0.product?.name ?? "" }
+        XCTAssertEqual(productNames, ["First Product", "Second Product", "Third Product"], 
+                      "Ingredients should maintain addition order with default sorting")
+    }
+    
+    // Helper method to set up test ingredients for sorting tests
+    private func setupTestIngredientsForSorting() {
+        viewModel.loadDish()
+        let unit = testDataFactory.createUnit(name: "kg", sortOrder: 1)
+        let products = [
+            testDataFactory.createProduct(name: "Test Product 1", unit: unit),
+            testDataFactory.createProduct(name: "Test Product 2", unit: unit)
+        ]
+        
+        for product in products {
+            viewModel.addIngredient(product: product, quantity: 1.0)
+        }
+    }
 } 

@@ -89,6 +89,63 @@
 "Appetizer" = "Appetizer";
 "Sauce" = "Sauce";
 
+// Modernized Dish Details Form
+"Basic Information" = "Basic Information";
+"Review" = "Review";
+"Next" = "Next";
+"Back" = "Back";
+"Step %d of %d" = "Step %d of %d";
+"Add Photo" = "Add Photo";
+"Enter dish name" = "Enter dish name";
+"Recipe" = "Recipe";
+"Description" = "Description";
+"Optional" = "Optional";
+"Edit" = "Edit";
+"Delete" = "Delete";
+"Large quantity" = "Large quantity";
+"Category" = "Category";
+"When is this dish served?" = "When is this dish served?";
+"Select all meal types that apply" = "Select all meal types that apply";
+"%d selected" = "%d selected";
+"Ingredients List" = "Ingredients List";
+
+"What ingredients do you need?" = "What ingredients do you need?";
+"Add and organize your ingredients" = "Add and organize your ingredients";
+"No ingredients yet" = "No ingredients yet";
+"Start by adding your first ingredient" = "Start by adding your first ingredient";
+"Add First Ingredient" = "Add First Ingredient";
+"Tap to edit • Long press for options" = "Tap to edit • Long press for options";
+"Default" = "Default";
+"A-Z" = "A-Z";
+"Z-A" = "Z-A";
+"Quantity: High to Low" = "Quantity: High to Low";
+"Quantity: Low to High" = "Quantity: Low to High";
+"By Unit Type" = "By Unit Type";
+"per %@" = "per %@";
+"Ready to save?" = "Ready to save?";
+"Review your dish details" = "Review your dish details";
+"Dish Summary" = "Dish Summary";
+"Name" = "Name";
+"No meal types selected" = "No meal types selected";
+"Ingredients (%d)" = "Ingredients (%d)";
+"No ingredients added" = "No ingredients added";
+"Unknown Product" = "Unknown Product";
+"Validation" = "Validation";
+"All good!" = "All good!";
+"Your dish is ready to save!" = "Your dish is ready to save!";
+"Dish name is required" = "Dish name is required";
+"Add a descriptive name for your dish" = "Add a descriptive name for your dish";
+"At least one meal type is required" = "At least one meal type is required";
+"Select when this dish is typically served" = "Select when this dish is typically served";
+"At least one ingredient is required" = "At least one ingredient is required";
+"Add the ingredients needed for this dish" = "Add the ingredients needed for this dish";
+"%d ingredient(s) missing product selection" = "%d ingredient(s) missing product selection";
+"Complete product selection for all ingredients" = "Complete product selection for all ingredients";
+"Some quantities seem unusually large" = "Some quantities seem unusually large";
+"Double-check ingredient quantities" = "Double-check ingredient quantities";
+"Need to make changes?" = "Need to make changes?";
+"Use the Back button or swipe to return to previous steps and make any necessary changes." = "Use the Back button or swipe to return to previous steps and make any necessary changes.";
+
 // Error Handling and Recovery
 "Failed to load data store: %@" = "Failed to load data store: %@";
 "Failed to recover data store: %@" = "Failed to recover data store: %@";
