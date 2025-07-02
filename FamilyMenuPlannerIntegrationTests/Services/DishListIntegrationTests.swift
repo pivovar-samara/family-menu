@@ -216,4 +216,190 @@ class DishListIntegrationTests: BaseIntegrationTest {
         
         wait(for: [exp], timeout: 1.0)
     }
+    
+    // MARK: - Sorting Tests
+    
+    func testNameAscendingSort() {
+        // Clean up and create test data with specific names for sorting
+        cleanUpTestData()
+        
+        let dishNames = ["Zebra Dish", "Apple Dish", "Banana Dish"]
+        let expectedOrder = ["Apple Dish", "Banana Dish", "Zebra Dish"]
+        
+        for name in dishNames {
+            let dish = Dish(context: context)
+            dish.name = name
+            dish.details = "Details for \(name)"
+            dish.isDraft = false
+        }
+        try? context.save()
+        context.refreshAllObjects()
+        
+        // Test name ascending sort (default)
+        viewModel.updateSortOption(.nameAscending)
+        viewModel.loadDishes()
+        
+        let exp = expectation(description: "Loading sorted dishes")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            XCTAssertEqual(self.viewModel.filteredDishes.count, 3)
+            
+            let actualOrder = self.viewModel.filteredDishes.map { $0.name ?? "" }
+            XCTAssertEqual(actualOrder, expectedOrder)
+            exp.fulfill()
+        }
+        
+        wait(for: [exp], timeout: 1.0)
+    }
+    
+    func testNameDescendingSort() {
+        // Clean up and create test data
+        cleanUpTestData()
+        
+        let dishNames = ["Apple Dish", "Banana Dish", "Zebra Dish"]
+        let expectedOrder = ["Zebra Dish", "Banana Dish", "Apple Dish"]
+        
+        for name in dishNames {
+            let dish = Dish(context: context)
+            dish.name = name
+            dish.details = "Details for \(name)"
+            dish.isDraft = false
+        }
+        try? context.save()
+        context.refreshAllObjects()
+        
+        // Test name descending sort
+        viewModel.updateSortOption(.nameDescending)
+        viewModel.loadDishes()
+        
+        let exp = expectation(description: "Loading sorted dishes")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            XCTAssertEqual(self.viewModel.filteredDishes.count, 3)
+            
+            let actualOrder = self.viewModel.filteredDishes.map { $0.name ?? "" }
+            XCTAssertEqual(actualOrder, expectedOrder)
+            exp.fulfill()
+        }
+        
+        wait(for: [exp], timeout: 1.0)
+    }
+    
+    func testCategorySort() {
+        // Clean up and create test data with categories
+        cleanUpTestData()
+        
+        // Create categories with specific sort order
+        let appetizerCategory = DishCategory(context: context)
+        appetizerCategory.name = "Appetizer"
+        appetizerCategory.sortOrder = 1
+        
+        let mainCourseCategory = DishCategory(context: context)
+        mainCourseCategory.name = "Main Course"
+        mainCourseCategory.sortOrder = 2
+        
+        let dessertCategory = DishCategory(context: context)
+        dessertCategory.name = "Dessert"
+        dessertCategory.sortOrder = 3
+        
+        // Create dishes in different categories
+        let dish1 = Dish(context: context)
+        dish1.name = "Zebra Main"
+        dish1.category = mainCourseCategory
+        dish1.isDraft = false
+        
+        let dish2 = Dish(context: context)
+        dish2.name = "Apple Appetizer"
+        dish2.category = appetizerCategory
+        dish2.isDraft = false
+        
+        let dish3 = Dish(context: context)
+        dish3.name = "Banana Dessert"
+        dish3.category = dessertCategory
+        dish3.isDraft = false
+        
+        let dish4 = Dish(context: context)
+        dish4.name = "Alpha Main"
+        dish4.category = mainCourseCategory
+        dish4.isDraft = false
+        
+        try? context.save()
+        context.refreshAllObjects()
+        
+        // Test category sort
+        viewModel.updateSortOption(.category)
+        viewModel.loadDishes()
+        
+        let exp = expectation(description: "Loading sorted dishes by category")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            XCTAssertEqual(self.viewModel.filteredDishes.count, 4)
+            
+            let actualOrder = self.viewModel.filteredDishes.map { $0.name ?? "" }
+            
+            // Expected order: Appetizer (sortOrder=1), Main Course (sortOrder=2), Dessert (sortOrder=3)
+            // Within Main Course category, dishes should be sorted by name (Alpha Main, Zebra Main)
+            let expectedOrder = ["Apple Appetizer", "Alpha Main", "Zebra Main", "Banana Dessert"]
+            XCTAssertEqual(actualOrder, expectedOrder)
+            exp.fulfill()
+        }
+        
+        wait(for: [exp], timeout: 1.0)
+    }
+    
+    func testSortOptionPersistence() {
+        // Test that sort option is persisted in UserDefaults
+        
+        // First, ensure UserDefaults starts clean for this test
+        UserDefaults.standard.removeObject(forKey: "DishListSortPreference")
+        
+        // Directly test the save/load mechanism without relying on Combine timing
+        // Save a specific preference directly
+        UserDefaults.standard.set("nameDesc", forKey: "DishListSortPreference")
+        
+        // Verify it was saved
+        let savedValue = UserDefaults.standard.string(forKey: "DishListSortPreference")
+        XCTAssertEqual(savedValue, "nameDesc", "Sort preference should be saved to UserDefaults")
+        
+        // Create new view model to test restoration (simulates app restart)
+        let restoredViewModel = DishListViewModel(dishListService: DishListService(context: context))
+        
+        // Allow time for the new ViewModel to initialize and load preferences
+        let loadExpectation = XCTestExpectation(description: "Wait for load")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            loadExpectation.fulfill()
+        }
+        wait(for: [loadExpectation], timeout: 1.0)
+        
+        // Verify sort option is restored from UserDefaults
+        XCTAssertEqual(restoredViewModel.sortOption, .nameDescending, "New ViewModel should restore sort preference from UserDefaults")
+        
+        // Clean up
+        UserDefaults.standard.removeObject(forKey: "DishListSortPreference")
+    }
+    
+    func testSortOptionUpdatesData() {
+        // Create test data
+        _ = createTestDishes()
+        viewModel.loadDishes()
+        
+        // Wait for initial load
+        let loadExp = expectation(description: "Initial load")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            XCTAssertEqual(self.viewModel.filteredDishes.count, 2)
+            loadExp.fulfill()
+        }
+        
+        wait(for: [loadExp], timeout: 1.0)
+        
+        // Change sort option and verify data is refreshed
+        let sortExp = expectation(description: "Sort update")
+        viewModel.updateSortOption(.nameDescending)
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            // Data should still be there, just in different order
+            XCTAssertEqual(self.viewModel.filteredDishes.count, 2)
+            XCTAssertEqual(self.viewModel.sortOption, .nameDescending)
+            sortExp.fulfill()
+        }
+        
+        wait(for: [sortExp], timeout: 1.0)
+    }
 } 

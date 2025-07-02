@@ -18,6 +18,9 @@ class DishListViewModel: ObservableObject {
     @Published var searchText: String = ""
     @Published var filteredDishes: [Dish] = []
     
+    // Published property for sorting functionality
+    @Published var sortOption: DishSortOption = .nameAscending
+    
     // Use SearchOptimizationHelper for better performance
     private let searchHelper: SearchOptimizationHelper<Dish>
     
@@ -30,6 +33,9 @@ class DishListViewModel: ObservableObject {
     private var dishListService: DishListServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     private let alertManager = AlertQueueManager()
+    
+    // UserDefaults key for storing sort preference
+    private static let sortPreferenceKey = "DishListSortPreference"
 
     init(dishListService: DishListServiceProtocol) {
         self.dishListService = dishListService
@@ -52,6 +58,9 @@ class DishListViewModel: ObservableObject {
             return matchesName || matchesDetails || matchesCategory || matchesMealType
         }
         
+        // Load persistent sort preference after all stored properties are initialized
+        loadSortPreference()
+        
         // Setup bindings between ViewModel and SearchHelper
         setupSearchBindings()
         
@@ -59,8 +68,35 @@ class DishListViewModel: ObservableObject {
         alertManager.$currentAlert
                     .receive(on: RunLoop.main)
                     .assign(to: &$currentAlert)
+        
+        // Setup sort option binding
+        setupSortBinding()
     }
     
+    /// Loads the persistent sort preference from UserDefaults
+    private func loadSortPreference() {
+        let savedSortOption = UserDefaults.standard.string(forKey: Self.sortPreferenceKey) ?? DishSortOption.nameAscending.rawValue
+        sortOption = DishSortOption(rawValue: savedSortOption) ?? .nameAscending
+        AppLogger.info("Loaded dish list sort preference: \(sortOption.rawValue)", category: AppLogger.viewModel)
+    }
+    
+    /// Saves the current sort preference to UserDefaults
+    private func saveSortPreference() {
+        UserDefaults.standard.set(sortOption.rawValue, forKey: Self.sortPreferenceKey)
+        AppLogger.info("Saved dish list sort preference: \(sortOption.rawValue)", category: AppLogger.viewModel)
+    }
+    
+    private func setupSortBinding() {
+        // Update service when sort option changes
+        $sortOption
+            .removeDuplicates()
+            .sink { [weak self] newSortOption in
+                self?.dishListService.updateSortOption(newSortOption)
+                self?.saveSortPreference()
+            }
+            .store(in: &cancellables)
+    }
+
     private func setupSearchBindings() {
         // Forward search text changes to helper
         $searchText
@@ -76,6 +112,12 @@ class DishListViewModel: ObservableObject {
     
     func loadDishes() {
         dishListService.fetchAllDishes()
+    }
+    
+    func updateSortOption(_ newSortOption: DishSortOption) {
+        // Only update if it's actually different to prevent unnecessary operations
+        guard sortOption != newSortOption else { return }
+        sortOption = newSortOption
     }
     
     func deleteDishes(at offsets: IndexSet) {

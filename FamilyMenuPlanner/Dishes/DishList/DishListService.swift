@@ -8,8 +8,38 @@
 import CoreData
 import Combine
 
+// MARK: - Dish Sorting Options
+enum DishSortOption: String, CaseIterable {
+    case nameAscending = "nameAsc"
+    case nameDescending = "nameDesc"
+    case category = "category"
+    
+    var title: String {
+        switch self {
+        case .nameAscending: return "Name A-Z".localized()
+        case .nameDescending: return "Name Z-A".localized()
+        case .category: return "Category".localized()
+        }
+    }
+    
+    var sortDescriptors: [NSSortDescriptor] {
+        switch self {
+        case .nameAscending:
+            return [NSSortDescriptor(keyPath: \Dish.name, ascending: true)]
+        case .nameDescending:
+            return [NSSortDescriptor(keyPath: \Dish.name, ascending: false)]
+        case .category:
+            return [
+                NSSortDescriptor(keyPath: \Dish.category?.sortOrder, ascending: true),
+                NSSortDescriptor(keyPath: \Dish.name, ascending: true) // Secondary sort by name
+            ]
+        }
+    }
+}
+
 protocol DishListServiceProtocol {
     func fetchAllDishes()
+    func updateSortOption(_ sortOption: DishSortOption)
     func deleteDishes(dishes: [Dish]) throws
     func deleteDishesInBackground(dishes: [Dish], completion: @escaping (Result<Void, Error>) -> Void)
     
@@ -25,20 +55,31 @@ protocol DishListServiceDelegate {
 class DishListService: NSObject {
     private let context: NSManagedObjectContext
     private let backgroundOperationManager: BackgroundOperationManagerProtocol
-    private let fetchedResultsController: NSFetchedResultsController<Dish>
+    private var fetchedResultsController: NSFetchedResultsController<Dish>
     var delegate: DishListServiceDelegate? = nil
     
     // Performance optimization: debounce rapid changes
     private var changeDebounceTimer: Timer?
     private var hasPendingChanges = false
     private let debounceInterval: TimeInterval
+    private var currentSortOption: DishSortOption = .nameAscending
     
     init(context: NSManagedObjectContext, debounceInterval: TimeInterval = 0.1, backgroundOperationManager: BackgroundOperationManagerProtocol = BackgroundOperationManager.shared) {
         self.context = context
         self.backgroundOperationManager = backgroundOperationManager
         self.debounceInterval = debounceInterval
+        
+        // Initialize with default sort option
+        self.fetchedResultsController = Self.createFetchedResultsController(context: context, sortOption: currentSortOption)
+        
+        super.init()
+        
+        self.fetchedResultsController.delegate = self
+    }
+    
+    private static func createFetchedResultsController(context: NSManagedObjectContext, sortOption: DishSortOption) -> NSFetchedResultsController<Dish> {
         let fetchRequest: NSFetchRequest<Dish> = Dish.fetchRequest()
-        fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Dish.name, ascending: true)]
+        fetchRequest.sortDescriptors = sortOption.sortDescriptors
         
         // Filter out draft dishes from the list (show only complete dishes)
         fetchRequest.predicate = NSPredicate(format: "isDraft == NO OR isDraft == nil")
@@ -46,16 +87,31 @@ class DishListService: NSObject {
         // Configure batch fetching for better performance
         CoreDataFetchHelper.configure(fetchRequest, batchSize: CoreDataFetchHelper.standardBatchSize)
         
-        self.fetchedResultsController = NSFetchedResultsController(
+        return NSFetchedResultsController(
             fetchRequest: fetchRequest,
             managedObjectContext: context,
             sectionNameKeyPath: nil,
             cacheName: nil
         )
+    }
+    
+    func updateSortOption(_ sortOption: DishSortOption) {
+        guard sortOption != currentSortOption else { return }
         
-        super.init()
+        currentSortOption = sortOption
         
-        self.fetchedResultsController.delegate = self
+        // Create new fetched results controller with updated sort descriptors
+        fetchedResultsController = Self.createFetchedResultsController(context: context, sortOption: sortOption)
+        fetchedResultsController.delegate = self
+        
+        // Perform fetch with new sort order - let the delegate handle the notification with debouncing
+        do {
+            try fetchedResultsController.performFetch()
+            // Use debounced notification instead of immediate
+            notifyDelegate(immediate: false)
+        } catch {
+            print("Error fetching dishes with new sort order: \(error)")
+        }
     }
     
     deinit {

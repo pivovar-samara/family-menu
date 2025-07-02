@@ -76,6 +76,12 @@
 "Today" = "Сегодня";
 "Clear All Day" = "Очистить весь день";
 "Add New Dish" = "Добавить";
+"No Dishes Yet" = "Блюд пока нет";
+"Start building your recipe collection by adding your first dish" = "Начните создавать коллекцию рецептов, добавив первое блюдо";
+"Add Your First Dish" = "Добавить первое блюдо";
+"Delete Dish" = "Удалить блюдо";
+"Are you sure you want to delete this dish?" = "Вы уверены, что хотите удалить это блюдо?";
+"No recipe details" = "Рецепт отсутствует";
 "Loading..." = "Загрузка данных...";
 "Unit is not selected and no default unit is available." = "Единица измерения не выбрана для продукта.";
 "No Details" = "Рецепт не заполнен";
@@ -95,7 +101,7 @@
 "Next" = "Далее";
 "Back" = "Назад";
 "Step %d of %d" = "Шаг %d из %d";
-"Add Photo" = "Добавить фото";
+
 "Enter dish name" = "Введите название блюда";
 "Recipe" = "Рецепт";
 "Description" = "Описание";
@@ -165,3 +171,8 @@
 "Check your internet connection" = "Проверить подключение к интернету";
 "Verify iCloud is enabled" = "Убедиться, что iCloud включен";
 "Ensure sufficient storage space" = "Убедиться в достаточном объёме хранилища";
+
+// Dish List Sorting
+"Name A-Z" = "Название А-Я";
+"Name Z-A" = "Название Я-А";
+"Sort dishes" = "Сортировать блюда";

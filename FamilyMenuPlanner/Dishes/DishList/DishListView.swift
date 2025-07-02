@@ -9,62 +9,79 @@ import SwiftUI
 
 struct DishListView: View {
     @StateObject private var viewModel: DishListViewModel
+    @State private var showingSortOptions = false
 
     init(viewModel: DishListViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
     }
 
     var body: some View {
-        List {
-            if viewModel.filteredDishes.isEmpty {
-                Color.clear.emptyState(message: "No results found".localized())
-                    .accessibilityIdentifier("dish_list_empty_state")
-            } else {
-                ForEach(viewModel.filteredDishes, id: \.self) { dish in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text(dish.name ?? "Unnamed Dish".localized())
-                                    .font(.headline)
-                                    .accessibilityIdentifier("dish_name_\(dish.name ?? "unnamed")")
-                                
-                                // Show category badge if available
-                                if let categoryName = dish.category?.name {
-                                    Text(categoryName.localized())
-                                        .font(.caption)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 2)
-                                        .background(categoryColor(for: categoryName))
-                                        .foregroundColor(.white)
-                                        .cornerRadius(8)
-                                }
-                                
-                                Spacer()
-                            }
-                            
-                            Text(dish.details ?? "No Details".localized())
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .lineLimit(2)
-                        }
-                        Spacer()
-                        Button(action: {
-                            viewModel.selectedDish = dish // Open the sheet for editing
-                        }) {
-                            Image(systemName: "pencil")
-                                .foregroundColor(Color("AccentColor"))
-                        }
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                if viewModel.filteredDishes.isEmpty {
+                    EmptyDishListView {
+                        viewModel.isAddingNewDish = true
                     }
-                    .listRowBackground(Color("SecondaryBackgroundColor"))
-                    .accessibilityIdentifier("dish_list_item_\(dish.name ?? "unnamed")")
+                    .accessibilityIdentifier("dish_list_empty_state")
+                } else {
+                    ForEach(viewModel.filteredDishes, id: \.self) { dish in
+                        DishCardView(
+                            dish: dish,
+                            onEdit: {
+                                viewModel.selectedDish = dish
+                            },
+                            onDelete: {
+                                viewModel.deleteDish(dish)
+                            }
+                        )
+                        .accessibilityIdentifier("dish_list_item_\(dish.name ?? "unnamed")")
+                    }
                 }
-                .onDelete(perform: viewModel.deleteDishes)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 100) // Space for floating action button
+        }
+        .background(Color("BackgroundColor"))
+        .searchable(text: $viewModel.searchText, prompt: "Search dishes...".localized())
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    showingSortOptions = true
+                }) {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.body)
+                        .foregroundColor(Color("AccentColor"))
+                }
+                .accessibilityIdentifier("sort_dishes_button")
+                .accessibilityLabel("Sort dishes".localized())
+                .actionSheet(isPresented: $showingSortOptions) {
+                    ActionSheet(
+                        title: Text("Sort dishes".localized()),
+                        buttons: [
+                            .default(Text("Name A-Z".localized())) {
+                                viewModel.updateSortOption(.nameAscending)
+                            },
+                            .default(Text("Name Z-A".localized())) {
+                                viewModel.updateSortOption(.nameDescending)
+                            },
+                            .default(Text("Category".localized())) {
+                                viewModel.updateSortOption(.category)
+                            },
+                            .cancel()
+                        ]
+                    )
+                }
             }
         }
-        .accessibilityIdentifier("dish_list")
-        .searchable(text: $viewModel.searchText, prompt: "Search dishes...")
-        .scrollContentBackground(.hidden)
-        .background(Color("BackgroundColor"))
+        .overlay(alignment: .bottomTrailing) {
+            FloatingActionButton {
+                viewModel.isAddingNewDish = true
+            }
+            .padding(.trailing, 20)
+            .padding(.bottom, 20)
+            .accessibilityIdentifier("add_dish_button")
+        }
         .alert(item: Binding(
             get: { viewModel.currentAlert },
             set: { _ in viewModel.dismissAlert() }
@@ -89,16 +106,135 @@ struct DishListView: View {
                 DishDetailsCoordinator().createDishDetailsView()
             }
         }
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                createToolbarButton(title: "Add New Dish".localized(), systemImage: "plus") {
-                    viewModel.isAddingNewDish = true
-                }
-                .accessibilityIdentifier("add_dish_button")
-            }
-        }
         .onAppear() {
             viewModel.loadDishes()
+        }
+    }
+}
+
+// MARK: - Dish Card Component
+struct DishCardView: View {
+    let dish: Dish
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+    @State private var showDeleteConfirmation = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Header with Category and Actions
+            HStack {
+                // Category chip
+                if let categoryName = dish.category?.name {
+                    DishListCategoryChip(
+                        title: categoryName.localized(),
+                        color: categoryColor(for: categoryName)
+                    )
+                }
+                
+                Spacer()
+                
+                // Action buttons
+                HStack(spacing: 12) {
+                    Button(action: onEdit) {
+                        Image(systemName: "pencil")
+                            .font(.title3)
+                            .foregroundColor(Color("AccentColor"))
+                            .frame(width: 32, height: 32)
+                            .background(Color("AccentColor").opacity(0.1))
+                            .cornerRadius(8)
+                    }
+                    .buttonStyle(ScaleButtonStyle())
+                    .accessibilityIdentifier("edit_dish_button_\(dish.name ?? "unnamed")")
+                    .accessibilityLabel("Edit dish")
+                    
+                    Button(action: {
+                        showDeleteConfirmation = true
+                    }) {
+                        Image(systemName: "trash")
+                            .font(.title3)
+                            .foregroundColor(.red)
+                            .frame(width: 32, height: 32)
+                            .background(Color.red.opacity(0.1))
+                            .cornerRadius(8)
+                    }
+                    .buttonStyle(ScaleButtonStyle())
+                    .accessibilityIdentifier("delete_dish_button_\(dish.name ?? "unnamed")")
+                    .accessibilityLabel("Delete dish")
+                }
+            }
+            
+            // Main Content
+            VStack(alignment: .leading, spacing: 12) {
+                // Dish name with icon
+                HStack(spacing: 12) {
+                    Image(systemName: "fork.knife")
+                        .foregroundColor(Color("AccentColor"))
+                        .font(.title2)
+                        .frame(width: 24, height: 24)
+                    
+                    Text(dish.name ?? "Unnamed Dish".localized())
+                        .font(.title2.weight(.semibold))
+                        .foregroundColor(.primary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+                
+                // Description
+                if let details = dish.details, !details.isEmpty {
+                    Text(details)
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .lineLimit(3)
+                        .multilineTextAlignment(.leading)
+                } else {
+                    Text("No recipe details".localized())
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .italic()
+                }
+            }
+            
+            // Footer with meal types
+            if let mealTypes = dish.mealTypes?.allObjects as? [MealType], !mealTypes.isEmpty {
+                HStack(spacing: 8) {
+                    Image(systemName: "clock")
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(mealTypes, id: \.self) { mealType in
+                                DishListMealTypeChip(mealType: mealType)
+                            }
+                        }
+                        .padding(.horizontal, 1) // Prevent clipping
+                    }
+                }
+            }
+        }
+        .padding(20)
+        .background(Color("SecondaryBackgroundColor"))
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.gray.opacity(0.1), lineWidth: 1)
+        )
+        .onTapGesture {
+            onEdit()
+        }
+        .accessibilityElement(children: .contain)
+        .confirmationDialog(
+            "Delete Dish".localized(),
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete".localized(), role: .destructive) {
+                onDelete()
+            }
+            Button("Cancel".localized(), role: .cancel) { }
+        } message: {
+            Text("Are you sure you want to delete this dish?".localized())
         }
     }
     
@@ -118,6 +254,149 @@ struct DishListView: View {
         default:
             return Color.gray
         }
+    }
+}
+
+// MARK: - Supporting Components
+
+struct DishListCategoryChip: View {
+    let title: String
+    let color: Color
+    
+    var body: some View {
+        Text(title)
+            .font(.caption.weight(.medium))
+            .foregroundColor(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                LinearGradient(
+                    colors: [color, color.opacity(0.8)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .cornerRadius(12)
+            .shadow(color: color.opacity(0.3), radius: 2)
+    }
+}
+
+struct DishListMealTypeChip: View {
+    let mealType: MealType
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: ViewHelper.mealTypeIcon(for: mealType))
+                .font(.caption2)
+                .foregroundColor(ViewHelper.mealTypeColor(for: mealType))
+            
+            Text(mealType.name?.localized() ?? "")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color("BackgroundColor"))
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(ViewHelper.mealTypeColor(for: mealType).opacity(0.3), lineWidth: 1)
+        )
+    }
+}
+
+struct EmptyDishListView: View {
+    let onAddDish: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            // Illustration
+            RoundedRectangle(cornerRadius: 20)
+                .fill(
+                    LinearGradient(
+                        colors: [Color("AccentColor").opacity(0.1), Color("AccentColor").opacity(0.05)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 120, height: 120)
+                .overlay(
+                    Image(systemName: "fork.knife.circle")
+                        .font(.system(size: 60, weight: .light))
+                        .foregroundColor(Color("AccentColor").opacity(0.6))
+                )
+            
+            VStack(spacing: 12) {
+                Text("No Dishes Yet".localized())
+                    .font(.title2.weight(.semibold))
+                    .foregroundColor(.primary)
+                
+                Text("Start building your recipe collection by adding your first dish".localized())
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+            }
+            
+            Button(action: onAddDish) {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus")
+                    Text("Add Your First Dish".localized())
+                }
+                .font(.body.weight(.semibold))
+                .foregroundColor(.white)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 14)
+                .background(Color("AccentColor"))
+                .cornerRadius(12)
+                .shadow(color: .black.opacity(0.1), radius: 4)
+            }
+            .buttonStyle(ScaleButtonStyle())
+        }
+        .padding(40)
+        .frame(maxWidth: .infinity)
+    }
+}
+
+struct FloatingActionButton: View {
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "plus")
+                .font(.title2.weight(.semibold))
+                .foregroundColor(.white)
+                .frame(width: 56, height: 56)
+                .background(
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color("AccentColor"), Color("AccentColor").opacity(0.8)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                )
+                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+        }
+        .buttonStyle(ScaleButtonStyle())
+    }
+}
+
+struct ScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Extensions for ViewModel
+
+extension DishListViewModel {
+    func deleteDish(_ dish: Dish) {
+        guard let index = filteredDishes.firstIndex(of: dish) else { return }
+        deleteDishes(at: IndexSet([index]))
     }
 }
 
