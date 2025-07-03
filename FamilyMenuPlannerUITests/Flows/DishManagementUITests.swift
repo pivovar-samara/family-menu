@@ -217,7 +217,6 @@ final class DishManagementUITests: XCTestCase {
                 return
             }
         }
-        let foundAndOpenedDish = true
         
         // Verify we're in the multi-step dish editing screen (should start at Basic Information)
         XCTAssertTrue(waitForStepScreen(stepTitle: "Basic Information"), "Should be in Basic Information step for editing")

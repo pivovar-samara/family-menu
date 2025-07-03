@@ -110,7 +110,7 @@ class DishListService: NSObject {
             // Use debounced notification instead of immediate
             notifyDelegate(immediate: false)
         } catch {
-            print("Error fetching dishes with new sort order: \(error)")
+            AppLogger.error("Error fetching dishes with new sort order", error: error, category: AppLogger.service)
         }
     }
     
@@ -123,7 +123,7 @@ class DishListService: NSObject {
             try fetchedResultsController.performFetch()
             notifyDelegate(immediate: true)
         } catch {
-            print("Error fetching dishes: \(error)")
+            AppLogger.error("Error fetching dishes", error: error, category: AppLogger.service)
         }
     }
     

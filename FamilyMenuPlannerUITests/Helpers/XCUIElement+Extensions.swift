@@ -120,8 +120,13 @@ extension XCUIElement {
                     .press(forDuration: 0.1, thenDragTo: scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
                         .withOffset(CGVector(dx: endPoint.x, dy: endPoint.y)))
             } else {
-                // Element is in view but not hittable, try gentle scroll
-                XCUIApplication().swipeUp()
+                // Element is in view but not hittable, try gentle scroll within the scrollView
+                let startPoint = CGPoint(x: scrollFrame.midX, y: scrollFrame.maxY - 50)
+                let endPoint = CGPoint(x: scrollFrame.midX, y: scrollFrame.minY + 50)
+                scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+                    .withOffset(CGVector(dx: startPoint.x, dy: startPoint.y))
+                    .press(forDuration: 0.1, thenDragTo: scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+                        .withOffset(CGVector(dx: endPoint.x, dy: endPoint.y)))
             }
             
             // Wait for scroll animation to complete using XCTWaiter
