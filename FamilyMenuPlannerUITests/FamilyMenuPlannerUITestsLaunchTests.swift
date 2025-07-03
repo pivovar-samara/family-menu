@@ -57,14 +57,22 @@ final class FamilyMenuPlannerUITestsLaunchTests: XCTestCase {
         attachment.lifetime = .deleteOnSuccess  // Changed from .keepAlways
         add(attachment)
         
-        // Ensure screenshot is processed before termination
-        Thread.sleep(forTimeInterval: 0.5)
+        // Ensure screenshot is processed before termination using XCTWaiter
+        let screenshotExpectation = XCTestExpectation(description: "Wait for screenshot processing")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            screenshotExpectation.fulfill()
+        }
+        _ = XCTWaiter.wait(for: [screenshotExpectation], timeout: 1.0)
         
         // Properly terminate the app to prevent it from running indefinitely
         app.terminate()
         
-        // Give time for termination to complete
-        Thread.sleep(forTimeInterval: 0.5)
+        // Give time for termination to complete using XCTWaiter
+        let terminationExpectation = XCTestExpectation(description: "Wait for app termination")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            terminationExpectation.fulfill()
+        }
+        _ = XCTWaiter.wait(for: [terminationExpectation], timeout: 1.0)
         
         // Verify app was terminated
         XCTAssertFalse(app.state == .runningForeground, "App should be terminated")

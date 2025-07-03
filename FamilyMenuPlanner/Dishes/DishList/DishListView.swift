@@ -55,22 +55,17 @@ struct DishListView: View {
                 }
                 .accessibilityIdentifier("sort_dishes_button")
                 .accessibilityLabel("Sort dishes".localized())
-                .actionSheet(isPresented: $showingSortOptions) {
-                    ActionSheet(
-                        title: Text("Sort dishes".localized()),
-                        buttons: [
-                            .default(Text("Name A-Z".localized())) {
-                                viewModel.updateSortOption(.nameAscending)
-                            },
-                            .default(Text("Name Z-A".localized())) {
-                                viewModel.updateSortOption(.nameDescending)
-                            },
-                            .default(Text("Category".localized())) {
-                                viewModel.updateSortOption(.category)
-                            },
-                            .cancel()
-                        ]
-                    )
+                .confirmationDialog("Sort dishes".localized(), isPresented: $showingSortOptions, titleVisibility: .visible) {
+                    Button("Name A-Z".localized()) {
+                        viewModel.updateSortOption(.nameAscending)
+                    }
+                    Button("Name Z-A".localized()) {
+                        viewModel.updateSortOption(.nameDescending)
+                    }
+                    Button("Category".localized()) {
+                        viewModel.updateSortOption(.category)
+                    }
+                    Button("Cancel", role: .cancel) {}
                 }
             }
         }

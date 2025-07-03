@@ -40,7 +40,7 @@ final class DishManagementUITests: XCTestCase {
         navigateToDishList()
         
         // Record initial count using new dish card identifiers
-        let dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH 'dish_list_item_'"))
+        let dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
         let initialCount = dishCardsQuery.count
         
         // Tap add button – supports floating action button or empty-state CTA
@@ -138,9 +138,9 @@ final class DishManagementUITests: XCTestCase {
         XCTAssertTrue(dishListTitle.waitForExistence(timeout: 5), "Should return to dish list after saving")
         
         // Verify dish count and creation success
-        Thread.sleep(forTimeInterval: 1.0) // Give time for UI to update
+        app.waitForUIUpdate(timeout: 1.0) // Wait for UI to update using XCTWaiter
         
-        let newDishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH 'dish_list_item_'"))
+        let newDishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
         let newCount = newDishCardsQuery.count
         print("📊 Dish count: initial=\(initialCount), new=\(newCount)")
         
@@ -259,16 +259,12 @@ final class DishManagementUITests: XCTestCase {
         
         // Edit the dish name
         let editedName = "EDITED \(dishToEdit!)"
-        dishNameField.tap()
-        dishNameField.clearText()
-        dishNameField.typeText(editedName)
+        dishNameField.clearAndEnterText(editedName)
         
         // Edit the description if available
         let descriptionEditor = app.textViews.firstMatch
         if descriptionEditor.exists {
-            descriptionEditor.tap()
-            descriptionEditor.clearText()
-            descriptionEditor.typeText("This dish has been edited by the UI test")
+            descriptionEditor.clearAndEnterText("This dish has been edited by the UI test")
         }
         
         // Navigate to Meal Types step
@@ -323,7 +319,7 @@ final class DishManagementUITests: XCTestCase {
         XCTAssertTrue(dishListTitle.waitForExistence(timeout: 5), "Should return to dish list after saving edits")
         
         // Verify the changes are reflected in the dish list
-        Thread.sleep(forTimeInterval: 1.0) // Give time for UI to update
+        app.waitForUIUpdate(timeout: 1.0) // Wait for UI to update using XCTWaiter
         
         // CRITICAL: Verify the dish edit actually worked
         let editedDishText = app.staticTexts[editedName]
@@ -365,7 +361,7 @@ final class DishManagementUITests: XCTestCase {
                     print("📱 Tapped first product cell")
                     
                     // Wait for potential navigation or look for confirmation buttons
-                    Thread.sleep(forTimeInterval: 1.0)
+                    app.waitForUIUpdate(timeout: 1.0)
                     
                     // Look for confirmation buttons
                     let confirmButtons = ["Done", "Add", "Select", "Confirm", "Save"]
@@ -409,14 +405,11 @@ final class DishManagementUITests: XCTestCase {
 
         // If none of the known dishes were found (unlikely), fall back to the first visible card
         if dishNameToDelete == nil {
-            let dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH 'dish_list_item_'"))
-            var retries = 0
-            while dishCardsQuery.count == 0 && retries < 10 {
-                Thread.sleep(forTimeInterval: 0.3)
-                retries += 1
-            }
+            let dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
+            // Wait for dish cards to appear using proper waiting mechanism
+            let firstDishCard = dishCardsQuery.firstMatch
+            _ = firstDishCard.waitForExistence(timeout: 3.0)
             XCTAssertTrue(dishCardsQuery.count > 0, "No dish cards found to delete – aborting test")
-            let firstDishCard = dishCardsQuery.element(boundBy: 0)
             dishNameToDelete = firstDishCard.identifier.replacingOccurrences(of: "dish_list_item_", with: "")
         }
 
@@ -450,13 +443,11 @@ final class DishManagementUITests: XCTestCase {
         }
 
         // Wait for delete button to disappear indicating the card is gone
-        var stillExists = deleteButton.exists
-        var waitLoops = 0
-        while stillExists && waitLoops < 10 {
-            Thread.sleep(forTimeInterval: 0.5)
-            stillExists = deleteButton.exists
-            waitLoops += 1
-        }
+        let deletePredicate = NSPredicate(format: "exists == false")
+        let deleteExpectation = XCTNSPredicateExpectation(predicate: deletePredicate, object: deleteButton)
+        let deleteWaiter = XCTWaiter()
+        let deleteResult = deleteWaiter.wait(for: [deleteExpectation], timeout: 5.0)
+        let stillExists = deleteResult != .completed
 
         XCTAssertFalse(stillExists, "Deleted dish should disappear from the list")
 
@@ -475,8 +466,8 @@ final class DishManagementUITests: XCTestCase {
         let dishListTitle = app.navigationBars["Dishes"]
         XCTAssertTrue(dishListTitle.waitForExistence(timeout: 3), "Should be on dish list screen")
         
-        // Brief wait for content to load
-        Thread.sleep(forTimeInterval: 0.3)
+        // Wait for content to load using proper waiting mechanism
+        app.waitForUIUpdate(timeout: 0.5)
     }
     
     func testCreateDishValidation() throws {
@@ -518,16 +509,11 @@ final class DishManagementUITests: XCTestCase {
         dishNameField.typeText("Validation Test Dish")
         
         // Wait for the validation to update and Next button to become enabled
-        var buttonBecameEnabled = false
-        for attempt in 1...10 {
-            Thread.sleep(forTimeInterval: 0.2)
-            if nextButton.isEnabled {
-                buttonBecameEnabled = true
-                print("✅ Next button became enabled after \(Double(attempt) * 0.2) seconds")
-                break
-            }
-            print("⏳ Attempt \(attempt): Next button still disabled")
-        }
+        let enabledPredicate = NSPredicate(format: "isEnabled == true")
+        let enabledExpectation = XCTNSPredicateExpectation(predicate: enabledPredicate, object: nextButton)
+        let enabledWaiter = XCTWaiter()
+        let enabledResult = enabledWaiter.wait(for: [enabledExpectation], timeout: 2.0)
+        let buttonBecameEnabled = enabledResult == .completed
         
         XCTAssertTrue(buttonBecameEnabled, "Next button should be enabled with dish name after reasonable wait time")
         nextButton.tap()
@@ -550,8 +536,7 @@ final class DishManagementUITests: XCTestCase {
         var mealButtonFound = false
         for label in mealTypeLabels {
             let btn = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", label)).firstMatch
-            if btn.exists {
-                btn.scrollToElement()
+            if btn.waitAndScrollToElement(timeout: 3.0) {
                 btn.tap()
                 mealButtonFound = true
                 break
@@ -608,12 +593,12 @@ final class DishManagementUITests: XCTestCase {
     func testDishSearch() throws {
         navigateToDishList()
         
-        var dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH 'dish_list_item_'"))
+        var dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
         var totalDishes = dishCardsQuery.count
         var waitCount = 0
         while totalDishes == 0 && waitCount < 10 {
             Thread.sleep(forTimeInterval: 0.5)
-            dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH 'dish_list_item_'"))
+            dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
             totalDishes = dishCardsQuery.count
             waitCount += 1
         }
@@ -622,7 +607,7 @@ final class DishManagementUITests: XCTestCase {
             _ = createTemporaryDishIfNeeded(baseName: "Search Test Dish")
             Thread.sleep(forTimeInterval: 1.0)
             // Refresh query/counts
-            dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH 'dish_list_item_'"))
+            dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
             totalDishes = dishCardsQuery.count
             XCTAssertTrue(totalDishes > 0, "Should have at least one dish after creation for search test")
             print("✅ Created temporary dish '")
@@ -748,7 +733,7 @@ final class DishManagementUITests: XCTestCase {
         }
 
         // Check custom dish card elements
-        let dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH 'dish_list_item_'"))
+        let dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
         for idx in 0..<dishCardsQuery.count {
             let card = dishCardsQuery.element(boundBy: idx)
             if card.exists {
@@ -873,8 +858,7 @@ final class DishManagementUITests: XCTestCase {
         var mealButtonFound = false
         for label in mealTypeLabels {
             let btn = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", label)).firstMatch
-            if btn.exists {
-                btn.scrollToElement()
+            if btn.waitAndScrollToElement(timeout: 3.0) {
                 btn.tap()
                 mealButtonFound = true
                 break
@@ -912,13 +896,10 @@ final class DishManagementUITests: XCTestCase {
         
         XCTAssertTrue(app.navigationBars["Dishes"].waitForExistence(timeout: 5))
         
-        var attempts2 = 0
-        var dishCardsAfterSave = app.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH 'dish_list_item_'"))
-        while dishCardsAfterSave.count == 0 && attempts2 < 10 {
-            Thread.sleep(forTimeInterval: 0.5)
-            dishCardsAfterSave = app.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH 'dish_list_item_'"))
-            attempts2 += 1
-        }
+        // Wait for dish cards to appear after save using proper waiting mechanism
+        let dishCardsAfterSave = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
+        let firstSavedDishCard = dishCardsAfterSave.firstMatch
+        _ = firstSavedDishCard.waitForExistence(timeout: 5.0)
         if dishCardsAfterSave.count == 0 {
             // As fallback, verify dish title appears somewhere visible (after possible scrolling)
             var titleFound = app.staticTexts[uniqueName].waitForExistence(timeout: 2)
@@ -977,7 +958,7 @@ final class DishManagementUITests: XCTestCase {
         navigateToDishList()
         
         // Ensure we have enough dishes to test sorting
-        let dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH 'dish_list_item_'"))
+        let dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
         let initialCount = dishCardsQuery.count
         
         if initialCount < 2 {
@@ -996,10 +977,10 @@ final class DishManagementUITests: XCTestCase {
         nameAscOption.tap()
         
         // Wait for sort to take effect
-        Thread.sleep(forTimeInterval: 1.0)
+        app.waitForUIUpdate(timeout: 1.0)
         
         // Verify dishes are sorted alphabetically
-        let updatedDishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH 'dish_list_item_'"))
+        let updatedDishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
         
         if updatedDishCardsQuery.count >= 2 {
             // Get first few dish names and verify they're in alphabetical order
@@ -1023,7 +1004,7 @@ final class DishManagementUITests: XCTestCase {
         navigateToDishList()
         
         // Ensure we have enough dishes to test sorting
-        let dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH 'dish_list_item_'"))
+        let dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
         let initialCount = dishCardsQuery.count
         
         if initialCount < 2 {
@@ -1042,10 +1023,10 @@ final class DishManagementUITests: XCTestCase {
         nameDescOption.tap()
         
         // Wait for sort to take effect
-        Thread.sleep(forTimeInterval: 1.0)
+        app.waitForUIUpdate(timeout: 1.0)
         
         // Verify dishes are sorted reverse alphabetically
-        let updatedDishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH 'dish_list_item_'"))
+        let updatedDishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
         
         if updatedDishCardsQuery.count >= 2 {
             let firstDishCard = updatedDishCardsQuery.element(boundBy: 0)
@@ -1077,12 +1058,12 @@ final class DishManagementUITests: XCTestCase {
         categoryOption.tap()
         
         // Wait for sort to take effect
-        Thread.sleep(forTimeInterval: 1.0)
+        app.waitForUIUpdate(timeout: 1.0)
         
         // Verify dishes are sorted by category
         // For this test, we just verify that the sort action completed successfully
         // since the exact category order depends on the preloaded data
-        let updatedDishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH 'dish_list_item_'"))
+        let updatedDishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
         XCTAssertGreaterThanOrEqual(updatedDishCardsQuery.count, 0, "Dishes should still be displayed after category sort")
         
         print("✅ Category sort completed successfully")
@@ -1101,7 +1082,7 @@ final class DishManagementUITests: XCTestCase {
         nameDescOption.tap()
         
         // Wait for sort to take effect
-        Thread.sleep(forTimeInterval: 0.5)
+        app.waitForUIUpdate(timeout: 0.5)
         
         // Open sort menu again
         sortButton.tap()

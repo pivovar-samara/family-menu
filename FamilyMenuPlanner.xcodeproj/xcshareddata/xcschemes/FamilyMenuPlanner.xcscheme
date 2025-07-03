@@ -18,21 +18,7 @@
                BuildableName = "FamilyMenuPlanner.app"
                BlueprintName = "FamilyMenuPlanner"
                ReferencedContainer = "container:FamilyMenuPlanner.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "NO"
-            buildForProfiling = "NO"
-            buildForArchiving = "NO"
-            buildForAnalyzing = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "484161BE2DEF698200A48C49"
-               BuildableName = "FamilyMenuPlannerPerformanceTests.xctest"
-               BlueprintName = "FamilyMenuPlannerPerformanceTests"
-               ReferencedContainer = "container:FamilyMenuPlanner.xcodeproj">
-            </BuildableReference>
+                        </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
