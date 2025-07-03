@@ -71,40 +71,73 @@ final class StaticDataCacheManager: ObservableObject {
         // Store strong reference to context
         self.context = context
         
-        // Only preload for production app launches
-        cacheQueue.sync {
-            // Preload all static data to ensure immediate availability
-            self.preloadAllData()
+        // Preload for production launches, but perform this *asynchronously* on the cache queue
+        // to prevent possible deadlocks when the supplied context is bound to the main queue.
+        cacheQueue.async { [weak self] in
+            self?.preloadAllData()
         }
     }
     
     /// Get units (with lazy loading)
+    /// The implementation detects if the caller is already on the main thread. In that case we
+    /// *avoid* a synchronous hop to `cacheQueue` before the data is available, because that could
+    /// cause a circular wait when the underlying Core Data context itself is bound to the main
+    /// queue. Instead we load the data directly on the main thread (still using `context.perform
+    /// andWait`) and then read the cached value.
     func getUnits() -> [Unit] {
-        return cacheQueue.sync {
-            if !isUnitsLoaded {
-                loadUnits()
-            }
+        // Fast path: if data is already loaded, simply return it without any dispatch hops.
+        if isUnitsLoaded {
             return units
+        }
+
+        // If we reach here, data still needs loading.
+        if Thread.isMainThread {
+            loadUnits()
+            return units
+        } else {
+            return cacheQueue.sync {
+                if !isUnitsLoaded {
+                    loadUnits()
+                }
+                return units
+            }
         }
     }
     
     /// Get meal types (with lazy loading)
     func getMealTypes() -> [MealType] {
-        return cacheQueue.sync {
-            if !isMealTypesLoaded {
-                loadMealTypes()
-            }
+        if isMealTypesLoaded {
             return mealTypes
+        }
+        if Thread.isMainThread {
+            loadMealTypes()
+            return mealTypes
+        } else {
+            return cacheQueue.sync {
+                if !isMealTypesLoaded {
+                    loadMealTypes()
+                }
+                return mealTypes
+            }
         }
     }
     
     /// Get dish categories (with lazy loading)
     func getDishCategories() -> [DishCategory] {
-        return cacheQueue.sync {
-            if !isDishCategoriesLoaded {
-                loadDishCategories()
-            }
+        if isDishCategoriesLoaded {
             return dishCategories
+        }
+
+        if Thread.isMainThread {
+            loadDishCategories()
+            return dishCategories
+        } else {
+            return cacheQueue.sync {
+                if !isDishCategoriesLoaded {
+                    loadDishCategories()
+                }
+                return dishCategories
+            }
         }
     }
     
@@ -123,12 +156,20 @@ final class StaticDataCacheManager: ObservableObject {
         }
     }
     
-    /// Invalidate cache synchronously for testing purposes
+    /// Invalidate cache synchronously for testing purposes.
+    /// This method now clears the cache on the serial queue (to guarantee exclusivity)
+    /// *then* reloads the data on the caller's thread. Doing so eliminates a risk of
+    /// deadlock when the supplied Core Data context is bound to the main queue and the
+    /// caller is already executing on that same thread (e.g. in unit / integration tests).
     func invalidateCacheSync() {
+        // 1️⃣ Clear on the serial queue to preserve thread-safety.
         cacheQueue.sync {
             clearAllCache()
-            preloadAllData()
         }
+
+        // 2️⃣ Reload on the caller's thread. Any expensive Core Data fetches that need
+        //    the main queue can now proceed without blocking issues.
+        preloadAllData()
     }
     
     /// Cleanup method for proper resource deallocation

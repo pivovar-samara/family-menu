@@ -190,6 +190,7 @@ struct MealTypeCard: View {
             )
         }
         .buttonStyle(MealTypesScaleButtonStyle())
+        .accessibilityIdentifier("mealType" + (mealType.name?.replacingOccurrences(of: " ", with: "") ?? ""))
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
     }
 }

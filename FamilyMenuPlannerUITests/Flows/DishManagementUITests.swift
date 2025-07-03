@@ -248,13 +248,13 @@ final class DishManagementUITests: XCTestCase {
         // STEP 2: Meal Types - Change meal type if possible
         XCTAssertTrue(waitForStepScreen(stepTitle: "Meal Types"), "Should be in Meal Types step")
         
-        let mealTypeLabels = ["Breakfast", "Lunch", "Dinner", "Snack"]
+        let mealTypeIdentifiers = ["mealTypeBreakfast", "mealTypeLunch", "mealTypeDinner", "mealTypeSnack"]
         var mealButtonFound = false
-        for label in mealTypeLabels {
-            let btn = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", label)).firstMatch
+        for identifier in mealTypeIdentifiers {
+            let btn = app.buttons[identifier]
             if btn.waitForExistence(timeout: 2) {
                 btn.tap()
-                print("✅ Selected \(label) meal type")
+                print("✅ Selected meal type with identifier \(identifier)")
                 mealButtonFound = true
                 break
             }
@@ -506,10 +506,10 @@ final class DishManagementUITests: XCTestCase {
         }
         
         // Add meal type to proceed
-        let mealTypeLabels = ["Breakfast", "Lunch", "Dinner", "Snack"]
+        let mealTypeIdentifiers = ["mealTypeBreakfast", "mealTypeLunch", "mealTypeDinner", "mealTypeSnack"]
         var mealButtonFound = false
-        for label in mealTypeLabels {
-            let btn = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", label)).firstMatch
+        for identifier in mealTypeIdentifiers {
+            let btn = app.buttons[identifier]
             if btn.waitAndScrollToElement(timeout: 3.0) {
                 btn.tap()
                 mealButtonFound = true
@@ -820,10 +820,10 @@ final class DishManagementUITests: XCTestCase {
         nextButton.tap()
 
         // Meal Types – select first available meal type button
-        let mealTypeLabels = ["Breakfast", "Lunch", "Dinner", "Snack"]
+        let mealTypeIdentifiers = ["mealTypeBreakfast", "mealTypeLunch", "mealTypeDinner", "mealTypeSnack"]
         var mealButtonFound = false
-        for label in mealTypeLabels {
-            let btn = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", label)).firstMatch
+        for identifier in mealTypeIdentifiers {
+            let btn = app.buttons[identifier]
             if btn.waitAndScrollToElement(timeout: 3.0) {
                 btn.tap()
                 mealButtonFound = true
