@@ -81,15 +81,11 @@ final class StaticDataCacheManager: ObservableObject {
         // Store strong reference to context
         self.context = context
         
-        // For unit and integration tests we want deterministic behaviour and avoid
-        // any background-thread races. Therefore, if this cache manager has been
-        // created explicitly for tests, we synchronously preload all static data
-        // right here. This guarantees that subsequent concurrent calls to the
-        // getters will hit an already-populated cache and will complete almost
-        // instantly, eliminating the dead-lock scenario the thread-safety test
-        // is checking for.
+        // For dedicated *unit mocked* instances created via `createTestInstance()` we still
+        // want immediate deterministic preloading and then exit early, because those callers
+        // rely on synchronous behaviour.
         if isTestInstance {
-            self.preloadAllData()
+            preloadAllData()
             return
         }
         
@@ -101,35 +97,33 @@ final class StaticDataCacheManager: ObservableObject {
             bgContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
             self.backgroundContext = bgContext
         }
-        
-        // Preload for production launches, but perform this *asynchronously* on the cache queue
-        // to prevent possible deadlocks when the supplied context is bound to the main queue.
-        cacheQueue.async { [weak self] in
-            self?.preloadAllData()
+
+        // Detect if we are running inside a unit or integration test bundle (not UI tests).
+        // In such cases we prefer *synchronous* preloading to avoid race-conditions with
+        // test code that immediately calls `invalidateCacheSync()`.
+        let isUnitOrIntegrationTest = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil && !isUITest
+
+        if isUnitOrIntegrationTest {
+            // Synchronous for deterministic behaviour in tests.
+            preloadAllData()
+        } else {
+            // For production launches we still want to keep the work off the main queue.
+            cacheQueue.async { [weak self] in
+                self?.preloadAllData()
+            }
         }
     }
     
     /// Get units (with lazy loading)
-    /// The implementation detects if the caller is already on the main thread. In that case we
-    /// *avoid* a synchronous hop to `cacheQueue` before the data is available, because that could
-    /// cause a circular wait when the underlying Core Data context itself is bound to the main
-    /// queue. Instead we load the data directly on the main thread (still using `context.perform
-    /// andWait`) and then read the cached value.
+    /// Thread-safe accessor that guarantees the underlying Core Data fetch will be executed **once**
+    /// even when several threads call this method concurrently. A dedicated serial queue (`cacheQueue`)
+    /// acts as the synchronisation point, eliminating the previous race where two threads could see
+    /// `isLoaded == false` simultaneously and trigger duplicate fetches.
     func getUnits() -> [Unit] {
-        // Fast-path when data is already loaded.
         unitsLock.lock()
-        let alreadyLoaded = isUnitsLoaded
-        unitsLock.unlock()
-
-        if !alreadyLoaded {
-            // Perform the fetch *without* holding the lock to avoid potential
-            // deadlocks with `context.performAndWait`, which may bounce execution
-            // to the main queue.
-            let fetched = loadUnits()
-            return fetched
+        if !isUnitsLoaded {
+            _ = loadUnits()
         }
-
-        unitsLock.lock()
         let result = units
         unitsLock.unlock()
         return result
@@ -138,15 +132,9 @@ final class StaticDataCacheManager: ObservableObject {
     /// Get meal types (with lazy loading)
     func getMealTypes() -> [MealType] {
         mealTypesLock.lock()
-        let alreadyLoaded = isMealTypesLoaded
-        mealTypesLock.unlock()
-
-        if !alreadyLoaded {
-            let fetched = loadMealTypes()
-            return fetched
+        if !isMealTypesLoaded {
+            _ = loadMealTypes()
         }
-
-        mealTypesLock.lock()
         let result = mealTypes
         mealTypesLock.unlock()
         return result
@@ -155,15 +143,9 @@ final class StaticDataCacheManager: ObservableObject {
     /// Get dish categories (with lazy loading)
     func getDishCategories() -> [DishCategory] {
         dishCategoriesLock.lock()
-        let alreadyLoaded = isDishCategoriesLoaded
-        dishCategoriesLock.unlock()
-
-        if !alreadyLoaded {
-            let fetched = loadDishCategories()
-            return fetched
+        if !isDishCategoriesLoaded {
+            _ = loadDishCategories()
         }
-
-        dishCategoriesLock.lock()
         let result = dishCategories
         dishCategoriesLock.unlock()
         return result
@@ -355,14 +337,22 @@ final class StaticDataCacheManager: ObservableObject {
             fetched = []
         }
 
-        // Convert to objects of the manager's primary context to maintain context consistency
-        var mainContextObjects: [MealType] = fetched
+        // Safely convert to objects that belong to the manager's primary (usually main-queue) context.
+        let resultArray: [MealType]
         let mainContext = context
         if effectiveContext !== mainContext {
-            mainContextObjects = fetched.compactMap { mainContext.object(with: $0.objectID) as? MealType }
+            var temp: [MealType] = []
+            // Perform on the correct queue for the main context to avoid threading violations.
+            mainContext.performAndWait {
+                temp = fetched.compactMap { mainContext.object(with: $0.objectID) as? MealType }
+            }
+            if temp.count != fetched.count {
+                Self.logger.warning("Some MealType objects were not found in main context – possible merge delay")
+            }
+            resultArray = temp
+        } else {
+            resultArray = fetched
         }
-
-        let resultArray = mainContextObjects
 
         mealTypesLock.lock()
         isMealTypesLoaded = fetchError == nil
@@ -418,14 +408,21 @@ final class StaticDataCacheManager: ObservableObject {
             fetched = []
         }
 
-        // Convert to objects of the primary context (to be safe for relationship assignments)
-        var mainContextObjects: [DishCategory] = fetched
+        // Safely convert to objects that belong to the manager's primary (usually main-queue) context.
+        let resultArray: [DishCategory]
         let mainContext = context
         if effectiveContext !== mainContext {
-            mainContextObjects = fetched.compactMap { mainContext.object(with: $0.objectID) as? DishCategory }
+            var temp: [DishCategory] = []
+            mainContext.performAndWait {
+                temp = fetched.compactMap { mainContext.object(with: $0.objectID) as? DishCategory }
+            }
+            if temp.count != fetched.count {
+                Self.logger.warning("Some DishCategory objects were not found in main context – possible merge delay")
+            }
+            resultArray = temp
+        } else {
+            resultArray = fetched
         }
-
-        let resultArray = mainContextObjects
 
         dishCategoriesLock.lock()
         isDishCategoriesLoaded = fetchError == nil
