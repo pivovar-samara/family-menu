@@ -38,6 +38,15 @@ final class StaticDataCacheManager: ObservableObject {
     // Testing support
     private let isTestInstance: Bool
     
+    // Per-collection locks to prevent concurrent loading and data races
+    private let unitsLock = NSRecursiveLock()
+    private let mealTypesLock = NSRecursiveLock()
+    private let dishCategoriesLock = NSRecursiveLock()
+    
+    // Background context used when the supplied context is tied to the main queue and the
+    // caller is *not* on the main thread. Lazily created to avoid overhead when unnecessary.
+    private var backgroundContext: NSManagedObjectContext?
+    
     private init(isTestInstance: Bool = false) {
         self.isTestInstance = isTestInstance
     }
@@ -51,17 +60,18 @@ final class StaticDataCacheManager: ObservableObject {
     
     /// Initialize cache with CoreData context
     func initialize(with context: NSManagedObjectContext) {
-        // Aggressive UI test detection for real devices
+        // A *real* UI-test run sets explicit flags/args that we can safely detect. Using
+        // generic XCTest flags incorrectly labels all unit/integration test processes
+        // as UI runs, so we purposefully keep the check narrow.
         let isUITest = ProcessInfo.processInfo.environment["UI_TESTS"] != nil ||
-                      ProcessInfo.processInfo.arguments.contains("-UITests") ||
-                      ProcessInfo.processInfo.arguments.contains("-XCTest") ||
-                      ProcessInfo.processInfo.arguments.contains("-InMemoryStore") ||
-                      ProcessInfo.processInfo.environment["TESTING_ENVIRONMENT"] != nil ||
-                      ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
-                      ProcessInfo.processInfo.environment["DISABLE_CLOUDKIT"] != nil
+                        ProcessInfo.processInfo.arguments.contains("-UITests")
         
-        // For UI tests, especially on real devices, skip all heavy initialization
-        if isUITest {
+        // For production app instances running UI tests we skip heavy initialization
+        // to ensure the app launches as quickly as possible. However, when this
+        // cache manager is *itself* a test fixture (isTestInstance == true) we
+        // still want deterministic synchronous preloading so that the unit /
+        // integration tests exercising thread-safety don't dead-lock.
+        if !isTestInstance && isUITest {
             Self.logger.info("UI test detected - skipping static data preloading for faster launch")
             self.context = context
             // Don't preload anything - use lazy loading only
@@ -71,41 +81,74 @@ final class StaticDataCacheManager: ObservableObject {
         // Store strong reference to context
         self.context = context
         
-        // Only preload for production app launches
-        cacheQueue.sync {
-            // Preload all static data to ensure immediate availability
-            self.preloadAllData()
+        // For dedicated *unit mocked* instances created via `createTestInstance()` we still
+        // want immediate deterministic preloading and then exit early, because those callers
+        // rely on synchronous behaviour.
+        if isTestInstance {
+            preloadAllData()
+            return
+        }
+        
+        // Prepare a reusable background context that shares the same PSC. This prevents
+        // potential main-queue deadlocks when callers fetch data from background threads.
+        if let psc = context.persistentStoreCoordinator {
+            let bgContext = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
+            bgContext.persistentStoreCoordinator = psc
+            bgContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+            self.backgroundContext = bgContext
+        }
+
+        // Detect if we are running inside a unit or integration test bundle (not UI tests).
+        // In such cases we prefer *synchronous* preloading to avoid race-conditions with
+        // test code that immediately calls `invalidateCacheSync()`.
+        let isUnitOrIntegrationTest = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil && !isUITest
+
+        if isUnitOrIntegrationTest {
+            // Synchronous for deterministic behaviour in tests.
+            preloadAllData()
+        } else {
+            // For production launches we still want to keep the work off the main queue.
+            cacheQueue.async { [weak self] in
+                self?.preloadAllData()
+            }
         }
     }
     
     /// Get units (with lazy loading)
+    /// Thread-safe accessor that guarantees the underlying Core Data fetch will be executed **once**
+    /// even when several threads call this method concurrently. A dedicated serial queue (`cacheQueue`)
+    /// acts as the synchronisation point, eliminating the previous race where two threads could see
+    /// `isLoaded == false` simultaneously and trigger duplicate fetches.
     func getUnits() -> [Unit] {
-        return cacheQueue.sync {
-            if !isUnitsLoaded {
-                loadUnits()
-            }
-            return units
+        unitsLock.lock()
+        if !isUnitsLoaded {
+            _ = loadUnits()
         }
+        let result = units
+        unitsLock.unlock()
+        return result
     }
     
     /// Get meal types (with lazy loading)
     func getMealTypes() -> [MealType] {
-        return cacheQueue.sync {
-            if !isMealTypesLoaded {
-                loadMealTypes()
-            }
-            return mealTypes
+        mealTypesLock.lock()
+        if !isMealTypesLoaded {
+            _ = loadMealTypes()
         }
+        let result = mealTypes
+        mealTypesLock.unlock()
+        return result
     }
     
     /// Get dish categories (with lazy loading)
     func getDishCategories() -> [DishCategory] {
-        return cacheQueue.sync {
-            if !isDishCategoriesLoaded {
-                loadDishCategories()
-            }
-            return dishCategories
+        dishCategoriesLock.lock()
+        if !isDishCategoriesLoaded {
+            _ = loadDishCategories()
         }
+        let result = dishCategories
+        dishCategoriesLock.unlock()
+        return result
     }
     
     /// Force reload all data (useful for development/testing)
@@ -123,12 +166,21 @@ final class StaticDataCacheManager: ObservableObject {
         }
     }
     
-    /// Invalidate cache synchronously for testing purposes
+    /// Invalidate cache synchronously for testing purposes.
+    /// This method now clears the cache on the serial queue (to guarantee exclusivity)
+    /// *then* reloads the data on the caller's thread. Doing so eliminates a risk of
+    /// deadlock when the supplied Core Data context is bound to the main queue and the
+    /// caller is already executing on that same thread (e.g. in unit / integration tests).
     func invalidateCacheSync() {
+        // 1️⃣ Clear on the serial queue to preserve thread-safety.
         cacheQueue.sync {
             clearAllCache()
-            preloadAllData()
         }
+
+        // 2️⃣ Reload on the caller's thread so that any `context.performAndWait`
+        //    executed inside the load helpers targets the correct queue (e.g. the
+        //    main queue in tests) and avoids deadlocks.
+        preloadAllData()
     }
     
     /// Cleanup method for proper resource deallocation
@@ -195,143 +247,200 @@ final class StaticDataCacheManager: ObservableObject {
         }
     }
     
-    private func loadUnits() {
+    @discardableResult
+    private func loadUnits() -> [Unit] {
         guard let context = context else {
             Self.logger.error("Context is nil when loading units")
-            return
+            return []
         }
-        
+
+        // Choose context that will not deadlock the current thread.
+        let effectiveContext: NSManagedObjectContext
+        if !Thread.isMainThread && context.concurrencyType == .mainQueueConcurrencyType {
+            effectiveContext = backgroundContext ?? context
+        } else {
+            effectiveContext = context
+        }
+
         let fetchRequest: NSFetchRequest<Unit> = Unit.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Unit.sortOrder, ascending: true)]
-        
-        // Static data is usually small, use smaller batch size
         CoreDataFetchHelper.configureForSmallList(fetchRequest)
-        
-        // Perform the fetch on the context's queue to ensure thread safety
-        context.performAndWait {
+
+        var fetched: [Unit] = []
+        var fetchError: Error?
+
+        effectiveContext.performAndWait {
             do {
-                let freshUnits = try context.fetch(fetchRequest)
-                
-                // Update local state immediately for synchronous access
-                self.units = freshUnits
-                self.isUnitsLoaded = true
-                
-                // Update @Published properties on main thread for optimal UI performance
-                if !Thread.isMainThread {
-                    DispatchQueue.main.async { [weak self] in
-                        self?.units = freshUnits
-                    }
-                }
-                
-                if !isTestInstance {
-                    Self.logger.info("Units cached: \(freshUnits.count) items")
-                }
+                fetched = try effectiveContext.fetch(fetchRequest)
             } catch {
-                Self.logger.error("Error loading units for cache: \(error.localizedDescription)")
-                // Handle error immediately for synchronous access
-                self.units = []
-                self.isUnitsLoaded = false
-                
-                // Update @Published properties on main thread as well
-                if !Thread.isMainThread {
-                    DispatchQueue.main.async { [weak self] in
-                        self?.units = []
-                    }
-                }
+                fetchError = error
             }
         }
+
+        if let error = fetchError {
+            Self.logger.error("Error loading units for cache: \(error.localizedDescription)")
+            fetched = []
+        }
+
+        // Update internal state flags under lock
+        unitsLock.lock()
+        isUnitsLoaded = fetchError == nil
+        unitsLock.unlock()
+
+        if Thread.isMainThread {
+            self.units = fetched
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.units = fetched
+            }
+        }
+
+        if !isTestInstance {
+            Self.logger.info("Units cached: \(fetched.count) items")
+        }
+
+        return fetched
     }
     
-    private func loadMealTypes() {
+    @discardableResult
+    private func loadMealTypes() -> [MealType] {
         guard let context = context else {
             Self.logger.error("Context is nil when loading meal types")
-            return
+            return []
         }
-        
+
+        // Choose context that will not deadlock the current thread.
+        let effectiveContext: NSManagedObjectContext
+        if !Thread.isMainThread && context.concurrencyType == .mainQueueConcurrencyType {
+            effectiveContext = backgroundContext ?? context
+        } else {
+            effectiveContext = context
+        }
+
         let fetchRequest: NSFetchRequest<MealType> = MealType.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \MealType.sortOrder, ascending: true)]
-        
         CoreDataFetchHelper.configureForSmallList(fetchRequest)
-        
-        // Perform the fetch on the context's queue to ensure thread safety
-        context.performAndWait {
+
+        var fetched: [MealType] = []
+        var fetchError: Error?
+
+        effectiveContext.performAndWait {
             do {
-                let freshMealTypes = try context.fetch(fetchRequest)
-                
-                // Update local state immediately for synchronous access
-                self.mealTypes = freshMealTypes
-                self.isMealTypesLoaded = true
-                
-                // Update @Published properties on main thread for optimal UI performance
-                if !Thread.isMainThread {
-                    DispatchQueue.main.async { [weak self] in
-                        self?.mealTypes = freshMealTypes
-                    }
-                }
-                
-                if !isTestInstance {
-                    Self.logger.info("MealTypes cached: \(freshMealTypes.count) items")
-                }
+                fetched = try effectiveContext.fetch(fetchRequest)
             } catch {
-                Self.logger.error("Error loading meal types for cache: \(error.localizedDescription)")
-                // Handle error immediately for synchronous access
-                self.mealTypes = []
-                self.isMealTypesLoaded = false
-                
-                // Update @Published properties on main thread for optimal UI performance
-                if !Thread.isMainThread {
-                    DispatchQueue.main.async { [weak self] in
-                        self?.mealTypes = []
-                    }
-                }
+                fetchError = error
             }
         }
+
+        if let error = fetchError {
+            Self.logger.error("Error loading meal types for cache: \(error.localizedDescription)")
+            fetched = []
+        }
+
+        // Safely convert to objects that belong to the manager's primary (usually main-queue) context.
+        let resultArray: [MealType]
+        let mainContext = context
+        if effectiveContext !== mainContext {
+            var temp: [MealType] = []
+            // Perform on the correct queue for the main context to avoid threading violations.
+            mainContext.performAndWait {
+                temp = fetched.compactMap { mainContext.object(with: $0.objectID) as? MealType }
+            }
+            if temp.count != fetched.count {
+                Self.logger.warning("Some MealType objects were not found in main context – possible merge delay")
+            }
+            resultArray = temp
+        } else {
+            resultArray = fetched
+        }
+
+        mealTypesLock.lock()
+        isMealTypesLoaded = fetchError == nil
+        mealTypesLock.unlock()
+
+        if Thread.isMainThread {
+            self.mealTypes = resultArray
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.mealTypes = resultArray
+            }
+        }
+
+        if !isTestInstance {
+            Self.logger.info("MealTypes cached: \(resultArray.count) items")
+        }
+
+        return resultArray
     }
     
-    private func loadDishCategories() {
+    @discardableResult
+    private func loadDishCategories() -> [DishCategory] {
         guard let context = context else {
             Self.logger.error("Context is nil when loading dish categories")
-            return
+            return []
         }
-        
+
+        // Choose context that will not deadlock the current thread.
+        let effectiveContext: NSManagedObjectContext
+        if !Thread.isMainThread && context.concurrencyType == .mainQueueConcurrencyType {
+            effectiveContext = backgroundContext ?? context
+        } else {
+            effectiveContext = context
+        }
+
         let fetchRequest: NSFetchRequest<DishCategory> = DishCategory.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \DishCategory.sortOrder, ascending: true)]
-        
         CoreDataFetchHelper.configureForSmallList(fetchRequest)
-        
-        // Perform the fetch on the context's queue to ensure thread safety
-        context.performAndWait {
+
+        var fetched: [DishCategory] = []
+        var fetchError: Error?
+
+        effectiveContext.performAndWait {
             do {
-                let freshCategories = try context.fetch(fetchRequest)
-                
-                // Update local state immediately for synchronous access
-                self.dishCategories = freshCategories
-                self.isDishCategoriesLoaded = true
-                
-                // Update @Published properties on main thread for optimal UI performance
-                if !Thread.isMainThread {
-                    DispatchQueue.main.async { [weak self] in
-                        self?.dishCategories = freshCategories
-                    }
-                }
-                
-                if !isTestInstance {
-                    Self.logger.info("DishCategories cached: \(freshCategories.count) items")
-                }
+                fetched = try effectiveContext.fetch(fetchRequest)
             } catch {
-                Self.logger.error("Error loading dish categories for cache: \(error.localizedDescription)")
-                // Handle error immediately for synchronous access
-                self.dishCategories = []
-                self.isDishCategoriesLoaded = false
-                
-                // Update @Published properties on main thread for optimal UI performance
-                if !Thread.isMainThread {
-                    DispatchQueue.main.async { [weak self] in
-                        self?.dishCategories = []
-                    }
-                }
+                fetchError = error
             }
         }
+
+        if let error = fetchError {
+            Self.logger.error("Error loading dish categories for cache: \(error.localizedDescription)")
+            fetched = []
+        }
+
+        // Safely convert to objects that belong to the manager's primary (usually main-queue) context.
+        let resultArray: [DishCategory]
+        let mainContext = context
+        if effectiveContext !== mainContext {
+            var temp: [DishCategory] = []
+            mainContext.performAndWait {
+                temp = fetched.compactMap { mainContext.object(with: $0.objectID) as? DishCategory }
+            }
+            if temp.count != fetched.count {
+                Self.logger.warning("Some DishCategory objects were not found in main context – possible merge delay")
+            }
+            resultArray = temp
+        } else {
+            resultArray = fetched
+        }
+
+        dishCategoriesLock.lock()
+        isDishCategoriesLoaded = fetchError == nil
+        dishCategoriesLock.unlock()
+
+        if Thread.isMainThread {
+            self.dishCategories = resultArray
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.dishCategories = resultArray
+            }
+        }
+
+        if !isTestInstance {
+            Self.logger.info("DishCategories cached: \(resultArray.count) items")
+        }
+
+        return resultArray
     }
     
     deinit {

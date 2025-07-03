@@ -25,7 +25,12 @@ final class FamilyMenuPlannerUITests: XCTestCase {
         let app = XCUIApplication()
         if app.state == .runningForeground || app.state == .runningBackground {
             app.terminate()
-            Thread.sleep(forTimeInterval: 0.3)
+            // Wait for termination to complete using XCTWaiter
+            let terminationExpectation = XCTestExpectation(description: "Wait for app termination")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                terminationExpectation.fulfill()
+            }
+            _ = XCTWaiter.wait(for: [terminationExpectation], timeout: 0.8)
         }
         
         try super.tearDownWithError()
@@ -61,8 +66,12 @@ final class FamilyMenuPlannerUITests: XCTestCase {
                     print("⚠️ App window not found, app state: \(app.state)")
                 }
                 
-                // Give the app a moment to fully load
-                Thread.sleep(forTimeInterval: 0.5)
+                // Give the app a moment to fully load using XCTWaiter
+                let loadExpectation = XCTestExpectation(description: "Wait for app to fully load")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    loadExpectation.fulfill()
+                }
+                _ = XCTWaiter.wait(for: [loadExpectation], timeout: 1.0)
                 
                 app.terminate()
             }

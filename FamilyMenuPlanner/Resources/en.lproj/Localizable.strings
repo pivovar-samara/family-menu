@@ -76,6 +76,12 @@
 "Today" = "Today";
 "Clear All Day" = "Clear All Day";
 "Add New Dish" = "Add New Dish";
+"No Dishes Yet" = "No Dishes Yet";
+"Start building your recipe collection by adding your first dish" = "Start building your recipe collection by adding your first dish";
+"Add Your First Dish" = "Add Your First Dish";
+"Delete Dish" = "Delete Dish";
+"Are you sure you want to delete this dish?" = "Are you sure you want to delete this dish?";
+"No recipe details" = "No recipe details";
 "Loading..." = "Loading...";
 "Unit is not selected and no default unit is available." = "Unit is not selected and no default unit is available.";
 "No Details" = "Recipe is empty";
@@ -95,7 +101,7 @@
 "Next" = "Next";
 "Back" = "Back";
 "Step %d of %d" = "Step %d of %d";
-"Add Photo" = "Add Photo";
+
 "Enter dish name" = "Enter dish name";
 "Recipe" = "Recipe";
 "Description" = "Description";
@@ -165,3 +171,8 @@
 "Check your internet connection" = "Check your internet connection";
 "Verify iCloud is enabled" = "Verify iCloud is enabled";
 "Ensure sufficient storage space" = "Ensure sufficient storage space";
+
+// Dish List Sorting
+"Name A-Z" = "Name A-Z";
+"Name Z-A" = "Name Z-A";
+"Sort dishes" = "Sort dishes";

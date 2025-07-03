@@ -10,10 +10,10 @@ import XCTest
 // MARK: - XCUIElement Extensions for Test Helpers
 extension XCUIElement {
     
-    /// Clears existing text and enters new text in a text field
+    /// Clears existing text and enters new text in a text field or text view
     func clearAndEnterText(_ text: String) {
-        guard self.elementType == .textField || self.elementType == .secureTextField else {
-            XCTFail("Trying to clear and enter text on a non-text field element")
+        guard self.elementType == .textField || self.elementType == .secureTextField || self.elementType == .textView else {
+            XCTFail("Trying to clear and enter text on a non-text input element (elementType: \(self.elementType))")
             return
         }
         
@@ -32,13 +32,40 @@ extension XCUIElement {
         self.typeText(text)
     }
     
-    /// Scrolls to make this element visible on screen
-    func scrollToElement() {
-        guard self.exists else { return }
+    /// Waits for element to become hittable with specified timeout
+    @discardableResult
+    func waitForHittable(timeout: TimeInterval = 5.0) -> Bool {
+        let predicate = NSPredicate(format: "isHittable == true")
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: self)
+        let waiter = XCTWaiter()
+        let result = waiter.wait(for: [expectation], timeout: timeout)
+        return result == .completed
+    }
+    
+    /// Waits for element to exist and become hittable, then scrolls to it if needed
+    @discardableResult
+    func waitAndScrollToElement(timeout: TimeInterval = 10.0) -> Bool {
+        // First wait for existence
+        guard self.waitForExistence(timeout: timeout) else {
+            return false
+        }
         
-        // If element is already visible, no need to scroll
+        // If already hittable, we're done
         if self.isHittable {
-            return
+            return true
+        }
+        
+        // Try scrolling to make it visible
+        return scrollToElementWithWaiting()
+    }
+    
+    /// Scrolls to make this element visible on screen using proper waiting mechanisms
+    private func scrollToElementWithWaiting() -> Bool {
+        guard self.exists else { return false }
+        
+        // If element is already hittable, no need to scroll
+        if self.isHittable {
+            return true
         }
         
         // Try to find the nearest scrollable parent (List, ScrollView, etc.)
@@ -60,13 +87,23 @@ extension XCUIElement {
         
         // If we found a scrollable container, scroll to make this element visible
         if let scrollView = scrollView {
-            // Get the frame of the element relative to the scroll view
+            return performScrollToElement(in: scrollView)
+        } else {
+            return performFallbackScrolling()
+        }
+    }
+    
+    /// Performs scrolling within a specific scroll view container
+    private func performScrollToElement(in scrollView: XCUIElement) -> Bool {
+        let maxScrollAttempts = 10
+        var attempts = 0
+        
+        while !self.isHittable && attempts < maxScrollAttempts {
             let elementFrame = self.frame
             let scrollFrame = scrollView.frame
             
             // If element is below the visible area, scroll down
             if elementFrame.minY > scrollFrame.maxY {
-                // Scroll down by dragging from bottom to top
                 let startPoint = CGPoint(x: scrollFrame.midX, y: scrollFrame.maxY - 50)
                 let endPoint = CGPoint(x: scrollFrame.midX, y: scrollFrame.minY + 50)
                 scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
@@ -76,27 +113,82 @@ extension XCUIElement {
             }
             // If element is above the visible area, scroll up
             else if elementFrame.maxY < scrollFrame.minY {
-                // Scroll up by dragging from top to bottom
                 let startPoint = CGPoint(x: scrollFrame.midX, y: scrollFrame.minY + 50)
                 let endPoint = CGPoint(x: scrollFrame.midX, y: scrollFrame.maxY - 50)
                 scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
                     .withOffset(CGVector(dx: startPoint.x, dy: startPoint.y))
                     .press(forDuration: 0.1, thenDragTo: scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
                         .withOffset(CGVector(dx: endPoint.x, dy: endPoint.y)))
+            } else {
+                // Element is in view but not hittable, try gentle scroll within the scrollView
+                let startPoint = CGPoint(x: scrollFrame.midX, y: scrollFrame.maxY - 50)
+                let endPoint = CGPoint(x: scrollFrame.midX, y: scrollFrame.minY + 50)
+                scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+                    .withOffset(CGVector(dx: startPoint.x, dy: startPoint.y))
+                    .press(forDuration: 0.1, thenDragTo: scrollView.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+                        .withOffset(CGVector(dx: endPoint.x, dy: endPoint.y)))
             }
             
-            // Wait a moment for the scroll to complete
-            Thread.sleep(forTimeInterval: 0.5)
-        } else {
-            // Fallback: simple swipe up until element becomes hittable
-            var attempts = 0
-            let maxAttempts = 10
-            
-            while !self.isHittable && attempts < maxAttempts {
-                XCUIApplication().swipeUp()
-                Thread.sleep(forTimeInterval: 0.3)
-                attempts += 1
-            }
+            // Wait for scroll animation to complete using XCTWaiter
+            waitForScrollCompletion()
+            attempts += 1
         }
+        
+        return self.isHittable
+    }
+    
+    /// Performs fallback scrolling when no scroll container is found
+    private func performFallbackScrolling() -> Bool {
+        let maxAttempts = 10
+        var attempts = 0
+        
+        while !self.isHittable && attempts < maxAttempts {
+            XCUIApplication().swipeUp()
+            waitForScrollCompletion()
+            attempts += 1
+        }
+        
+        return self.isHittable
+    }
+    
+    /// Waits for scroll animation to complete using XCTWaiter
+    private func waitForScrollCompletion() {
+        let scrollWaitExpectation = XCTestExpectation(description: "Wait for scroll animation")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            scrollWaitExpectation.fulfill()
+        }
+        _ = XCTWaiter.wait(for: [scrollWaitExpectation], timeout: 1.0)
+    }
+}
+
+// MARK: - XCUIApplication Extensions for Better Waiting
+extension XCUIApplication {
+    
+    /// Waits for UI updates to complete using XCTWaiter instead of Thread.sleep
+    func waitForUIUpdate(timeout: TimeInterval = 1.0) {
+        let updateExpectation = XCTestExpectation(description: "Wait for UI update")
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
+            updateExpectation.fulfill()
+        }
+        _ = XCTWaiter.wait(for: [updateExpectation], timeout: timeout + 0.5)
+    }
+    
+    /// Waits for an element to appear and become interactable
+    @discardableResult
+    func waitForElementToAppear(_ element: XCUIElement, timeout: TimeInterval = 5.0) -> Bool {
+        return element.waitForExistence(timeout: timeout) && element.waitForHittable(timeout: 1.0)
+    }
+    
+    /// Waits for multiple elements to exist
+    @discardableResult
+    func waitForElements(_ elements: [XCUIElement], timeout: TimeInterval = 5.0) -> Bool {
+        let expectations = elements.map { element in
+            let predicate = NSPredicate(format: "exists == true")
+            return XCTNSPredicateExpectation(predicate: predicate, object: element)
+        }
+        
+        let waiter = XCTWaiter()
+        let result = waiter.wait(for: expectations, timeout: timeout)
+        return result == .completed
     }
 } 

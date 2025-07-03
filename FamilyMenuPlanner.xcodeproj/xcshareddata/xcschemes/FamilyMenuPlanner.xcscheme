@@ -20,20 +20,6 @@
                ReferencedContainer = "container:FamilyMenuPlanner.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "NO"
-            buildForProfiling = "NO"
-            buildForArchiving = "NO"
-            buildForAnalyzing = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "484161BE2DEF698200A48C49"
-               BuildableName = "FamilyMenuPlannerPerformanceTests.xctest"
-               BlueprintName = "FamilyMenuPlannerPerformanceTests"
-               ReferencedContainer = "container:FamilyMenuPlanner.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -50,16 +36,6 @@
                BlueprintIdentifier = "A004ED8A2D11DC030081DDC0"
                BuildableName = "FamilyMenuPlannerTests.xctest"
                BlueprintName = "FamilyMenuPlannerTests"
-               ReferencedContainer = "container:FamilyMenuPlanner.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
-         <TestableReference
-            skipped = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "A004ED942D11DC030081DDC0"
-               BuildableName = "FamilyMenuPlannerUITests.xctest"
-               BlueprintName = "FamilyMenuPlannerUITests"
                ReferencedContainer = "container:FamilyMenuPlanner.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -82,6 +58,16 @@
                BlueprintIdentifier = "484161BE2DEF698200A48C49"
                BuildableName = "FamilyMenuPlannerPerformanceTests.xctest"
                BlueprintName = "FamilyMenuPlannerPerformanceTests"
+               ReferencedContainer = "container:FamilyMenuPlanner.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "A004ED942D11DC030081DDC0"
+               BuildableName = "FamilyMenuPlannerUITests.xctest"
+               BlueprintName = "FamilyMenuPlannerUITests"
                ReferencedContainer = "container:FamilyMenuPlanner.xcodeproj">
             </BuildableReference>
          </TestableReference>

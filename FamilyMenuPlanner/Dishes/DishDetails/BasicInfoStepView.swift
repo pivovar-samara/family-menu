@@ -18,7 +18,7 @@ struct BasicInfoStepView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                // Hero Card - Name & Image
+                // Hero Card - Name
                 HeroInfoCard(
                     name: Binding(
                         get: { viewModel.dish?.name ?? "" },
@@ -69,31 +69,6 @@ struct HeroInfoCard: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            // Dish Image Placeholder
-            RoundedRectangle(cornerRadius: 16)
-                .fill(
-                    LinearGradient(
-                        colors: [Color("AccentColor").opacity(0.1), Color("AccentColor").opacity(0.05)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(height: 140)
-                .overlay(
-                    VStack(spacing: 8) {
-                        Image(systemName: "photo")
-                            .font(.system(size: 40, weight: .light))
-                            .foregroundColor(Color("AccentColor").opacity(0.6))
-                        
-                        Text("Add Photo".localized())
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                )
-                .onTapGesture {
-                    // TODO: Implement photo picker
-                }
-            
             // Name Input
             VStack(alignment: .leading, spacing: 12) {
                 HStack {

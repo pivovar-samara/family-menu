@@ -7,6 +7,8 @@ class MockDishListService: DishListServiceProtocol {
     var error: Error?
     var deleteDishCalled = false
     var delegate: DishListServiceDelegate?
+    var currentSortOption: DishSortOption = .nameAscending
+    var updateSortOptionCalled = false
     
     func fetchAllDishes() {
         if let error = error {
@@ -16,6 +18,13 @@ class MockDishListService: DishListServiceProtocol {
         }
         // In real tests we'd convert MockDish to Dish
         delegate?.serviceDidChangeContent([])
+    }
+    
+    func updateSortOption(_ sortOption: DishSortOption) {
+        currentSortOption = sortOption
+        updateSortOptionCalled = true
+        // Trigger data refresh
+        fetchAllDishes()
     }
     
     func deleteDishes(dishes: [Dish]) throws {
@@ -46,6 +55,9 @@ class MockDishListViewModel {
     var searchText: String = ""
     var filteredDishes: [MockDish] = []
     
+    // Add sorting functionality properties
+    var sortOption: DishSortOption = .nameAscending
+    
     private let dishListService: MockDishListService
     
     init(dishListService: MockDishListService) {
@@ -54,6 +66,11 @@ class MockDishListViewModel {
     
     func loadDishes() {
         dishListService.fetchAllDishes()
+    }
+    
+    func updateSortOption(_ newSortOption: DishSortOption) {
+        sortOption = newSortOption
+        dishListService.updateSortOption(newSortOption)
     }
     
     func deleteDishes(at offsets: IndexSet) throws {
@@ -161,6 +178,76 @@ class DishListUnitTests: XCTestCase {
         XCTAssertEqual(viewModel.searchText, "pasta")
     }
     
+    // MARK: - Sorting Tests
+    
+    func testInitialSortOption() {
+        // Verify initial sort option
+        XCTAssertEqual(viewModel.sortOption, .nameAscending)
+        XCTAssertEqual(mockService.currentSortOption, .nameAscending)
+    }
+    
+    func testUpdateSortOption() {
+        // Change sort option
+        viewModel.updateSortOption(.nameDescending)
+        
+        // Verify view model is updated
+        XCTAssertEqual(viewModel.sortOption, .nameDescending)
+        
+        // Verify service is called
+        XCTAssertTrue(mockService.updateSortOptionCalled)
+        XCTAssertEqual(mockService.currentSortOption, .nameDescending)
+    }
+    
+    func testSortOptionCategory() {
+        // Change to category sort
+        viewModel.updateSortOption(.category)
+        
+        // Verify both view model and service are updated
+        XCTAssertEqual(viewModel.sortOption, .category)
+        XCTAssertEqual(mockService.currentSortOption, .category)
+        XCTAssertTrue(mockService.updateSortOptionCalled)
+    }
+    
+    func testAllSortOptions() {
+        // Test all sort options
+        let options = DishSortOption.allCases
+        
+        for option in options {
+            mockService.updateSortOptionCalled = false // Reset flag
+            
+            viewModel.updateSortOption(option)
+            
+            XCTAssertEqual(viewModel.sortOption, option)
+            XCTAssertEqual(mockService.currentSortOption, option)
+            XCTAssertTrue(mockService.updateSortOptionCalled)
+        }
+    }
+    
+    func testSortOptionTitles() {
+        // Verify all sort options have proper titles
+        XCTAssertEqual(DishSortOption.nameAscending.title, "Name A-Z".localized())
+        XCTAssertEqual(DishSortOption.nameDescending.title, "Name Z-A".localized())
+        XCTAssertEqual(DishSortOption.category.title, "Category".localized())
+    }
+    
+    func testSortDescriptors() {
+        // Test name ascending sort descriptors
+        let nameAscSortDescriptors = DishSortOption.nameAscending.sortDescriptors
+        XCTAssertEqual(nameAscSortDescriptors.count, 1)
+        XCTAssertTrue(nameAscSortDescriptors[0].ascending)
+        
+        // Test name descending sort descriptors
+        let nameDescSortDescriptors = DishSortOption.nameDescending.sortDescriptors
+        XCTAssertEqual(nameDescSortDescriptors.count, 1)
+        XCTAssertFalse(nameDescSortDescriptors[0].ascending)
+        
+        // Test category sort descriptors (should have 2: category first, then name)
+        let categorySortDescriptors = DishSortOption.category.sortDescriptors
+        XCTAssertEqual(categorySortDescriptors.count, 2)
+        XCTAssertTrue(categorySortDescriptors[0].ascending) // Category ascending
+        XCTAssertTrue(categorySortDescriptors[1].ascending) // Name ascending (secondary)
+    }
+
     func testSearchFunctionalityInitialized() {
         // Verify search properties are properly initialized
         XCTAssertEqual(viewModel.searchText, "")
