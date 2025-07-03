@@ -71,6 +71,9 @@ class DishListViewModel: ObservableObject {
         
         // Setup sort option binding
         setupSortBinding()
+        
+        // Explicitly set the initial sort option in the service to match loaded preference
+        dishListService.updateSortOption(sortOption)
     }
     
     /// Loads the persistent sort preference from UserDefaults
@@ -87,8 +90,9 @@ class DishListViewModel: ObservableObject {
     }
     
     private func setupSortBinding() {
-        // Update service when sort option changes
+        // Update service when sort option changes, but ignore initial value during initialization
         $sortOption
+            .dropFirst() // Ignore the initial value to prevent premature service updates during init
             .removeDuplicates()
             .sink { [weak self] newSortOption in
                 self?.dishListService.updateSortOption(newSortOption)

@@ -16,32 +16,53 @@ struct DishListView: View {
     }
 
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 16) {
-                if viewModel.filteredDishes.isEmpty {
+        List {
+            // Empty state
+            if viewModel.filteredDishes.isEmpty {
+                if viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    // No dishes at all – show onboarding empty state
                     EmptyDishListView {
                         viewModel.isAddingNewDish = true
                     }
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
                     .accessibilityIdentifier("dish_list_empty_state")
                 } else {
-                    ForEach(viewModel.filteredDishes, id: \.self) { dish in
-                        DishCardView(
-                            dish: dish,
-                            onEdit: {
-                                viewModel.selectedDish = dish
-                            },
-                            onDelete: {
-                                viewModel.deleteDish(dish)
-                            }
-                        )
-                        .accessibilityIdentifier("dish_list_item_\(dish.name ?? "unnamed")")
-                    }
+                    // Search yielded no results
+                    Color.clear
+                        .emptyState(message: "No results found".localized())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .accessibilityIdentifier("dish_list_no_results_state")
+                }
+            } else {
+                // Dish cards
+                ForEach(viewModel.filteredDishes, id: \.self) { dish in
+                    DishCardView(
+                        dish: dish,
+                        onEdit: {
+                            viewModel.selectedDish = dish
+                        },
+                        onDelete: {
+                            viewModel.deleteDish(dish)
+                        }
+                    )
+                    .padding(.vertical, 8)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .accessibilityIdentifier("dish_list_item_\(dish.name ?? "unnamed")")
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .padding(.bottom, 100) // Space for floating action button
+
+            // Spacer row to keep content above the floating action button
+            Color.clear
+                .frame(height: 80)
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden) // Keep custom background
         .background(Color("BackgroundColor"))
         .searchable(text: $viewModel.searchText, prompt: "Search dishes...".localized())
         .toolbar {

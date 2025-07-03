@@ -165,85 +165,59 @@ final class DishManagementUITests: XCTestCase {
     func testEditExistingDish() throws {
         navigateToDishList()
         
-        // Use existing preloaded dishes
-        let existingDishNames = ["Beef Stew", "Cheese Omelette", "Cucumber Yogurt Salad"]
-        var dishToEdit: String?
-        var foundAndOpenedDish = false
-        
-        // Find an existing dish to edit
-        let collectionView = app.collectionViews.firstMatch
-        if collectionView.waitForExistence(timeout: 5) {
-            print("📋 Found collection view, looking for existing dishes to edit...")
-            
-            let cells = collectionView.cells
-            let cellCount = cells.count
-            print("📋 Found \(cellCount) cells in collection view")
-            
-            // Check each cell for our target dish names
-            for i in 0..<min(cellCount, 10) {
-                let cell = cells.element(boundBy: i)
-                if cell.exists {
-                    let cellTexts = cell.staticTexts
-                    for j in 0..<cellTexts.count {
-                        let text = cellTexts.element(boundBy: j)
-                        if text.exists {
-                            for dishName in existingDishNames {
-                                if text.label.contains(dishName) {
-                                    print("✅ Found existing dish '\(dishName)' in collection view cell")
-                                    dishToEdit = dishName
-                                    // Attempt to tap the edit button inside the dish card (identified by otherElements prefix)
-                                    let cardElement = app.otherElements["dish_list_item_\(dishName)"]
-                                    if cardElement.exists, cardElement.buttons["edit_dish_button_\(dishName)"].firstMatch.waitForExistence(timeout: 1) {
-                                        cardElement.buttons["edit_dish_button_\(dishName)"].firstMatch.tap()
-                                    } else {
-                                        let globalEditButton = app.buttons["edit_dish_button_\(dishName)"].firstMatch
-                                        if globalEditButton.waitForExistence(timeout: 3) {
-                                            globalEditButton.tap()
-                                        } else {
-                                            // As a last resort, tap the text itself (opens details view)
-                                            text.tap()
-                                        }
-                                    }
-                                    foundAndOpenedDish = true
-                                    break
-                                }
-                            }
-                            if foundAndOpenedDish { break }
-                        }
-                    }
-                    if foundAndOpenedDish { break }
-                }
+        // Candidate dishes we expect in preload
+        let candidateDishes = ["Beef Stew", "Cheese Omelette", "Cucumber Yogurt Salad"]
+        var dishToEdit: String? = nil
+
+        // Use the same robust finder we rely on in the delete test
+        for name in candidateDishes {
+            if findDishInList(dishName: name) {
+                dishToEdit = name
+                break
             }
         }
-        
-        // Fallback: Try static text approach
-        if !foundAndOpenedDish {
-            print("📋 Trying static text approach...")
-            for dishName in existingDishNames {
-                let dishText = app.staticTexts[dishName]
-                if dishText.waitForExistence(timeout: 2) {
-                    print("✅ Found existing dish: '\(dishName)' as static text")
-                    dishToEdit = dishName
-                    // Attempt to tap the edit button inside the dish card (identified by otherElements prefix)
-                    let cardElement = app.otherElements["dish_list_item_\(dishName)"]
-                    if cardElement.exists, cardElement.buttons["edit_dish_button_\(dishName)"].firstMatch.waitForExistence(timeout: 1) {
-                        cardElement.buttons["edit_dish_button_\(dishName)"].firstMatch.tap()
-                    } else {
-                        let globalEditButton = app.buttons["edit_dish_button_\(dishName)"].firstMatch
-                        if globalEditButton.waitForExistence(timeout: 3) {
-                            globalEditButton.tap()
-                        } else {
-                            // As a last resort, tap the text itself (opens details view)
-                            dishText.tap()
-                        }
-                    }
-                    foundAndOpenedDish = true
-                    break
-                }
+
+        // As an absolute fallback – pick the first visible card
+        if dishToEdit == nil {
+            let firstVisibleCard = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_")).firstMatch
+            if firstVisibleCard.waitForExistence(timeout: 3) {
+                dishToEdit = firstVisibleCard.identifier.replacingOccurrences(of: "dish_list_item_", with: "")
             }
         }
-        
-        XCTAssertTrue(foundAndOpenedDish && dishToEdit != nil, "Should find and open an existing dish for editing")
+
+        guard let dishName = dishToEdit else {
+            XCTFail("❌ FAILED: Could not locate any dish to edit")
+            return
+        }
+
+        print("📝 Preparing to edit dish: \(dishName)")
+
+        // Make sure the card is visible (findDishInList already did this)
+        _ = findDishInCurrentView(dishName: dishName)
+
+        var editButton = app.buttons["edit_dish_button_\(dishName)"]
+        if !editButton.waitAndScrollToElement(timeout: 4.0) {
+            // Fallback: scoped search within the dish card
+            let card = app.otherElements["dish_list_item_\(dishName)"]
+            if card.exists {
+                editButton = card.buttons["edit_dish_button_\(dishName)"].firstMatch
+                _ = editButton.waitAndScrollToElement(timeout: 2.0)
+            }
+        }
+
+        if editButton.exists {
+            editButton.tap()
+        } else {
+            // As a last resort, tap the card itself to open details for editing
+            let card = app.otherElements["dish_list_item_\(dishName)"]
+            if card.exists {
+                card.tap()
+            } else {
+                XCTFail("❌ FAILED: Could not open dish \(dishName) for editing – edit button and card both inaccessible")
+                return
+            }
+        }
+        let foundAndOpenedDish = true
         
         // Verify we're in the multi-step dish editing screen (should start at Basic Information)
         XCTAssertTrue(waitForStepScreen(stepTitle: "Basic Information"), "Should be in Basic Information step for editing")
@@ -254,11 +228,11 @@ final class DishManagementUITests: XCTestCase {
         
         // Verify the original dish name is loaded
         let currentName = dishNameField.value as? String ?? ""
-        XCTAssertTrue(currentName.contains(dishToEdit!), "Should load the original dish name for editing")
+        XCTAssertTrue(currentName.contains(dishName), "Should load the original dish name for editing")
         print("📝 Current dish name in field: '\(currentName)'")
         
         // Edit the dish name
-        let editedName = "EDITED \(dishToEdit!)"
+        let editedName = "EDITED \(dishName)"
         dishNameField.clearAndEnterText(editedName)
         
         // Edit the description if available
@@ -424,15 +398,16 @@ final class DishManagementUITests: XCTestCase {
         _ = findDishInCurrentView(dishName: dishNameToDeleteUnwrapped)
 
         var deleteButton = app.buttons["delete_dish_button_\(dishNameToDeleteUnwrapped)"]
-        if !deleteButton.waitForExistence(timeout: 2) {
-            // Try locating the button within the specific dish card (scoped search)
+        if !deleteButton.waitAndScrollToElement(timeout: 4.0) {
+            // Fallback: search within the specific dish card
             let dishCard = app.otherElements["dish_list_item_\(dishNameToDeleteUnwrapped)"]
             if dishCard.exists {
                 deleteButton = dishCard.buttons["delete_dish_button_\(dishNameToDeleteUnwrapped)"].firstMatch
+                _ = deleteButton.waitAndScrollToElement(timeout: 2.0)
             }
         }
 
-        XCTAssertTrue(deleteButton.waitForExistence(timeout: 2), "Delete button should exist for dish \(dishNameToDeleteUnwrapped)")
+        XCTAssertTrue(deleteButton.exists, "Delete button should exist for dish \(dishNameToDeleteUnwrapped)")
 
         deleteButton.tap()
 
@@ -597,7 +572,7 @@ final class DishManagementUITests: XCTestCase {
         var totalDishes = dishCardsQuery.count
         var waitCount = 0
         while totalDishes == 0 && waitCount < 10 {
-            Thread.sleep(forTimeInterval: 0.5)
+            app.waitForUIUpdate(timeout: 0.5)
             dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
             totalDishes = dishCardsQuery.count
             waitCount += 1
@@ -605,7 +580,7 @@ final class DishManagementUITests: XCTestCase {
         if totalDishes == 0 {
             print("⚠️ No dishes to search – creating a temporary dish")
             _ = createTemporaryDishIfNeeded(baseName: "Search Test Dish")
-            Thread.sleep(forTimeInterval: 1.0)
+            app.waitForUIUpdate(timeout: 1.0)
             // Refresh query/counts
             dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
             totalDishes = dishCardsQuery.count
@@ -628,7 +603,7 @@ final class DishManagementUITests: XCTestCase {
         searchField.typeText("Beef")
 
         // Allow results to update
-        Thread.sleep(forTimeInterval: 1.0)
+        app.waitForUIUpdate(timeout: 1.0)
 
         let searchResultsCount = dishCardsQuery.count
         print("📊 Search results: \(searchResultsCount) dishes found for 'Beef'")
@@ -640,7 +615,7 @@ final class DishManagementUITests: XCTestCase {
             searchField.clearText()
         }
 
-        Thread.sleep(forTimeInterval: 1.0)
+        app.waitForUIUpdate(timeout: 0.5)
         let restoredCount = dishCardsQuery.count
         print("📊 After clearing search: \(restoredCount) dishes shown")
 
@@ -671,21 +646,13 @@ final class DishManagementUITests: XCTestCase {
                     foundViaSearch = true
                     break
                 }
-                Thread.sleep(forTimeInterval: 0.5)
+                app.waitForUIUpdate(timeout: 0.5)
             }
 
             if foundViaSearch {
                 print("✅ Found dish using search functionality")
-
-                // Clear search before returning
-                let clearButton = searchField.buttons["Clear text"]
-                if clearButton.exists {
-                    clearButton.tap()
-                } else {
-                    searchField.clearText()
-                }
-                Thread.sleep(forTimeInterval: 0.5)
-
+                // Keep the search filter active so the dish card remains visible for further actions (e.g., delete)
+                // The caller can decide when to clear the search later.
                 return true
             } else {
                 print("⚠️ Dish not found via search after waiting, clearing search and falling back to scrolling")
@@ -696,7 +663,7 @@ final class DishManagementUITests: XCTestCase {
                 } else {
                     searchField.clearText()
                 }
-                Thread.sleep(forTimeInterval: 0.5)
+                app.waitForUIUpdate(timeout: 0.5)
             }
         } else {
             print("⚠️ No search field found, trying scrolling method")
@@ -779,7 +746,7 @@ final class DishManagementUITests: XCTestCase {
                 return true
             }
             scrollView.swipeUp()
-            Thread.sleep(forTimeInterval: 0.5)
+            app.waitForUIUpdate(timeout: 0.5)
         }
         return findDishInCurrentView(dishName: dishName)
     }
@@ -814,7 +781,7 @@ final class DishManagementUITests: XCTestCase {
             
             // Scroll down to load more content
             collectionView.swipeUp()
-            Thread.sleep(forTimeInterval: 0.5) // Give time for content to load
+            app.waitForUIUpdate(timeout: 0.5) // Give time for content to load
         }
         
         // Final check after scrolling

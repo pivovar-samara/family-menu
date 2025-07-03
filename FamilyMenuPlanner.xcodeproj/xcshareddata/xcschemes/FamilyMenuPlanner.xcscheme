@@ -18,7 +18,7 @@
                BuildableName = "FamilyMenuPlanner.app"
                BlueprintName = "FamilyMenuPlanner"
                ReferencedContainer = "container:FamilyMenuPlanner.xcodeproj">
-                        </BuildableReference>
+            </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
