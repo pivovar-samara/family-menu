@@ -315,4 +315,39 @@ class StaticDataCacheManagerUnitTests: XCTestCase {
         let units = cacheManager.getUnits()
         XCTAssertGreaterThanOrEqual(units.count, 0)
     }
+    
+    /// Verifies that concurrent access to getUnits does not crash and results in a single coherent dataset.
+    func testConcurrentGetUnitsThreadSafety() {
+        // Seed test data
+        _ = testDataFactory.createUnit(name: "g")
+        _ = testDataFactory.createUnit(name: "kg")
+        _ = testDataFactory.createUnit(name: "pcs")
+
+        // Use a fresh cache instance to avoid interference with other tests in this class.
+        let cache = StaticDataCacheManager.createTestInstance()
+        cache.initialize(with: context)
+
+        let iterations = 20
+        let group = DispatchGroup()
+        let concurrentQueue = DispatchQueue(label: "concurrentTestQueue", attributes: .concurrent)
+
+        for _ in 0..<iterations {
+            group.enter()
+            concurrentQueue.async {
+                _ = cache.getUnits()
+                group.leave()
+            }
+        }
+
+        // Also call once on the main thread to simulate UI usage
+        _ = cache.getUnits()
+
+        // Wait for all background calls to complete
+        let result = group.wait(timeout: .now() + 5)
+        XCTAssertEqual(result, .success, "Background calls did not finish in time, potential deadlock detected")
+
+        // Ensure we still have the seeded data and nothing unexpected happened
+        let units = cache.getUnits()
+        XCTAssertEqual(units.count, 3)
+    }
 } 

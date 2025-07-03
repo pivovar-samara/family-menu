@@ -18,7 +18,9 @@ struct IngredientsStepView: View {
                     title: "What ingredients do you need?".localized(),
                     subtitle: "Add and organize your ingredients".localized(),
                     icon: "basket",
-                    ingredientCount: viewModel.selectedIngredients.count
+                    ingredientCount: viewModel.selectedIngredients.count,
+                    selectedCategory: viewModel.selectedCategory,
+                    selectedMealTypes: viewModel.selectedMealTypes
                 )
                 
                 // Quick Add Section
@@ -65,6 +67,8 @@ struct IngredientsHeaderCard: View {
     let subtitle: String
     let icon: String
     let ingredientCount: Int
+    let selectedCategory: DishCategory?
+    let selectedMealTypes: Set<MealType>
     
     var body: some View {
         VStack(spacing: 16) {
@@ -105,6 +109,40 @@ struct IngredientsHeaderCard: View {
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
+            }
+            
+            // Selected category & meal types summary
+            if selectedCategory != nil || !selectedMealTypes.isEmpty {
+                Divider().padding(.horizontal, 8)
+
+                VStack(alignment: .leading, spacing: 12) {
+                    if let category = selectedCategory?.name?.localized(), !category.isEmpty {
+                        HStack(spacing: 6) {
+                            Image(systemName: "tag")
+                                .font(.caption)
+                                .foregroundColor(Color("AccentColor"))
+                            Text(category)
+                                .font(.caption.weight(.medium))
+                                .foregroundColor(.primary)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color("AccentColor").opacity(0.1))
+                                .cornerRadius(8)
+                        }
+                    }
+
+                    if !selectedMealTypes.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(Array(selectedMealTypes), id: \.self) { mealType in
+                                    MealTypeSmallChip(mealType: mealType)
+                                }
+                            }
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 4)
             }
         }
         .padding(24)
@@ -160,8 +198,6 @@ struct QuickAddIngredientCard: View {
         .shadow(color: .black.opacity(0.04), radius: 8)
     }
 }
-
-
 
 // MARK: - Ingredients List Card
 struct IngredientsListCard: View {
@@ -616,5 +652,28 @@ struct IngredientsScaleButtonStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Small Meal-Type Chip (Ingredients header)
+struct MealTypeSmallChip: View {
+    let mealType: MealType
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: ViewHelper.mealTypeIcon(for: mealType))
+                .font(.caption2)
+                .foregroundColor(ViewHelper.mealTypeColor(for: mealType))
+            Text(mealType.name?.localized() ?? "")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
+        .background(Color("BackgroundColor"))
+        .cornerRadius(6)
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(ViewHelper.mealTypeColor(for: mealType).opacity(0.3), lineWidth: 1)
+        )
     }
 } 
