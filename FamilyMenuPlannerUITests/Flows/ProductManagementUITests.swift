@@ -53,9 +53,9 @@ final class ProductManagementUITests: XCTestCase {
         
         XCTAssertTrue(productList?.waitForExistence(timeout: 3) ?? false, "Product list should exist")
         
-        // Find and tap the "Add Product" button in the toolbar
-        let addProductButton = app.navigationBars["Products"].buttons["Add Product"]
-        XCTAssertTrue(addProductButton.waitForExistence(timeout: 3), "Add Product toolbar button should exist")
+        // Find and tap the floating "Add Product" button
+        let addProductButton = app.buttons["add_product_button"]
+        XCTAssertTrue(addProductButton.waitForExistence(timeout: 3), "Floating add product button should exist")
         addProductButton.tap()
         
         // Wait for the add product sheet to appear
@@ -146,9 +146,9 @@ final class ProductManagementUITests: XCTestCase {
         
         XCTAssertTrue(productList?.waitForExistence(timeout: 3) ?? false, "Product list should exist")
         
-        // Find and tap the "Add Product" button in the toolbar
-        let addProductButton = app.navigationBars["Products"].buttons["Add Product"]
-        XCTAssertTrue(addProductButton.waitForExistence(timeout: 3), "Add Product toolbar button should exist")
+        // Find and tap the floating "Add Product" button
+        let addProductButton = app.buttons["add_product_button"]
+        XCTAssertTrue(addProductButton.waitForExistence(timeout: 3), "Floating add product button should exist")
         addProductButton.tap()
         
         // Wait for the add product sheet to appear
@@ -240,160 +240,60 @@ final class ProductManagementUITests: XCTestCase {
     func testEditExistingProduct() throws {
         navigateToProductList()
         
-        // Wait longer for initial data loading to complete
-        // The app should load products from preloadData.json
+        // Allow initial data to load
         Thread.sleep(forTimeInterval: 5.0)
         
-        // Try multiple approaches to find existing products
-        var foundProductToEdit = false
+        // Locate first product's edit button
+        let editButton = app.buttons["EditProductButton"].firstMatch
+        XCTAssertTrue(editButton.waitForExistence(timeout: 8), "EditProductButton should be present")
         
-        // Approach 1: Look for table/list containing products
-        let productList = app.tables.firstMatch
-        if productList.waitForExistence(timeout: 8) {
-            print("✅ Found product table")
-            
-            // Look for product cells
-            let cells = productList.cells
-            if cells.firstMatch.exists {
-                let firstCell = cells.firstMatch
-                XCTAssertTrue(firstCell.exists, "First product cell should exist")
-                foundProductToEdit = true
-                
-                // Try to edit using the new accessibility identifier
-                let editButton = firstCell.buttons["EditProductButton"]
-                if editButton.exists && editButton.isHittable {
-                    print("✅ Found EditProductButton - testing edit functionality")
-                    editButton.tap()
-                    Thread.sleep(forTimeInterval: 2.0)
-                    
-                    // Look for the edit sheet/form
-                    let editNavigationBar = app.navigationBars["Edit Product"]
-                    if editNavigationBar.waitForExistence(timeout: 5) {
-                        print("✅ Edit sheet appeared")
-                        
-                        // Test the edit form
-                        let editProductNameField = app.textFields["Product Name"]
-                        if editProductNameField.waitForExistence(timeout: 3) {
-                            editProductNameField.tap()
-                            editProductNameField.clearAndEnterText("Updated Product Name")
-                            
-                            let saveButton = app.navigationBars.buttons["Save"]
-                            if saveButton.exists {
-                                saveButton.tap()
-                                Thread.sleep(forTimeInterval: 2.0)
-                                
-                                let productListTitle = app.navigationBars["Products"]
-                                XCTAssertTrue(productListTitle.waitForExistence(timeout: 5), "Should return to product list after saving")
-                                
-                                XCTAssertTrue(true, "✅ Product editing works correctly with accessibility identifier")
-                                return
-                            }
-                        }
+        // Open edit
+        editButton.tap()
+        
+        // Wait for edit screen
+        let editNav = app.navigationBars["Edit Product"]
+        XCTAssertTrue(editNav.waitForExistence(timeout: 5))
+        
+        let nameField = app.textFields["Product Name"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 3))
+        
+        // Capture original name from the text field's current value
+        let originalName = (nameField.value as? String) ?? ""
+        
+        nameField.tap()
+        nameField.clearAndEnterText("Updated " + originalName)
+        
+        // Save changes
+        editNav.buttons["Save"].tap()
+        
+        // Return to list
+        XCTAssertTrue(app.navigationBars["Products"].waitForExistence(timeout: 5))
+        
+        // Verify updated name appears in the list (scroll if necessary)
+        let updatedText = app.staticTexts["Updated " + originalName]
+        
+        var updatedFound = updatedText.waitForExistence(timeout: 2)
+        if !updatedFound {
+            // Try scrolling through potential container types
+            let containers: [XCUIElement] = [
+                app.tables["ProductList"],
+                app.collectionViews["ProductList"],
+                app.scrollViews.firstMatch,
+                app.tables.firstMatch
+            ]
+            for container in containers where container.exists {
+                for _ in 0..<6 {
+                    container.swipeUp()
+                    if updatedText.exists {
+                        updatedFound = true
+                        break
                     }
                 }
-                
-                // Fallback: Try tapping the whole cell
-                print("EditProductButton not found or not hittable - trying cell tap")
-                firstCell.tap()
-                Thread.sleep(forTimeInterval: 2.0)
-                
-                let editNavigationBar = app.navigationBars["Edit Product"]
-                if editNavigationBar.waitForExistence(timeout: 3) {
-                    print("✅ Edit sheet opened by tapping cell")
-                    XCTAssertTrue(true, "Edit interface accessible by tapping product cell")
-                    return
-                }
-            } else {
-                print("⚠️ Product table found but contains no cells")
+                if updatedFound { break }
             }
         }
         
-        if !foundProductToEdit {
-            // Approach 2: Look for scroll views (Lists might appear as scroll views)
-            let scrollView = app.scrollViews.firstMatch
-            if scrollView.waitForExistence(timeout: 5) {
-                print("✅ Found scroll view instead of table")
-                
-                // Look for static text elements that might be product names
-                let allStaticTexts = app.staticTexts
-                let knownProducts = ["Beef", "Butter", "Carrot", "Chicken", "Egg", "Milk", "Onion"]
-                
-                for productName in knownProducts {
-                    let productElement = allStaticTexts[productName]
-                    if productElement.exists {
-                        print("✅ Found product: \(productName)")
-                        foundProductToEdit = true
-                        
-                        // Try to find an edit button near this product
-                        let editButton = app.buttons["EditProductButton"]
-                        if editButton.exists {
-                            editButton.tap()
-                            Thread.sleep(forTimeInterval: 2.0)
-                            
-                            let editNavigationBar = app.navigationBars["Edit Product"]
-                            if editNavigationBar.waitForExistence(timeout: 3) {
-                                print("✅ Edit sheet opened for \(productName)")
-                                XCTAssertTrue(true, "Edit interface accessible for existing product \(productName)")
-                                return
-                            }
-                        }
-                        
-                        // Try tapping the product name directly
-                        productElement.tap()
-                        Thread.sleep(forTimeInterval: 2.0)
-                        
-                        let editNavigationBar = app.navigationBars["Edit Product"]
-                        if editNavigationBar.waitForExistence(timeout: 3) {
-                            print("✅ Edit sheet opened by tapping product name: \(productName)")
-                            XCTAssertTrue(true, "Edit interface accessible by tapping product name")
-                            return
-                        }
-                        
-                        break // Stop after testing the first found product
-                    }
-                }
-            }
-        }
-        
-        if !foundProductToEdit {
-            // Approach 3: Search for any elements that might contain product names
-            print("⚠️ Trying final approach - searching all static text elements")
-            let allTexts = app.staticTexts
-            let expectedProducts = ["Beef", "Butter", "Carrot", "Chicken", "Egg", "Milk", "Onion", "Tomato"]
-            
-            for i in 0..<min(allTexts.count, 20) {
-                let textElement = allTexts.element(boundBy: i)
-                let text = textElement.label
-                
-                if expectedProducts.contains(text) {
-                    print("✅ Found expected product: \(text)")
-                    foundProductToEdit = true
-                    
-                    // Try to interact with this product
-                    textElement.tap()
-                    Thread.sleep(forTimeInterval: 2.0)
-                    
-                    // Check if any edit interface appears
-                    let editNavigationBar = app.navigationBars["Edit Product"]
-                    if editNavigationBar.waitForExistence(timeout: 2) {
-                        print("✅ Successfully opened edit interface for: \(text)")
-                        XCTAssertTrue(true, "Edit interface accessible for product: \(text)")
-                        return
-                    }
-                    
-                    // If no edit interface, at least we found a product
-                    break
-                }
-            }
-        }
-        
-        if foundProductToEdit {
-            // We found products but couldn't access edit interface
-            print("⚠️ Products found but edit interface not accessible")
-            XCTAssertTrue(true, "Products are present in the app (found from preload data)")
-        } else {
-            XCTFail("No products found - check if preload data is loading correctly or if the app structure has changed")
-        }
+        XCTAssertTrue(updatedFound, "Edited product should appear with updated name in the list")
     }
     
     // MARK: - Test Product Deletion
@@ -496,89 +396,25 @@ final class ProductManagementUITests: XCTestCase {
             print("🧪 Testing product deletion functionality")
             var productDeleted = false
             
-            // Test swipe-to-delete on product cells (using proven working pattern)
-            if !actualProductCells.isEmpty {
-                print("📝 Testing swipe-to-delete on \(actualProductCells.count) identified product cells")
-                
-                for (index, cell) in actualProductCells.enumerated() {
-                    if index >= 3 { break } // Limit attempts
-                    
-                    print("📝 Attempting swipe-to-delete on product cell \(index)")
-                    
-                    // Get cell content before deletion
-                    let cellTexts = cell.staticTexts
-                    var cellContent = "unknown"
-                    if cellTexts.firstMatch.exists {
-                        let firstText = cellTexts.element(boundBy: 0)
-                        if firstText.exists {
-                            cellContent = firstText.label
-                        }
-                    }
-                    
-                    print("📝 Swiping on cell with content: '\(cellContent)'")
-                    cell.swipeLeft()
-                    
-                    let deleteButton = app.buttons["Delete"]
-                    if deleteButton.waitForExistence(timeout: 2) {
-                        print("✅ Found delete button after swipe - confirming deletion")
-                        deleteButton.tap()
-                        Thread.sleep(forTimeInterval: 1.0)
-                        
-                        // Verify deletion - check if cell no longer exists or content changed
-                        if !cell.exists {
-                            print("✅ SUCCESS: Product cell completely removed")
-                            productDeleted = true
-                            break
-                        } else {
-                            // Check if cell content changed
-                            let updatedTexts = cell.staticTexts
-                            if !updatedTexts.firstMatch.exists {
-                                print("✅ SUCCESS: Product content removed from cell")
-                                productDeleted = true
-                                break
-                            } else {
-                                let updatedFirstText = updatedTexts.element(boundBy: 0)
-                                if updatedFirstText.exists && updatedFirstText.label != cellContent {
-                                    print("✅ SUCCESS: Product content changed (was '\(cellContent)', now '\(updatedFirstText.label)')")
-                                    productDeleted = true
-                                    break
-                                }
-                            }
-                        }
-                    } else {
-                        print("❌ No delete button appeared after swiping '\(cellContent)'")
-                        
-                        // Check for confirmation alert
-                        let alert = app.alerts.firstMatch
-                        if alert.waitForExistence(timeout: 1) {
-                            print("✅ Found confirmation alert after swipe")
-                            let confirmButton = alert.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'delete' OR label CONTAINS[c] 'remove' OR label CONTAINS[c] 'yes'")).firstMatch
-                            if confirmButton.exists {
-                                confirmButton.tap()
-                                Thread.sleep(forTimeInterval: 1.0)
-                                print("✅ SUCCESS: Product removed via alert confirmation")
-                                productDeleted = true
-                                break
-                            }
-                        }
-                    }
+            // Delete using the delete icon on the first product card
+            let deleteButton = app.buttons["DeleteProductButton"].firstMatch
+            if deleteButton.waitForExistence(timeout: 3) {
+                deleteButton.tap()
+
+                // Confirm deletion via confirmation dialog button
+                let confirmDelete = app.buttons["Delete"].firstMatch
+                if confirmDelete.waitForExistence(timeout: 3) {
+                    confirmDelete.tap()
+                    Thread.sleep(forTimeInterval: 1.0)
+                    productDeleted = true
                 }
             }
-            
-            // Verify the deletion worked
+
+            // Verify deletion flagged
             if productDeleted {
-                print("🎉 SUCCESS: Product deletion functionality verified!")
-                XCTAssertTrue(true, "Successfully tested product deletion via swipe-to-delete")
+                XCTAssertTrue(true, "Product deleted via delete icon")
             } else {
-                print("❌ FAILED: Could not delete any products")
-                print("ℹ️ This could indicate:")
-                print("   - Product deletion UI works differently than expected")
-                print("   - SwiftUI List swipe-to-delete not accessible in UI tests")
-                print("   - No actual deletable products found")
-                
-                // This is now a real test limitation, but not necessarily a failure
-                // since SwiftUI Lists have known limitations with swipe-to-delete in UI tests
-                XCTAssertTrue(true, "Product deletion attempted but SwiftUI List swipe-to-delete may not be accessible in UI test environment")
+                XCTFail("Product deletion failed - delete icon not tappable or confirmation missing")
             }
         } else {
             print("❌ No product cells found")
@@ -618,6 +454,48 @@ final class ProductManagementUITests: XCTestCase {
         }
     }
     
+    // MARK: - Sorting Tests
+    
+    func testSortProductsByNameAscending() throws {
+        navigateToProductList()
+
+        // Open sort dialog
+        openSortDialogAndSelect(optionLabel: "Name A-Z")
+
+        // Small wait for sorting to apply
+        Thread.sleep(forTimeInterval: 1.0)
+
+        let names = fetchVisibleProductNames(maxCount: 5)
+        let sorted = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        XCTAssertEqual(names, sorted, "Products should be sorted A→Z by name")
+    }
+
+    func testSortProductsByNameDescending() throws {
+        navigateToProductList()
+
+        // Open sort dialog
+        openSortDialogAndSelect(optionLabel: "Name Z-A")
+
+        Thread.sleep(forTimeInterval: 1.0)
+
+        let names = fetchVisibleProductNames(maxCount: 5)
+        let sorted = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedDescending }
+        XCTAssertEqual(names, sorted, "Products should be sorted Z→A by name")
+    }
+
+    func testSortProductsByUnit() throws {
+        navigateToProductList()
+
+        openSortDialogAndSelect(optionLabel: "Unit")
+        Thread.sleep(forTimeInterval: 1.0)
+
+        // Simple sanity check: capture first two visible unit strings and assert not equal when reversed sort by name A-Z
+        let units = fetchVisibleUnitLabels(maxCount: 3)
+        XCTAssertGreaterThan(units.count, 1, "Need at least two products to verify unit sorting")
+        // Assume units array should be in ascending unit order (based on sortOrder attribute). Verify first <= second alphabetically as proxy.
+        XCTAssertTrue(units.first!.localizedCaseInsensitiveCompare(units[1]) != .orderedDescending, "Unit sorting should place units in defined order")
+    }
+    
     // MARK: - Helper Methods
     
     private func navigateToProductList() {
@@ -630,5 +508,45 @@ final class ProductManagementUITests: XCTestCase {
         
         let productListTitle = app.navigationBars["Products"]
         XCTAssertTrue(productListTitle.waitForExistence(timeout: 5), "Should navigate to Products screen")
+    }
+    
+    // MARK: - Helpers
+    
+    private func openSortDialogAndSelect(optionLabel: String) {
+        let sortButton = app.buttons["sort_products_button"]
+        XCTAssertTrue(sortButton.waitForExistence(timeout: 5), "Sort button should exist")
+        sortButton.tap()
+
+        let option = app.buttons[optionLabel]
+        XCTAssertTrue(option.waitForExistence(timeout: 3), "Sort option \(optionLabel) should exist")
+        option.tap()
+    }
+
+    private func fetchVisibleProductNames(maxCount: Int) -> [String] {
+        var names: [String] = []
+        let nameElements = app.staticTexts.matching(identifier: "ProductNameLabel")
+        let count = min(nameElements.count, maxCount)
+        for i in 0..<count {
+            let element = nameElements.element(boundBy: i)
+            if element.exists { names.append(element.label) }
+        }
+        return names
+    }
+
+    private func fetchVisibleUnitLabels(maxCount: Int) -> [String] {
+        var units: [String] = []
+        let cells = app.cells
+        let count = min(cells.count, maxCount)
+        for i in 0..<count {
+            let cell = cells.element(boundBy: i)
+            if cell.exists {
+                // Unit label is likely second static text (index 1)
+                if cell.staticTexts.count > 1 {
+                    let unitLabel = cell.staticTexts.element(boundBy: 1)
+                    units.append(unitLabel.label)
+                }
+            }
+        }
+        return units
     }
 } 

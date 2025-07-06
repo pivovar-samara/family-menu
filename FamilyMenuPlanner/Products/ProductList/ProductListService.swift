@@ -12,6 +12,7 @@ protocol ProductListServiceProtocol {
     func fetchAllUnits() -> [Unit]
     func deleteProducts(products: [Product]) throws
     func deleteProductsInBackground(products: [Product], completion: @escaping (Result<Void, Error>) -> Void)
+    func updateSortOption(_ sortOption: ProductSortOption)
     
     var delegate: ProductListServiceDelegate? { get set }
 }
@@ -25,34 +26,22 @@ protocol ProductListServiceDelegate {
 class ProductListService: NSObject {
     private let context: NSManagedObjectContext
     private let backgroundOperationManager: BackgroundOperationManagerProtocol
-    private let fetchedResultsController: NSFetchedResultsController<Product>
+    private var fetchedResultsController: NSFetchedResultsController<Product>
     var delegate: ProductListServiceDelegate? = nil
     
     // Performance optimization: debounce rapid changes
     private var changeDebounceTimer: Timer?
     private var hasPendingChanges = false
     private let debounceInterval: TimeInterval
+    private var currentSortOption: ProductSortOption = .nameAscending
 
     init(context: NSManagedObjectContext, debounceInterval: TimeInterval = 0.1, backgroundOperationManager: BackgroundOperationManagerProtocol = BackgroundOperationManager.shared) {
         self.context = context
         self.backgroundOperationManager = backgroundOperationManager
         self.debounceInterval = debounceInterval
         
-        let fetchRequest: NSFetchRequest<Product> = Product.fetchRequest()
-        fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Product.name, ascending: true)]
-        
-        // Filter out draft products from the list (show only complete products)
-        fetchRequest.predicate = NSPredicate(format: "isDraft == NO OR isDraft == nil")
-        
-        // Configure batch fetching for better performance
-        CoreDataFetchHelper.configure(fetchRequest, batchSize: CoreDataFetchHelper.standardBatchSize)
-        
-        self.fetchedResultsController = NSFetchedResultsController(
-            fetchRequest: fetchRequest,
-            managedObjectContext: context,
-            sectionNameKeyPath: nil,
-            cacheName: nil
-        )
+        // Initialize fetched results controller with default sort option
+        self.fetchedResultsController = Self.createFetchedResultsController(context: context, sortOption: currentSortOption)
         
         super.init()
         
@@ -147,6 +136,43 @@ class ProductListService: NSObject {
             self.hasPendingChanges = false
         }
     }
+
+    // MARK: - Fetched Results Controller Factory
+    private static func createFetchedResultsController(context: NSManagedObjectContext, sortOption: ProductSortOption) -> NSFetchedResultsController<Product> {
+        let fetchRequest: NSFetchRequest<Product> = Product.fetchRequest()
+        fetchRequest.sortDescriptors = sortOption.sortDescriptors
+
+        // Filter out draft products from the list (show only complete products)
+        fetchRequest.predicate = NSPredicate(format: "isDraft == NO OR isDraft == nil")
+
+        // Configure batch fetching for better performance
+        CoreDataFetchHelper.configure(fetchRequest, batchSize: CoreDataFetchHelper.standardBatchSize)
+
+        return NSFetchedResultsController(
+            fetchRequest: fetchRequest,
+            managedObjectContext: context,
+            sectionNameKeyPath: nil,
+            cacheName: nil
+        )
+    }
+
+    // MARK: - Sorting
+    func updateSortOption(_ sortOption: ProductSortOption) {
+        guard sortOption != currentSortOption else { return }
+
+        currentSortOption = sortOption
+
+        // Recreate FRC with new sort descriptors
+        fetchedResultsController = Self.createFetchedResultsController(context: context, sortOption: sortOption)
+        fetchedResultsController.delegate = self
+
+        do {
+            try fetchedResultsController.performFetch()
+            notifyDelegate(immediate: false)
+        } catch {
+            AppLogger.error("Error fetching products with new sort order", error: error, category: AppLogger.service)
+        }
+    }
 }
 
 // MARK: - NSFetchedResultsControllerDelegate
@@ -167,6 +193,35 @@ enum ProductListServiceError: LocalizedError {
             return "Selected unit not found"
         case .invalidProductData:
             return "Invalid product data provided"
+        }
+    }
+}
+
+// MARK: - Product Sorting Options
+enum ProductSortOption: String, CaseIterable {
+    case nameAscending = "nameAsc"
+    case nameDescending = "nameDesc"
+    case unit = "unit"
+
+    var title: String {
+        switch self {
+        case .nameAscending: return "Name A-Z".localized()
+        case .nameDescending: return "Name Z-A".localized()
+        case .unit: return "Unit".localized()
+        }
+    }
+
+    var sortDescriptors: [NSSortDescriptor] {
+        switch self {
+        case .nameAscending:
+            return [NSSortDescriptor(keyPath: \Product.name, ascending: true)]
+        case .nameDescending:
+            return [NSSortDescriptor(keyPath: \Product.name, ascending: false)]
+        case .unit:
+            return [
+                NSSortDescriptor(keyPath: \Product.unit?.sortOrder, ascending: true),
+                NSSortDescriptor(keyPath: \Product.name, ascending: true)
+            ]
         }
     }
 }
