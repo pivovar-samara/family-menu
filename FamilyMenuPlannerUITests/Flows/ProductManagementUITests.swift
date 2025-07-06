@@ -464,8 +464,9 @@ final class ProductManagementUITests: XCTestCase {
         // Open sort dialog
         openSortDialogAndSelect(optionLabel: "Name A-Z")
 
-        // Small wait for sorting to apply
-        Thread.sleep(forTimeInterval: 1.0)
+        // Wait for the table to finish updating by ensuring a cell exists
+        let firstProductCellAsc = app.cells.firstMatch
+        XCTAssertTrue(firstProductCellAsc.waitForExistence(timeout: 5), "Sorting did not complete in time")
 
         let names = fetchVisibleProductNames(maxCount: 5)
         let sorted = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
@@ -478,7 +479,8 @@ final class ProductManagementUITests: XCTestCase {
         // Open sort dialog
         openSortDialogAndSelect(optionLabel: "Name Z-A")
 
-        Thread.sleep(forTimeInterval: 1.0)
+        let firstProductCellDesc = app.cells.firstMatch
+        XCTAssertTrue(firstProductCellDesc.waitForExistence(timeout: 5), "Sorting did not complete in time")
 
         let names = fetchVisibleProductNames(maxCount: 5)
         let sorted = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedDescending }
@@ -489,7 +491,8 @@ final class ProductManagementUITests: XCTestCase {
         navigateToProductList()
 
         openSortDialogAndSelect(optionLabel: "Unit")
-        Thread.sleep(forTimeInterval: 1.0)
+        let firstProductCellUnit = app.cells.firstMatch
+        XCTAssertTrue(firstProductCellUnit.waitForExistence(timeout: 5), "Sorting did not complete in time")
 
         // Simple sanity check: capture first two visible unit strings and assert not equal when reversed sort by name A-Z
         let units = fetchVisibleUnitLabels(maxCount: 3)
