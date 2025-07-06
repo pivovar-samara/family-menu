@@ -406,7 +406,8 @@ final class ProductManagementUITests: XCTestCase {
                 let confirmDelete = app.buttons["Delete"].firstMatch
                 if confirmDelete.waitForExistence(timeout: 3) {
                     confirmDelete.tap()
-                    Thread.sleep(forTimeInterval: 1.0)
+                    // Wait until the confirmation button disappears (dialog dismissed)
+                    XCTAssertFalse(confirmDelete.waitForExistence(timeout: 1.0), "Confirmation dialog did not disappear in time")
                     productDeleted = true
                 }
             }

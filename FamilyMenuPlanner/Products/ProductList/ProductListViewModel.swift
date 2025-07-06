@@ -66,11 +66,11 @@ class ProductListViewModel: ObservableObject {
                     .receive(on: RunLoop.main)
                     .assign(to: &$currentAlert)
         
+        // Set up delegate to receive automatic updates BEFORE we trigger any service updates
+        self.productListService.delegate = self
+        
         // Explicitly set the initial sort option in the service to match loaded preference
         productListService.updateSortOption(sortOption)
-        
-        // Set up delegate to receive automatic updates
-        self.productListService.delegate = self
     }
     
     private func setupSearchBindings() {

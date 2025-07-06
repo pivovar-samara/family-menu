@@ -74,10 +74,20 @@ class EditProductViewModel: ObservableObject {
     func updateProductUnit(_ newUnit: Unit?) {
         guard let product = product else { return }
         
-        // Ensure the unit is in the same context as the product
+        // Ensure we never lose the user's selection due to a context mismatch.
         if let unit = newUnit {
-            let unitInSameContext = findUnitInSameContext(unitName: unit.name)
-            product.unit = unitInSameContext
+            if unit.managedObjectContext == product.managedObjectContext {
+                // Same context – assign directly
+                product.unit = unit
+            } else {
+                // Different context – attempt to find an equivalent Unit in the product's context
+                if let equivalent = findUnitInSameContext(unitName: unit.name) {
+                    product.unit = equivalent
+                } else {
+                    // As a last-resort keep the previous value (don't overwrite with nil)
+                    AppLogger.warning("Selected unit not found in product context – keeping previous value", category: AppLogger.viewModel)
+                }
+            }
         } else {
             product.unit = nil
         }
