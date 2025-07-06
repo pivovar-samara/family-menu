@@ -28,6 +28,8 @@ class EditProductViewModel: ObservableObject {
         
         // Load initial units from service to ensure correct context
         self.units = editProductService.fetchAllUnits()
+        // Initialize selected unit right after loading units
+        self.setupSelectedUnit()
         
         // Observe cache manager for units updates and reload from service when needed
         StaticDataCacheManager.shared.$units
@@ -55,9 +57,13 @@ class EditProductViewModel: ObservableObject {
     }
     
     func setupSelectedUnit() {
-        guard let product = product else { return }
+        // When there's no product yet (adding a new one) just pick the first unit.
+        guard let product = product else {
+            selectedUnit = units.first
+            return
+        }
         
-        // If product has a unit, find the equivalent unit in our context
+        // When editing, mirror the product's current unit if possible
         if let currentUnit = product.unit {
             selectedUnit = findUnitInSameContext(unitName: currentUnit.name)
         } else {

@@ -240,8 +240,9 @@ final class ProductManagementUITests: XCTestCase {
     func testEditExistingProduct() throws {
         navigateToProductList()
         
-        // Allow initial data to load
-        Thread.sleep(forTimeInterval: 5.0)
+        // Wait for initial data to load by waiting until at least one product's edit button appears
+        let initialEditButton = app.buttons["EditProductButton"].firstMatch
+        XCTAssertTrue(initialEditButton.waitForExistence(timeout: 8), "Product list did not load in time")
         
         // Locate first product's edit button
         let editButton = app.buttons["EditProductButton"].firstMatch
@@ -301,9 +302,9 @@ final class ProductManagementUITests: XCTestCase {
     func testDeleteProduct() throws {
         navigateToProductList()
         
-        // Wait for initial data loading to complete
-        // The app should load products from preloadData.json
-        Thread.sleep(forTimeInterval: 5.0)
+        // Wait for product list to appear instead of using a fixed sleep
+        let anyProductName = app.staticTexts["ProductNameLabel"]
+        XCTAssertTrue(anyProductName.waitForExistence(timeout: 8), "Product list did not load in time")
         
         var foundProductToDelete = false
         var productToDeleteName = ""
