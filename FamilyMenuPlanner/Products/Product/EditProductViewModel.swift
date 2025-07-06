@@ -26,13 +26,19 @@ class EditProductViewModel: ObservableObject {
         self.isCreatingNewProduct = product == nil
         self.editProductService = editProductService
         
-        // Load initial units
-        self.units = StaticDataCacheManager.shared.getUnits()
+        // Load initial units from service to ensure correct context
+        self.units = editProductService.fetchAllUnits()
+        // Initialize selected unit right after loading units
+        self.setupSelectedUnit()
         
-        // Observe cache manager for units updates
+        // Observe cache manager for units updates and reload from service when needed
         StaticDataCacheManager.shared.$units
             .receive(on: DispatchQueue.main)
-            .assign(to: \.units, on: self)
+            .sink { [weak self] _ in
+                // Reload units from service to ensure they're in the correct context
+                self?.units = self?.editProductService.fetchAllUnits() ?? []
+                self?.setupSelectedUnit()
+            }
             .store(in: &cancellables)
         
         alertManager.$currentAlert
@@ -51,7 +57,49 @@ class EditProductViewModel: ObservableObject {
     }
     
     func setupSelectedUnit() {
-        selectedUnit = product?.unit ?? units.first
+        // When there's no product yet (adding a new one) just pick the first unit.
+        guard let product = product else {
+            selectedUnit = units.first
+            return
+        }
+        
+        // When editing, mirror the product's current unit if possible
+        if let currentUnit = product.unit {
+            selectedUnit = findUnitInSameContext(unitName: currentUnit.name)
+        } else {
+            selectedUnit = units.first
+        }
+    }
+    
+    func updateProductUnit(_ newUnit: Unit?) {
+        guard let product = product else { return }
+        
+        // Ensure we never lose the user's selection due to a context mismatch.
+        if let unit = newUnit {
+            if unit.managedObjectContext == product.managedObjectContext {
+                // Same context – assign directly
+                product.unit = unit
+            } else {
+                // Different context – attempt to find an equivalent Unit in the product's context
+                if let equivalent = findUnitInSameContext(unitName: unit.name) {
+                    product.unit = equivalent
+                } else {
+                    // As a last-resort keep the previous value (don't overwrite with nil)
+                    AppLogger.warning("Selected unit not found in product context – keeping previous value", category: AppLogger.viewModel)
+                }
+            }
+        } else {
+            product.unit = nil
+        }
+    }
+    
+    private func findUnitInSameContext(unitName: String?) -> Unit? {
+        guard let unitName = unitName, let product = product, let context = product.managedObjectContext else {
+            return nil
+        }
+        
+        // Find unit by name in the same context as the product
+        return units.first { $0.name == unitName && $0.managedObjectContext == context }
     }
     
     func rollback() {

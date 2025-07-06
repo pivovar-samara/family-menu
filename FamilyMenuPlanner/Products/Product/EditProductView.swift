@@ -32,7 +32,7 @@ struct EditProductView: View {
                     }
                 }
                 .onChange(of: viewModel.selectedUnit) { newUnit in
-                    viewModel.product?.unit = newUnit
+                    viewModel.updateProductUnit(newUnit)
                 }
             }
             .listRowBackground(Color("SecondaryBackgroundColor"))

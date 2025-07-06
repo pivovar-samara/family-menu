@@ -19,6 +19,9 @@ class ProductListViewModel: ObservableObject {
     @Published var searchText: String = ""
     @Published var filteredProducts: [Product] = []
     
+    // Published property for sorting functionality
+    @Published var sortOption: ProductSortOption = .nameAscending
+    
     // Use cached data for better performance
     var units: [Unit] {
         return StaticDataCacheManager.shared.getUnits()
@@ -36,6 +39,9 @@ class ProductListViewModel: ObservableObject {
     private var productListService: ProductListServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     private let alertManager = AlertQueueManager()
+    
+    // UserDefaults key for storing sort preference
+    private static let sortPreferenceKey = "ProductListSortPreference"
 
     init(productListService: ProductListServiceProtocol) {
         self.productListService = productListService
@@ -46,16 +52,25 @@ class ProductListViewModel: ObservableObject {
             return name.localizedCaseInsensitiveContains(searchText)
         }
         
+        // Load persistent sort preference now that all stored properties are initialized
+        loadSortPreference()
+        
         // Setup bindings between ViewModel and SearchHelper
         setupSearchBindings()
+        
+        // Setup sort option binding
+        setupSortBinding()
         
         // Setup alert manager
         alertManager.$currentAlert
                     .receive(on: RunLoop.main)
                     .assign(to: &$currentAlert)
         
-        // Set up delegate to receive automatic updates
+        // Set up delegate to receive automatic updates BEFORE we trigger any service updates
         self.productListService.delegate = self
+        
+        // Explicitly set the initial sort option in the service to match loaded preference
+        productListService.updateSortOption(sortOption)
     }
     
     private func setupSearchBindings() {
@@ -68,6 +83,17 @@ class ProductListViewModel: ObservableObject {
         searchHelper.$filteredItems
             .receive(on: RunLoop.main)
             .assign(to: \.filteredProducts, on: self)
+            .store(in: &cancellables)
+    }
+    
+    private func setupSortBinding() {
+        $sortOption
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] newOption in
+                self?.productListService.updateSortOption(newOption)
+                self?.saveSortPreference()
+            }
             .store(in: &cancellables)
     }
     
@@ -100,6 +126,29 @@ class ProductListViewModel: ObservableObject {
     
     func dismissAlert() {
         alertManager.dismissCurrentAlert()
+    }
+
+    /// Deletes a single product, triggered from ProductCardView.
+    func deleteProduct(_ product: Product) {
+        guard let index = filteredProducts.firstIndex(of: product) else { return }
+        deleteProducts(at: IndexSet([index]))
+    }
+
+    // MARK: - Sorting Preference Persistence
+    private func loadSortPreference() {
+        let saved = UserDefaults.standard.string(forKey: Self.sortPreferenceKey) ?? ProductSortOption.nameAscending.rawValue
+        sortOption = ProductSortOption(rawValue: saved) ?? .nameAscending
+        AppLogger.info("Loaded product list sort preference: \(sortOption.rawValue)", category: AppLogger.viewModel)
+    }
+
+    private func saveSortPreference() {
+        UserDefaults.standard.set(sortOption.rawValue, forKey: Self.sortPreferenceKey)
+        AppLogger.info("Saved product list sort preference: \(sortOption.rawValue)", category: AppLogger.viewModel)
+    }
+
+    func updateSortOption(_ newSortOption: ProductSortOption) {
+        guard sortOption != newSortOption else { return }
+        sortOption = newSortOption
     }
 }
 

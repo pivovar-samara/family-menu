@@ -57,6 +57,10 @@ class MockProductListService: ProductListServiceProtocol {
         }
     }
     
+    func updateSortOption(_ sortOption: ProductSortOption) {
+        // Mock implementation - in real tests we could track this
+    }
+    
     func addProduct(name: String, unit: Unit) throws {
         if let error = error {
             throw error
