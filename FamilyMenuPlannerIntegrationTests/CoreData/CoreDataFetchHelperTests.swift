@@ -1,6 +1,6 @@
 //
 //  CoreDataFetchHelperTests.swift
-//  FamilyMenuPlannerTests
+//  FamilyMenuPlannerUnitTests
 //
 //  Created by Assistant on 27.01.25.
 //

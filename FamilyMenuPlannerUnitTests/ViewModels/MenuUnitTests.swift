@@ -1,6 +1,6 @@
 //
 //  MenuUnitTests.swift
-//  FamilyMenuPlannerTests
+//  FamilyMenuPlannerUnitTests
 //
 //  Created by Ilya Khokhlov on 27.01.25.
 //

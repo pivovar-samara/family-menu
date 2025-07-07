@@ -1,6 +1,6 @@
 //
 //  DishCategoryTests.swift
-//  FamilyMenuPlannerTests
+//  FamilyMenuPlannerUnitTests
 //
 //  Created by Test Generator
 //

@@ -171,7 +171,7 @@
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		4841617F2DEF52D800A48C49 /* FamilyMenuPlannerIntegrationTests */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (4841623A2DEF77B300A48C49 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = FamilyMenuPlannerIntegrationTests; sourceTree = "<group>"; };
-		4866AAFF2DF35BCA006942F3 /* FamilyMenuPlannerTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FamilyMenuPlannerTests; sourceTree = "<group>"; };
+		4866AAFF2DF35BCA006942F3 /* FamilyMenuPlannerUnitTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FamilyMenuPlannerUnitTests; sourceTree = "<group>"; };
 		4866AB4E2DF35BD0006942F3 /* FamilyMenuPlanner */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (4866AC452DF35BD0006942F3 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 4866AC462DF35BD0006942F3 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 4866AC472DF35BD0006942F3 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 4866AC482DF35BD0006942F3 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, 4866AC492DF35BD0006942F3 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = FamilyMenuPlanner; sourceTree = "<group>"; };
 		4866AC4F2DF35BD7006942F3 /* FamilyMenuPlannerPerformanceTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FamilyMenuPlannerPerformanceTests; sourceTree = "<group>"; };
 		4866AC5E2DF35BDA006942F3 /* FamilyMenuPlannerUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FamilyMenuPlannerUITests; sourceTree = "<group>"; };
@@ -220,7 +220,7 @@
 			isa = PBXGroup;
 			children = (
 				4866AB4E2DF35BD0006942F3 /* FamilyMenuPlanner */,
-				4866AAFF2DF35BCA006942F3 /* FamilyMenuPlannerTests */,
+				4866AAFF2DF35BCA006942F3 /* FamilyMenuPlannerUnitTests */,
 				4841617F2DEF52D800A48C49 /* FamilyMenuPlannerIntegrationTests */,
 				4866AC4F2DF35BD7006942F3 /* FamilyMenuPlannerPerformanceTests */,
 				4866AC5E2DF35BDA006942F3 /* FamilyMenuPlannerUITests */,
@@ -325,11 +325,11 @@
 				A004ED8D2D11DC030081DDC0 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				4866AAFF2DF35BCA006942F3 /* FamilyMenuPlannerTests */,
+				4866AAFF2DF35BCA006942F3 /* FamilyMenuPlannerUnitTests */,
 				4866AB4E2DF35BD0006942F3 /* FamilyMenuPlanner */,
 			);
 			name = FamilyMenuPlannerUnitTests;
-			productName = FamilyMenuPlannerTests;
+			productName = FamilyMenuPlannerUnitTests;
 			productReference = A004ED8B2D11DC030081DDC0 /* FamilyMenuPlannerUnitTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
@@ -795,7 +795,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.pivovar.FamilyMenuPlannerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pivovar.FamilyMenuPlannerUnitTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
@@ -814,7 +814,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.pivovar.FamilyMenuPlannerTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pivovar.FamilyMenuPlannerUnitTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;

@@ -1,6 +1,6 @@
 //
 //  PersistencePerformanceTests.swift
-//  FamilyMenuPlannerTests
+//  FamilyMenuPlannerUnitTests
 //
 //  Created by Performance Optimization
 //

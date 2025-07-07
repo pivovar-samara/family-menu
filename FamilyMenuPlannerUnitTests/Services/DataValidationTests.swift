@@ -1,6 +1,6 @@
 //
 //  DataValidationTests.swift
-//  FamilyMenuPlannerTests
+//  FamilyMenuPlannerUnitTests
 //
 //  Created by AI Assistant on 21.01.25.
 //

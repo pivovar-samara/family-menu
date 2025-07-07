@@ -1,6 +1,6 @@
 //
 //  EditProductIntegrationTests.swift
-//  FamilyMenuPlannerTests
+//  FamilyMenuPlannerUnitTests
 //
 //  Created by Pivovar 63 on 28.05.25.
 //
