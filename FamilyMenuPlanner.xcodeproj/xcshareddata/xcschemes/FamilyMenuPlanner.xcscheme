@@ -34,8 +34,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "A004ED8A2D11DC030081DDC0"
-               BuildableName = "FamilyMenuPlannerTests.xctest"
-               BlueprintName = "FamilyMenuPlannerTests"
+               BuildableName = "FamilyMenuPlannerUnitTests.xctest"
+               BlueprintName = "FamilyMenuPlannerUnitTests"
                ReferencedContainer = "container:FamilyMenuPlanner.xcodeproj">
             </BuildableReference>
          </TestableReference>

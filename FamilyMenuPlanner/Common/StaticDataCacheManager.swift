@@ -81,21 +81,22 @@ final class StaticDataCacheManager: ObservableObject {
         // Store strong reference to context
         self.context = context
         
+        // Prepare a reusable background context that shares the same PSC. This prevents
+        // potential main-queue deadlocks when callers fetch data from background threads.
+        // This must be done before the early return for test instances.
+        if let psc = context.persistentStoreCoordinator {
+            let bgContext = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
+            bgContext.persistentStoreCoordinator = psc
+            bgContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+            self.backgroundContext = bgContext
+        }
+        
         // For dedicated *unit mocked* instances created via `createTestInstance()` we still
         // want immediate deterministic preloading and then exit early, because those callers
         // rely on synchronous behaviour.
         if isTestInstance {
             preloadAllData()
             return
-        }
-        
-        // Prepare a reusable background context that shares the same PSC. This prevents
-        // potential main-queue deadlocks when callers fetch data from background threads.
-        if let psc = context.persistentStoreCoordinator {
-            let bgContext = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
-            bgContext.persistentStoreCoordinator = psc
-            bgContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
-            self.backgroundContext = bgContext
         }
 
         // Detect if we are running inside a unit or integration test bundle (not UI tests).
@@ -254,7 +255,8 @@ final class StaticDataCacheManager: ObservableObject {
             return []
         }
 
-        // Choose context that will not deadlock the current thread.
+        // Choose context that will not deadlock the current thread
+        // Apply the same logic for both test and non-test instances
         let effectiveContext: NSManagedObjectContext
         if !Thread.isMainThread && context.concurrencyType == .mainQueueConcurrencyType {
             effectiveContext = backgroundContext ?? context
@@ -282,24 +284,41 @@ final class StaticDataCacheManager: ObservableObject {
             fetched = []
         }
 
-        // Update internal state flags under lock
+        // For test instances or when using the same context, use fetched results directly
+        let resultArray: [Unit]
+        if isTestInstance || effectiveContext === context {
+            resultArray = fetched
+        } else {
+            // Only do cross-context conversion for production scenarios with different contexts
+            let mainContext = context
+            var temp: [Unit] = []
+            // Perform on the correct queue for the main context to avoid threading violations.
+            mainContext.performAndWait {
+                temp = fetched.compactMap { mainContext.object(with: $0.objectID) as? Unit }
+            }
+            if temp.count != fetched.count {
+                Self.logger.warning("Some Unit objects were not found in main context – possible merge delay")
+            }
+            resultArray = temp
+        }
+
         unitsLock.lock()
         isUnitsLoaded = fetchError == nil
         unitsLock.unlock()
 
         if Thread.isMainThread {
-            self.units = fetched
+            self.units = resultArray
         } else {
             DispatchQueue.main.async { [weak self] in
-                self?.units = fetched
+                self?.units = resultArray
             }
         }
 
         if !isTestInstance {
-            Self.logger.info("Units cached: \(fetched.count) items")
+            Self.logger.info("Units cached: \(resultArray.count) items")
         }
 
-        return fetched
+        return resultArray
     }
     
     @discardableResult
@@ -309,7 +328,8 @@ final class StaticDataCacheManager: ObservableObject {
             return []
         }
 
-        // Choose context that will not deadlock the current thread.
+        // Choose context that will not deadlock the current thread
+        // Apply the same logic for both test and non-test instances
         let effectiveContext: NSManagedObjectContext
         if !Thread.isMainThread && context.concurrencyType == .mainQueueConcurrencyType {
             effectiveContext = backgroundContext ?? context
@@ -337,10 +357,13 @@ final class StaticDataCacheManager: ObservableObject {
             fetched = []
         }
 
-        // Safely convert to objects that belong to the manager's primary (usually main-queue) context.
+        // For test instances or when using the same context, use fetched results directly
         let resultArray: [MealType]
-        let mainContext = context
-        if effectiveContext !== mainContext {
+        if isTestInstance || effectiveContext === context {
+            resultArray = fetched
+        } else {
+            // Only do cross-context conversion for production scenarios with different contexts
+            let mainContext = context
             var temp: [MealType] = []
             // Perform on the correct queue for the main context to avoid threading violations.
             mainContext.performAndWait {
@@ -350,8 +373,6 @@ final class StaticDataCacheManager: ObservableObject {
                 Self.logger.warning("Some MealType objects were not found in main context – possible merge delay")
             }
             resultArray = temp
-        } else {
-            resultArray = fetched
         }
 
         mealTypesLock.lock()
@@ -380,7 +401,8 @@ final class StaticDataCacheManager: ObservableObject {
             return []
         }
 
-        // Choose context that will not deadlock the current thread.
+        // Choose context that will not deadlock the current thread
+        // Apply the same logic for both test and non-test instances
         let effectiveContext: NSManagedObjectContext
         if !Thread.isMainThread && context.concurrencyType == .mainQueueConcurrencyType {
             effectiveContext = backgroundContext ?? context
@@ -408,10 +430,13 @@ final class StaticDataCacheManager: ObservableObject {
             fetched = []
         }
 
-        // Safely convert to objects that belong to the manager's primary (usually main-queue) context.
+        // For test instances or when using the same context, use fetched results directly
         let resultArray: [DishCategory]
-        let mainContext = context
-        if effectiveContext !== mainContext {
+        if isTestInstance || effectiveContext === context {
+            resultArray = fetched
+        } else {
+            // Only do cross-context conversion for production scenarios with different contexts
+            let mainContext = context
             var temp: [DishCategory] = []
             mainContext.performAndWait {
                 temp = fetched.compactMap { mainContext.object(with: $0.objectID) as? DishCategory }
@@ -420,8 +445,6 @@ final class StaticDataCacheManager: ObservableObject {
                 Self.logger.warning("Some DishCategory objects were not found in main context – possible merge delay")
             }
             resultArray = temp
-        } else {
-            resultArray = fetched
         }
 
         dishCategoriesLock.lock()

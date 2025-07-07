@@ -67,7 +67,10 @@ class EditProductViewModel: ObservableObject {
         if let currentUnit = product.unit {
             selectedUnit = findUnitInSameContext(unitName: currentUnit.name)
         } else {
+            // For new products or products without a unit, assign the first unit as default
             selectedUnit = units.first
+            // Also assign it to the product entity, not just the UI state
+            updateProductUnit(selectedUnit)
         }
     }
     

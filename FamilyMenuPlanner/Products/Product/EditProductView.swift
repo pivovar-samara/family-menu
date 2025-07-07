@@ -17,40 +17,34 @@ struct EditProductView: View {
     }
 
     var body: some View {
-        Form {
-            Section(header: Text("Product Details")) {
-                TextField("Product Name", text: Binding(
-                    get: { viewModel.product?.name ?? "" },
-                    set: { viewModel.product?.name = $0 }
-                ))
-                .autocorrectionDisabled(true)
-                .textInputAutocapitalization(.words)
+        ScrollView {
+            VStack(spacing: 24) {
+                // Product Details Card
+                ProductDetailsCard(viewModel: viewModel)
                 
-                Picker("Unit", selection: $viewModel.selectedUnit) {
-                    ForEach(viewModel.units, id: \.self) { unit in
-                        Text((unit.name ?? "").localized()).tag(unit as Unit?)
-                    }
-                }
-                .onChange(of: viewModel.selectedUnit) { newUnit in
-                    viewModel.updateProductUnit(newUnit)
-                }
+                // Unit Selection Card
+                UnitSelectionCard(viewModel: viewModel)
+                
+                Spacer(minLength: 20)
             }
-            .listRowBackground(Color("SecondaryBackgroundColor"))
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
         }
-        .scrollContentBackground(.hidden)
         .background(Color("BackgroundColor"))
-        .navigationTitle(viewModel.isCreatingNewProduct ? "Add Product" : "Edit Product")
+        .navigationTitle(viewModel.isCreatingNewProduct ? "Add Product".localized() : "Edit Product".localized())
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save") {
+                Button("Save".localized()) {
                     viewModel.saveChanges {
                         dismiss()
                     }
                 }
                 .foregroundColor(Color("AccentColor"))
+                .font(.body.weight(.semibold))
             }
             ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") {
+                Button("Cancel".localized()) {
                     viewModel.rollback()
                     dismiss()
                 }
@@ -73,5 +67,127 @@ struct EditProductView: View {
                 }
             )
         }
+    }
+}
+
+
+// MARK: - Product Details Card
+struct ProductDetailsCard: View {
+    @ObservedObject var viewModel: EditProductViewModel
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Header
+            HStack {
+                Image(systemName: "info.circle")
+                    .foregroundColor(Color("AccentColor"))
+                    .font(.title3)
+                
+                Text("Product Information".localized())
+                    .font(.headline)
+                    .foregroundColor(.primary)
+            }
+            
+            // Product Name Field
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Product Name".localized())
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(.primary)
+                
+                TextField("Enter product name".localized(), text: Binding(
+                    get: { viewModel.product?.name ?? "" },
+                    set: { viewModel.product?.name = $0 }
+                ))
+                .textFieldStyle(ModernTextFieldStyle())
+                .autocorrectionDisabled(true)
+                .textInputAutocapitalization(.words)
+                .accessibilityIdentifier("product_name_field")
+            }
+        }
+        .padding(20)
+        .background(Color("SecondaryBackgroundColor"))
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+    }
+}
+
+// MARK: - Unit Selection Card
+struct UnitSelectionCard: View {
+    @ObservedObject var viewModel: EditProductViewModel
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Header
+            HStack {
+                Image(systemName: "ruler")
+                    .foregroundColor(Color("AccentColor"))
+                    .font(.title3)
+                
+                Text("Unit of Measurement".localized())
+                    .font(.headline)
+                    .foregroundColor(.primary)
+            }
+            
+            // Unit Picker
+            VStack(alignment: .leading, spacing: 12) {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    ForEach(viewModel.units, id: \.self) { unit in
+                        UnitChip(
+                            title: (unit.name ?? "").localized(),
+                            isSelected: viewModel.selectedUnit == unit,
+                            onTap: {
+                                viewModel.selectedUnit = unit
+                                viewModel.updateProductUnit(unit)
+                            }
+                        )
+                    }
+                }
+            }
+        }
+        .padding(20)
+        .background(Color("SecondaryBackgroundColor"))
+        .cornerRadius(16)
+        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+    }
+}
+
+// MARK: - Unit Chip Component
+struct UnitChip: View {
+    let title: String
+    let isSelected: Bool
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            Text(title)
+                .font(.body.weight(isSelected ? .semibold : .medium))
+                .foregroundColor(isSelected ? .white : .primary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(isSelected ? Color("AccentColor") : Color("BackgroundColor"))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(
+                                    isSelected ? Color("AccentColor") : Color.gray.opacity(0.3),
+                                    lineWidth: isSelected ? 2 : 1
+                                )
+                        )
+                )
+        }
+        .buttonStyle(ProductScaleButtonStyle())
+        .animation(.easeInOut(duration: 0.2), value: isSelected)
+        .accessibilityIdentifier("unit_chip_\(title)")
+    }
+}
+
+// MARK: - Scale Button Style
+struct ProductScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
