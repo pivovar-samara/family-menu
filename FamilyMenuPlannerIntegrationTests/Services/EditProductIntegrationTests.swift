@@ -233,4 +233,44 @@ class EditProductIntegrationTests: BaseIntegrationTest {
         XCTAssertTrue(saveSuccessful)
         XCTAssertNil(testProduct.unit)
     }
+    
+    func testCreateNewProductWithDefaultUnit() {
+        // Create a new view model for creating a new product (product = nil)
+        let newProductService = EditProductService(context: context)
+        let newProductViewModel = EditProductViewModel(product: nil, editProductService: newProductService)
+        
+        // Verify units are loaded and there's a selected unit initially
+        XCTAssertFalse(newProductViewModel.units.isEmpty, "Units should be loaded")
+        XCTAssertNotNil(newProductViewModel.selectedUnit, "Should have a pre-selected unit for new products")
+        XCTAssertEqual(newProductViewModel.selectedUnit, newProductViewModel.units.first, "Selected unit should be the first available unit")
+        
+        // Load the product (creates the actual product entity)
+        newProductViewModel.loadProduct()
+        
+        // Verify product was created
+        XCTAssertNotNil(newProductViewModel.product, "Product should be created")
+        XCTAssertTrue(newProductViewModel.isCreatingNewProduct, "Should be in new product mode")
+        
+        // Verify the product has the default unit assigned automatically
+        XCTAssertNotNil(newProductViewModel.product?.unit, "New product should have a unit assigned automatically")
+        XCTAssertEqual(newProductViewModel.product?.unit, newProductViewModel.selectedUnit, "Product unit should match the selected unit")
+        XCTAssertEqual(newProductViewModel.product?.unit, newProductViewModel.units.first, "Product should have the first available unit")
+        
+        // Set product name and save
+        newProductViewModel.product?.name = "New Product with Default Unit"
+        
+        var saveSuccessful = false
+        newProductViewModel.saveChanges {
+            saveSuccessful = true
+        }
+        
+        // Verify save was successful
+        XCTAssertTrue(saveSuccessful, "Save should succeed")
+        
+        // Verify the product persists with its unit
+        context.refreshAllObjects()
+        XCTAssertEqual(newProductViewModel.product?.name, "New Product with Default Unit")
+        XCTAssertNotNil(newProductViewModel.product?.unit, "Product unit should persist after save")
+        XCTAssertEqual(newProductViewModel.product?.unit?.name, newProductViewModel.units.first?.name, "Unit should remain the same after save")
+    }
 } 
