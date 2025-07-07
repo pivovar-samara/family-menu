@@ -1,6 +1,6 @@
 //
 //  SearchOptimizationHelperTests.swift
-//  FamilyMenuPlannerTests
+//  FamilyMenuPlannerUnitTests
 //
 //  Created by Performance Optimization on 28.01.25.
 //

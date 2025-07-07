@@ -56,7 +56,7 @@ jobs:
             -scheme "$scheme" \
             -"$filetype_parameter" "$file_to_build" \
             -destination "platform=iOS Simulator,name=iPhone 16 Pro" \
-            -only-testing:FamilyMenuPlannerTests \
+            -only-testing:FamilyMenuPlannerUnitTests \
             -only-testing:FamilyMenuPlannerIntegrationTests \
             -only-testing:FamilyMenuPlannerPerformanceTests \
             -only-testing:FamilyMenuPlannerUITests \

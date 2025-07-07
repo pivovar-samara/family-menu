@@ -1,6 +1,6 @@
 //
 //  DishDetailsUnitTests.swift
-//  FamilyMenuPlannerTests
+//  FamilyMenuPlannerUnitTests
 //
 //  Created by Critical Test Review on 28.01.25.
 //

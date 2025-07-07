@@ -184,3 +184,10 @@
 "Are you sure you want to delete this product?" = "Are you sure you want to delete this product?";
 
 "Sort products" = "Sort products";
+
+// Product Creation/Editing UI
+"Create a product for your pantry" = "Create a product for your pantry";
+"Update product details" = "Update product details";
+"Product Information" = "Product Information";
+"Enter product name" = "Enter product name";
+"Unit of Measurement" = "Unit of Measurement";

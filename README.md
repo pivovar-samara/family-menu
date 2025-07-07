@@ -5,11 +5,12 @@ An iOS application for families to plan their weekly menu, built with SwiftUI us
 ## Features
 
 - **Weekly Menu Planning**: Plan meals for each day of the week with different meal types
-- **Product Management**: Manage grocery products with units and categories
+- **Product Management**: Manage grocery products with units and categories with modern card-based UI
 - **Dish Management**: Create and manage dishes with ingredients and meal types
 - **iCloud Sync**: Automatic synchronization across devices
 - **Background Operations**: Heavy operations run in background contexts for smooth UI performance
 - **Performance Optimization**: Optimized fetch requests, caching, and batch operations
+- **Modern UI Design**: Consistent card-based interface with modern styling across all screens
 
 ## Architecture
 
@@ -139,6 +140,31 @@ The app includes comprehensive deduplication logic to handle CloudKit sync confl
 - **CloudKit-Safe Seeding**: Initial data generation respects existing CloudKit synced data
 
 This ensures users never see duplicate meal types or other static data, even when CloudKit sync creates conflicts during app installation or updates.
+
+## UI Design System
+
+### Modern Card-Based Interface
+The app features a consistent, modern card-based design system across all screens:
+
+#### Product Creation/Editing Screen
+- **Header Card**: Welcoming header with icon and contextual descriptions
+- **Information Cards**: Organized sections for product details and unit selection
+- **Modern Text Fields**: Custom styled text fields with rounded borders and proper padding
+- **Interactive Unit Selection**: Grid-based unit picker with visual feedback and selection states
+- **Consistent Styling**: Matches the design patterns used in dish details, product list, and dish list screens
+
+#### Design Patterns
+- **Color Scheme**: Uses `AccentColor`, `BackgroundColor`, and `SecondaryBackgroundColor` for consistency
+- **Typography**: Consistent font weights and sizes across all components
+- **Shadows**: Subtle shadows (`color: .black.opacity(0.04-0.06), radius: 8`) for depth
+- **Corner Radius**: Standard 16px radius for cards, 12px for smaller components
+- **Interactive Feedback**: ScaleButtonStyle for all interactive elements providing tactile feedback
+- **Proper Spacing**: Consistent spacing patterns using VStack and HStack with standard spacing values
+
+#### Accessibility
+- **Accessibility Identifiers**: All interactive elements include proper accessibility identifiers for testing
+- **Semantic Labels**: Clear, localized labels and descriptions for screen readers
+- **Localization**: Full support for English and Russian languages with contextual translations
 
 ## Development Guidelines
 

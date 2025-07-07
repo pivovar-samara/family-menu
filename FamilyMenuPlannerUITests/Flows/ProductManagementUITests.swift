@@ -63,7 +63,7 @@ final class ProductManagementUITests: XCTestCase {
         XCTAssertTrue(addProductNavBar.waitForExistence(timeout: 3), "Add Product sheet should appear")
         
         // Find the product name text field in the form
-        let productNameField = app.textFields["Product Name"]
+        let productNameField = app.textFields["product_name_field"]
         XCTAssertTrue(productNameField.waitForExistence(timeout: 3), "Product Name field should exist in the add form")
         
         // Fill in the product name
@@ -117,7 +117,7 @@ final class ProductManagementUITests: XCTestCase {
         addProductButton.tap()
         XCTAssertTrue(addProductNavBar.waitForExistence(timeout: 3), "Add Product sheet should appear again")
         
-        let secondProductNameField = app.textFields["Product Name"]
+        let secondProductNameField = app.textFields["product_name_field"]
         secondProductNameField.tap()
         secondProductNameField.typeText("Second Test Product")
         
@@ -156,7 +156,7 @@ final class ProductManagementUITests: XCTestCase {
         XCTAssertTrue(addProductNavBar.waitForExistence(timeout: 3), "Add Product sheet should appear")
         
         // Find the product name text field in the form
-        let productNameField = app.textFields["Product Name"]
+        let productNameField = app.textFields["product_name_field"]
         XCTAssertTrue(productNameField.waitForExistence(timeout: 3), "Product Name field should exist in the add form")
         
         // Test validation with empty name
@@ -255,7 +255,7 @@ final class ProductManagementUITests: XCTestCase {
         let editNav = app.navigationBars["Edit Product"]
         XCTAssertTrue(editNav.waitForExistence(timeout: 5))
         
-        let nameField = app.textFields["Product Name"]
+        let nameField = app.textFields["product_name_field"]
         XCTAssertTrue(nameField.waitForExistence(timeout: 3))
         
         // Capture original name from the text field's current value

@@ -1,6 +1,6 @@
 //
 //  DishSelectionUnitTests.swift
-//  FamilyMenuPlannerTests
+//  FamilyMenuPlannerUnitTests
 //
 //  Created by Pivovar 63 on 27.05.25.
 //

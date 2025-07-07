@@ -51,12 +51,24 @@ class EditProductViewModel: ObservableObject {
         
         do {
             try product = editProductService.createProduct()
+            
+            // For new products, apply the pre-selected unit if one was chosen
+            // This ensures new products get a sensible default unit
+            if let preSelectedUnit = selectedUnit {
+                updateProductUnit(preSelectedUnit)
+            }
         } catch {
             AppLogger.error("Failed to create a new product", error: error, category: AppLogger.viewModel)
         }
     }
     
     func setupSelectedUnit() {
+        // Handle empty units case to prevent crashes
+        guard !units.isEmpty else {
+            selectedUnit = nil
+            return
+        }
+        
         // When there's no product yet (adding a new one) just pick the first unit.
         guard let product = product else {
             selectedUnit = units.first
@@ -67,7 +79,10 @@ class EditProductViewModel: ObservableObject {
         if let currentUnit = product.unit {
             selectedUnit = findUnitInSameContext(unitName: currentUnit.name)
         } else {
+            // For existing products without a unit, don't automatically assign one
+            // Only set the UI state to show the first unit as a suggestion
             selectedUnit = units.first
+            // DO NOT call updateProductUnit here - viewing should not modify data
         }
     }
     

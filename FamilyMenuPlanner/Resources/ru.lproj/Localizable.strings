@@ -184,3 +184,10 @@
 "Are you sure you want to delete this product?" = "Вы уверены, что хотите удалить этот продукт?";
 
 "Sort products" = "Сортировать продукты";
+
+// Product Creation/Editing UI
+"Create a product for your pantry" = "Создайте продукт для вашей кладовой";
+"Update product details" = "Обновите параметры продукта";
+"Product Information" = "Информация о продукте";
+"Enter product name" = "Введите название продукта";
+"Unit of Measurement" = "Единица измерения";
