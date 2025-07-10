@@ -71,6 +71,27 @@ class ProductSelectionIntegrationTests: BaseIntegrationTest {
             XCTAssertTrue(fetchedProducts.contains(product))
         }
     }
+
+    // MARK: - Draft Filtering Tests
+
+    func testServiceFetchAllProductsExcludesDrafts() {
+        // Create complete products
+        let pieces = createUnit(name: "pcs")
+        let completeProduct = createProduct(name: "Complete Product", unit: pieces)
+
+        // Create draft product
+        let draftProduct = createProduct(name: "Draft Product", unit: pieces)
+        draftProduct.isDraft = true
+        try? context.save()
+
+        // Fetch products using service
+        let fetchedProducts = productSelectionService.fetchAllProducts()
+
+        // Verify only non-draft product is returned
+        XCTAssertTrue(fetchedProducts.contains(completeProduct))
+        XCTAssertFalse(fetchedProducts.contains(draftProduct))
+        XCTAssertEqual(fetchedProducts.count, 1)
+    }
     
     func testServiceFetchProductsEmpty() {
         // No products created
