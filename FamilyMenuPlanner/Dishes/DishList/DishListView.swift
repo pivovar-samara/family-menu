@@ -110,9 +110,21 @@ struct DishListView: View {
                 }
             )
         }
-        .sheet(item: $viewModel.selectedDish) { dish in
+        .sheet(item: $viewModel.selectedDish, onDismiss: {
+            // Reset selection after sheet dismissal
+            viewModel.selectedDish = nil
+        }) { dish in
             NavigationStack {
-                DishDetailsCoordinator().createDishDetailsView(dish: dish)
+                DishDetailsCoordinator().createDishDetailsView(
+                    dish: dish,
+                    onDismiss: { shouldSave in
+                        if !shouldSave {
+                            // User dismissed without saving - ensure rollback happens
+                            AppLogger.info("Dish editing dismissed without saving", category: AppLogger.viewModel)
+                        }
+                        viewModel.selectedDish = nil
+                    }
+                )
             }
         }
         .sheet(isPresented: $viewModel.isAddingNewDish, onDismiss: {

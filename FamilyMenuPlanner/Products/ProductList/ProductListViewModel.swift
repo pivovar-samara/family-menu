@@ -104,16 +104,18 @@ class ProductListViewModel: ObservableObject {
     // Delete products from Core Data
     func deleteProducts(at offsets: IndexSet) {
         do {
-            var products: [Product] = []
+            var productsToDelete: [Product] = []
             for index in offsets {
                 let product = filteredProducts[index]
-                products.append(product)
-                if let index = allProducts.firstIndex(of: product) {
-                    allProducts.remove(at: index)
-                }
+                productsToDelete.append(product)
             }
             
-            try productListService.deleteProducts(products: products)
+            // Delete from Core Data - delegate callback will handle UI updates
+            try productListService.deleteProducts(products: productsToDelete)
+            
+            // Note: allProducts will be updated automatically via delegate callback
+            // No immediate UI update to avoid conflicts with NSFetchedResultsController
+            
         } catch {
             enqueueAlert(title: "Error", message: "Error deleting product. Please try again.")
         }

@@ -42,6 +42,7 @@ struct EditProductView: View {
                 }
                 .foregroundColor(Color("AccentColor"))
                 .font(.body.weight(.semibold))
+                .accessibilityIdentifier("Save")
             }
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel".localized()) {
@@ -96,8 +97,13 @@ struct ProductDetailsCard: View {
                 
                 TextField("Enter product name".localized(), text: Binding(
                     get: { viewModel.product?.name ?? "" },
-                    set: { viewModel.product?.name = $0 }
-                ))
+                    set: { newValue in
+                        viewModel.product?.name = newValue
+                    }
+                ), onEditingChanged: { isEditing in
+                    // Prevent auto-dismiss during text editing
+                    viewModel.setAutoDismissPreventionState(isEditing)
+                })
                 .textFieldStyle(ModernTextFieldStyle())
                 .autocorrectionDisabled(true)
                 .textInputAutocapitalization(.words)

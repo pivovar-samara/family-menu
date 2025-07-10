@@ -20,11 +20,14 @@ class EditProductViewModel: ObservableObject {
     private let editProductService: EditProductServiceProtocol
     private let alertManager = AlertQueueManager()
     private var cancellables = Set<AnyCancellable>()
+    private let onDismiss: ((Bool) -> Void)?
+    private var shouldPreventAutoDismiss = false
     
-    init(product: Product? = nil, editProductService: EditProductServiceProtocol) {
+    init(product: Product? = nil, editProductService: EditProductServiceProtocol, onDismiss: ((Bool) -> Void)? = nil) {
         self.product = product
         self.isCreatingNewProduct = product == nil
         self.editProductService = editProductService
+        self.onDismiss = onDismiss
         
         // Load initial units from service to ensure correct context
         self.units = editProductService.fetchAllUnits()
@@ -119,6 +122,7 @@ class EditProductViewModel: ObservableObject {
     
     func rollback() {
         editProductService.rollback()
+        onDismiss?(false) // Indicate user dismissed without saving
     }
     
     func saveChanges(onSuccess: ()->Void) {
@@ -132,12 +136,18 @@ class EditProductViewModel: ObservableObject {
             product?.isDraft = false
             
             try editProductService.saveChanges()
+            onDismiss?(true) // Indicate user saved successfully
             onSuccess()
         } catch let error as NSError {
             enqueueAlert(title: "Error", message: error.localizedDescription)
         } catch {
             enqueueAlert(title: "Error", message: "Failed to save changes. Please try again.")
         }
+    }
+    
+    /// Called when user dismisses sheet without explicit cancel - ensures rollback happens
+    func dismissWithoutSaving() {
+        rollback()
     }
     
     func dismissAlert() {
@@ -147,5 +157,22 @@ class EditProductViewModel: ObservableObject {
     private func enqueueAlert(title: String, message: String) {
         let alert = AlertItem(title: title.localized(), message: message.localized(), action: nil)
         alertManager.enqueue(alert: alert)
+    }
+    
+    /// Prevents automatic view dismissal during critical operations like text editing
+    func setAutoDismissPreventionState(_ prevent: Bool) {
+        shouldPreventAutoDismiss = prevent
+    }
+    
+    // Fallback cleanup when ViewModel is deallocated
+    deinit {
+        AppLogger.info("🟢 EditProductViewModel deinit called - cleaning up unsaved changes", category: AppLogger.viewModel)
+        // Only auto-dismiss if not prevented (e.g., during active editing)
+        if !shouldPreventAutoDismiss {
+            dismissWithoutSaving()
+        } else {
+            // Just rollback without dismissing
+            editProductService.rollback()
+        }
     }
 }
