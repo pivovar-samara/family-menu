@@ -110,6 +110,9 @@ class ProductListIntegrationTests: BaseIntegrationTest {
     func testDeleteProduct() {
         let (products, _) = createTestData()
         
+        // Set predictable sort order for test
+        viewModel.updateSortOption(.nameAscending)
+        
         // Load products
         viewModel.loadProducts()
         
@@ -121,16 +124,16 @@ class ProductListIntegrationTests: BaseIntegrationTest {
         }
         wait(for: [loadExpectation], timeout: 0.5)
         
-        // Delete first product
+        // Delete first product (should be "Eggs" when sorted A-Z)
         viewModel.deleteProducts(at: IndexSet(integer: 0))
         
-        // Wait for deletion to complete and UI to update
-        let deleteExpectation = expectation(description: "Product deleted")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+        // Wait for deletion to complete and UI to update (increased timing for delegate callback + debounce)
+        let deleteExpectation = expectation(description: "Products deleted")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
             // Verify product was deleted
             XCTAssertEqual(self.viewModel.allProducts.count, 1)
-            XCTAssertFalse(self.viewModel.allProducts.contains(products[0]))
-            XCTAssertTrue(self.viewModel.allProducts.contains(products[1]))
+            XCTAssertFalse(self.viewModel.allProducts.contains(products[0])) // "Eggs" should be deleted
+            XCTAssertTrue(self.viewModel.allProducts.contains(products[1])) // "Flour" should remain
             deleteExpectation.fulfill()
         }
         wait(for: [deleteExpectation], timeout: 0.5)

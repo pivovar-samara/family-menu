@@ -261,11 +261,47 @@ final class ProductManagementUITests: XCTestCase {
         // Capture original name from the text field's current value
         let originalName = (nameField.value as? String) ?? ""
         
+        // Focus on the text field first
         nameField.tap()
-        nameField.clearAndEnterText("Updated " + originalName)
         
-        // Save changes
-        editNav.buttons["Save"].tap()
+        // Wait for keyboard to appear and UI to stabilize
+        let keyboard = app.keyboards.firstMatch
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 3), "Keyboard should appear")
+        
+        // Select all text first (more reliable than trying to clear)
+        nameField.doubleTap() // This should select all text
+        
+        // Wait for selection (all text selected) to complete using predicate expectation
+        let selectionPredicate = NSPredicate(format: "value CONTAINS %@", originalName)
+        let selectionExpectation = expectation(for: selectionPredicate, evaluatedWith: nameField, handler: nil)
+        let selectionResult = XCTWaiter().wait(for: [selectionExpectation], timeout: 3)
+        XCTAssertEqual(selectionResult, .completed, "Text field selection did not stabilize in time")
+
+        // Type the new text (this should replace the selected text)
+        nameField.typeText("Updated " + originalName)
+
+        // Wait for text input to complete
+        let updatedPredicate = NSPredicate(format: "value CONTAINS %@", "Updated " + originalName)
+        let updatedExpectation = expectation(for: updatedPredicate, evaluatedWith: nameField, handler: nil)
+        let updatedResult = XCTWaiter().wait(for: [updatedExpectation], timeout: 3)
+        XCTAssertEqual(updatedResult, .completed, "Text update did not complete in time")
+        
+        // Verify we're still on the edit screen
+        XCTAssertTrue(editNav.exists, "Should still be on edit screen after typing")
+        
+        // Try multiple ways to find the Save button
+        var saveButton: XCUIElement
+        if app.navigationBars["Edit Product"].buttons["Save"].exists {
+            saveButton = app.navigationBars["Edit Product"].buttons["Save"]
+        } else if app.buttons["Save"].exists {
+            saveButton = app.buttons["Save"]
+        } else {
+            // Last resort - look for any button with Save accessibility identifier
+            saveButton = app.buttons.matching(identifier: "Save").firstMatch
+        }
+        
+        XCTAssertTrue(saveButton.waitForExistence(timeout: 5), "Save button should exist")
+        saveButton.tap()
         
         // Return to list
         XCTAssertTrue(app.navigationBars["Products"].waitForExistence(timeout: 5))

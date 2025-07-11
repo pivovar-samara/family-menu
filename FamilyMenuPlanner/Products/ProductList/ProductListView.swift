@@ -110,9 +110,22 @@ struct ProductListView: View {
             }
         }
         // Sheet for editing selected product
-        .sheet(item: $viewModel.selectedProduct) { product in
+        .sheet(item: $viewModel.selectedProduct, onDismiss: {
+            // Reset selection after sheet dismissal
+            viewModel.selectedProduct = nil
+        }) { product in
             NavigationStack {
-                EditProductCoordinator().createEditProductView(product: product)
+                EditProductCoordinator().createEditProductView(
+                    product: product,
+                    onDismiss: { shouldSave in
+                        if !shouldSave {
+                            // User dismissed without saving - ensure rollback happens
+                            // The EditProductViewModel's deinit will handle rollback as fallback
+                            AppLogger.info("Product editing dismissed without saving", category: AppLogger.viewModel)
+                        }
+                        viewModel.selectedProduct = nil
+                    }
+                )
             }
         }
         // Alerts queue support

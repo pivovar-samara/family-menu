@@ -53,6 +53,26 @@ class DishSelectionIntegrationTests: BaseIntegrationTest {
         XCTAssertTrue(fetchedDishes.contains(dish1))
         XCTAssertTrue(fetchedDishes.contains(dish2))
     }
+
+    // MARK: - Draft Filtering Tests
+
+    func testServiceFetchAllDishesExcludesDrafts() {
+        // Create a complete dish
+        let completeDish = createDishWithMealTypes(name: "Complete Dish", mealTypeNames: ["Dinner"])
+
+        // Create a draft dish
+        let draftDish = createDishWithMealTypes(name: "Draft Dish", mealTypeNames: ["Dinner"])
+        draftDish.isDraft = true
+        try? context.save()
+
+        // Fetch dishes using service
+        let fetchedDishes = dishSelectionService.fetchAllDishes()
+
+        // Verify only the non-draft dish is returned
+        XCTAssertTrue(fetchedDishes.contains(completeDish))
+        XCTAssertFalse(fetchedDishes.contains(draftDish))
+        XCTAssertEqual(fetchedDishes.count, 1)
+    }
     
     func testCoreDataRelationships() {
         // Create dishes with shared meal type

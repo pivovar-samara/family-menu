@@ -52,14 +52,17 @@ class DishDetailsViewModel: ObservableObject {
     private let dishDetailsService: DishDetailsServiceProtocol
     private let alertManager = AlertQueueManager()
     private var cancellables = Set<AnyCancellable>()
+    private let onDismiss: ((Bool) -> Void)?
+    private var hasSavedChanges = false
     
     // UserDefaults key for storing ingredient sort preference
     private static let ingredientSortPreferenceKey = "IngredientSortPreference"
     
-    init(dishDetailsService: DishDetailsServiceProtocol, dish: Dish? = nil) {
+    init(dishDetailsService: DishDetailsServiceProtocol, dish: Dish? = nil, onDismiss: ((Bool) -> Void)? = nil) {
         self.dishDetailsService = dishDetailsService
         self.dish = dish
         self.isCreatingNewDish = dish == nil
+        self.onDismiss = onDismiss
         
         // Load persistent sort preference
         loadSortPreference()
@@ -113,8 +116,6 @@ class DishDetailsViewModel: ObservableObject {
         UserDefaults.standard.set(currentSortOption.rawValue, forKey: Self.ingredientSortPreferenceKey)
         AppLogger.info("Saved ingredient sort preference: \(currentSortOption.rawValue)", category: AppLogger.viewModel)
     }
-    
-
     
     func loadDish() {
         guard dish == nil else { return }
@@ -313,6 +314,8 @@ class DishDetailsViewModel: ObservableObject {
             dish.isDraft = false
             
             try dishDetailsService.saveChanges()
+            hasSavedChanges = true
+            onDismiss?(true) // Indicate user saved successfully
             onSuccess()
         } catch let error as NSError {
             enqueueAlert(title: "Error", message: error.localizedDescription)
@@ -323,6 +326,14 @@ class DishDetailsViewModel: ObservableObject {
     
     func rollback() {
         dishDetailsService.rollback()
+        onDismiss?(false) // Indicate user dismissed without saving
+    }
+    
+    /// Called when user dismisses sheet without explicit cancel - ensures rollback happens
+    func dismissWithoutSaving() {
+        if !hasSavedChanges {
+            rollback()
+        }
     }
 
     // Validate dish data
@@ -440,5 +451,11 @@ class DishDetailsViewModel: ObservableObject {
                 }
             }
         }
+    }
+    
+    // Fallback cleanup when ViewModel is deallocated. Avoid UI callbacks from deinit.
+    deinit {
+        AppLogger.info("🔴 DishDetailsViewModel deinit called", category: AppLogger.viewModel)
+        // No explicit rollback here to avoid double rollback; handled by dismissWithoutSaving
     }
 }
