@@ -194,3 +194,8 @@
 
 "No Products Available" = "No Products Available";
 "Create products first to select them for your dishes" = "Create products first to select them for your dishes";
+
+// Accessibility strings
+"no unit" = "no unit";
+"Currently selected" = "Currently selected";
+"Tap to select this product" = "Tap to select this product";

@@ -121,7 +121,7 @@ struct ProductSelectionCardView: View {
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
                             
-                            Text("per \(unitName)")
+                            Text(String(format: "per %@".localized(), unitName))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -156,8 +156,8 @@ struct ProductSelectionCardView: View {
         }
         .buttonStyle(ProductSelectionScaleButtonStyle())
         .accessibilityIdentifier("product_selection_card_\(product.name ?? "unnamed")")
-        .accessibilityLabel("\(product.name ?? "Unnamed Product"), \(product.unit?.name?.localized() ?? "no unit")")
-        .accessibilityHint(isSelected ? "Currently selected" : "Tap to select this product")
+        .accessibilityLabel("\(product.name ?? "Unnamed Product".localized()), \(product.unit?.name?.localized() ?? "no unit".localized())")
+        .accessibilityHint(isSelected ? "Currently selected".localized() : "Tap to select this product".localized())
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
     }
 }

@@ -194,3 +194,8 @@
 
 "No Products Available" = "Продукты недоступны";
 "Create products first to select them for your dishes" = "Сначала создайте продукты, чтобы выбирать их для ваших блюд";
+
+// Accessibility strings
+"no unit" = "без единицы";
+"Currently selected" = "В настоящее время выбрано";
+"Tap to select this product" = "Нажмите, чтобы выбрать этот продукт";
