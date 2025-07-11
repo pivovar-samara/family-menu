@@ -171,8 +171,8 @@ class EditProductViewModel: ObservableObject {
     // Fallback cleanup when ViewModel is deallocated
     deinit {
         AppLogger.info("🟢 EditProductViewModel deinit called - cleaning up unsaved changes", category: AppLogger.viewModel)
-        // Roll back only if there are unsaved changes and auto-dismiss is allowed
-        if !shouldPreventAutoDismiss && !hasSavedChanges {
+        // Roll back if there are unsaved changes
+        if !hasSavedChanges {
             editProductService.rollback()
         }
     }

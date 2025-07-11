@@ -456,8 +456,6 @@ class DishDetailsViewModel: ObservableObject {
     // Fallback cleanup when ViewModel is deallocated. Avoid UI callbacks from deinit.
     deinit {
         AppLogger.info("🔴 DishDetailsViewModel deinit called", category: AppLogger.viewModel)
-        if !hasSavedChanges {
-            dishDetailsService.rollback()
-        }
+        // No explicit rollback here to avoid double rollback; handled by dismissWithoutSaving
     }
 }
