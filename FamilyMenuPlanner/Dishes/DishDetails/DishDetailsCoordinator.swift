@@ -21,9 +21,8 @@ class DishDetailsCoordinator {
         
         return DishDetailsView(viewModel: viewModel)
             .onDisappear {
-                // Ensure rollback happens when view disappears (including swipe dismiss)
-                // This is needed because the complex TabView structure prevents reliable deinit calls
-                AppLogger.info("🔴 DishDetailsView disappeared - ensuring cleanup", category: AppLogger.viewModel)
+                // Rely on the ViewModel to decide if a rollback is required.
+                AppLogger.info("🔴 DishDetailsView disappeared", category: AppLogger.viewModel)
                 viewModel.dismissWithoutSaving()
             }
     }

@@ -53,6 +53,7 @@ class DishDetailsViewModel: ObservableObject {
     private let alertManager = AlertQueueManager()
     private var cancellables = Set<AnyCancellable>()
     private let onDismiss: ((Bool) -> Void)?
+    private var hasSavedChanges = false
     
     // UserDefaults key for storing ingredient sort preference
     private static let ingredientSortPreferenceKey = "IngredientSortPreference"
@@ -313,6 +314,7 @@ class DishDetailsViewModel: ObservableObject {
             dish.isDraft = false
             
             try dishDetailsService.saveChanges()
+            hasSavedChanges = true
             onDismiss?(true) // Indicate user saved successfully
             onSuccess()
         } catch let error as NSError {
@@ -329,7 +331,9 @@ class DishDetailsViewModel: ObservableObject {
     
     /// Called when user dismisses sheet without explicit cancel - ensures rollback happens
     func dismissWithoutSaving() {
-        rollback()
+        if !hasSavedChanges {
+            rollback()
+        }
     }
 
     // Validate dish data
@@ -449,9 +453,11 @@ class DishDetailsViewModel: ObservableObject {
         }
     }
     
-    // Fallback cleanup - now calls dismissWithoutSaving for consistency
+    // Fallback cleanup when ViewModel is deallocated. Avoid UI callbacks from deinit.
     deinit {
-        AppLogger.info("🔴 DishDetailsViewModel deinit called - cleaning up unsaved changes", category: AppLogger.viewModel)
-        dismissWithoutSaving()
+        AppLogger.info("🔴 DishDetailsViewModel deinit called", category: AppLogger.viewModel)
+        if !hasSavedChanges {
+            dishDetailsService.rollback()
+        }
     }
 }

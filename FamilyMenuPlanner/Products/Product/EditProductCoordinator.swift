@@ -19,5 +19,10 @@ class EditProductCoordinator {
             onDismiss: onDismiss
         )
         return EditProductView(viewModel: viewModel)
+            .onDisappear {
+                // Ensure rollback occurs if the user dismisses the sheet without saving
+                AppLogger.info("🔴 EditProductView disappeared", category: AppLogger.viewModel)
+                viewModel.dismissWithoutSaving()
+            }
     }
 }

@@ -22,6 +22,7 @@ class EditProductViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let onDismiss: ((Bool) -> Void)?
     private var shouldPreventAutoDismiss = false
+    private var hasSavedChanges = false
     
     init(product: Product? = nil, editProductService: EditProductServiceProtocol, onDismiss: ((Bool) -> Void)? = nil) {
         self.product = product
@@ -136,6 +137,7 @@ class EditProductViewModel: ObservableObject {
             product?.isDraft = false
             
             try editProductService.saveChanges()
+            hasSavedChanges = true
             onDismiss?(true) // Indicate user saved successfully
             onSuccess()
         } catch let error as NSError {
@@ -147,7 +149,9 @@ class EditProductViewModel: ObservableObject {
     
     /// Called when user dismisses sheet without explicit cancel - ensures rollback happens
     func dismissWithoutSaving() {
-        rollback()
+        if !hasSavedChanges {
+            rollback()
+        }
     }
     
     func dismissAlert() {
@@ -167,11 +171,8 @@ class EditProductViewModel: ObservableObject {
     // Fallback cleanup when ViewModel is deallocated
     deinit {
         AppLogger.info("🟢 EditProductViewModel deinit called - cleaning up unsaved changes", category: AppLogger.viewModel)
-        // Only auto-dismiss if not prevented (e.g., during active editing)
-        if !shouldPreventAutoDismiss {
-            dismissWithoutSaving()
-        } else {
-            // Just rollback without dismissing
+        // Roll back only if there are unsaved changes and auto-dismiss is allowed
+        if !shouldPreventAutoDismiss && !hasSavedChanges {
             editProductService.rollback()
         }
     }

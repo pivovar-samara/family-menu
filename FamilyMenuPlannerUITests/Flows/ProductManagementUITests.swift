@@ -271,14 +271,20 @@ final class ProductManagementUITests: XCTestCase {
         // Select all text first (more reliable than trying to clear)
         nameField.doubleTap() // This should select all text
         
-        // Wait a moment for selection to complete
-        Thread.sleep(forTimeInterval: 0.3)
-        
+        // Wait for selection (all text selected) to complete using predicate expectation
+        let selectionPredicate = NSPredicate(format: "value CONTAINS %@", originalName)
+        let selectionExpectation = expectation(for: selectionPredicate, evaluatedWith: nameField, handler: nil)
+        let selectionResult = XCTWaiter().wait(for: [selectionExpectation], timeout: 3)
+        XCTAssertEqual(selectionResult, .completed, "Text field selection did not stabilize in time")
+
         // Type the new text (this should replace the selected text)
         nameField.typeText("Updated " + originalName)
-        
+
         // Wait for text input to complete
-        Thread.sleep(forTimeInterval: 0.5)
+        let updatedPredicate = NSPredicate(format: "value CONTAINS %@", "Updated " + originalName)
+        let updatedExpectation = expectation(for: updatedPredicate, evaluatedWith: nameField, handler: nil)
+        let updatedResult = XCTWaiter().wait(for: [updatedExpectation], timeout: 3)
+        XCTAssertEqual(updatedResult, .completed, "Text update did not complete in time")
         
         // Verify we're still on the edit screen
         XCTAssertTrue(editNav.exists, "Should still be on edit screen after typing")
