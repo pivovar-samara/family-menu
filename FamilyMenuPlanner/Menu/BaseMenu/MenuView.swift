@@ -34,7 +34,10 @@ struct MenuView: View {
         }
         .sheet(isPresented: $viewModel.isShowingShoppingList) {
             NavigationStack {
-                ShoppingListView(shoppingList: viewModel.generateShoppingList())
+                ShoppingListView(
+                    shoppingList: viewModel.generateShoppingList(),
+                    weekDate: viewModel.weekOptions[viewModel.selectedWeekIndex]
+                )
             }
         }
         .onAppear {
