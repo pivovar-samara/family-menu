@@ -56,7 +56,7 @@ class MenuViewModel: ObservableObject {
 
     func generateMenu() {
         guard selectedWeekIndex >= 0 && selectedWeekIndex < weekOptions.count else {
-            enqueueAlert(title: "Error", message: "Invalid week selection. Please try again.")
+            enqueueAlert(title: "Error".localized(), message: "InvalidWeekSelectionMessage".localized())
             return
         }
         let selectedWeekDate = weekOptions[selectedWeekIndex]
@@ -70,7 +70,7 @@ class MenuViewModel: ObservableObject {
     
     func replaceDishes(for day: String, mealType: String, with newDishes: [Dish]) {
         guard selectedWeekIndex >= 0 && selectedWeekIndex < weekOptions.count else {
-            enqueueAlert(title: "Error", message: "Invalid week selection. Please try again.")
+            enqueueAlert(title: "Error".localized(), message: "InvalidWeekSelectionMessage".localized())
             return
         }
         let selectedWeekDate = weekOptions[selectedWeekIndex]
@@ -87,7 +87,7 @@ class MenuViewModel: ObservableObject {
 
     func clearMealType(for day: String, mealType: String? = nil) {
         guard selectedWeekIndex >= 0 && selectedWeekIndex < weekOptions.count else {
-            enqueueAlert(title: "Error", message: "Invalid week selection. Please try again.")
+            enqueueAlert(title: "Error".localized(), message: "InvalidWeekSelectionMessage".localized())
             return
         }
         let selectedWeekDate = weekOptions[selectedWeekIndex]

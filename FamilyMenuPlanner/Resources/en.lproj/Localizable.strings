@@ -210,3 +210,4 @@
 "Selected" = "Selected";
 "Tap to select this item" = "Tap to select this item";
 "Tap to select this product" = "Tap to select this product";
+"InvalidWeekSelectionMessage" = "Invalid week selection. Please try again.";

@@ -210,3 +210,4 @@
 "Generate a menu first to see your shopping list" = "Сначала создайте меню, чтобы увидеть список покупок";
 "Selected" = "Выбрано";
 "Tap to select this item" = "Нажмите, чтобы выбрать этот товар";
+"InvalidWeekSelectionMessage" = "Некорректный выбор недели. Пожалуйста, попробуйте еще раз.";

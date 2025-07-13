@@ -40,7 +40,7 @@ struct MenuView: View {
                         weekDate: viewModel.weekOptions[viewModel.selectedWeekIndex]
                     )
                 } else {
-                    Text("Invalid week selection. Please try again.")
+                    Text("InvalidWeekSelectionMessage".localized())
                         .foregroundColor(.red)
                         .padding()
                 }
@@ -152,7 +152,7 @@ struct MenuView: View {
     
     private func sectionHeader(for day: String) -> String {
         guard viewModel.selectedWeekIndex >= 0 && viewModel.selectedWeekIndex < viewModel.weekOptions.count else {
-            return day + ", " + "Invalid week".localized()
+            return day + ", " + "InvalidWeekSelectionMessage".localized()
         }
         let startDate = startOfWeek(for: viewModel.weekOptions[viewModel.selectedWeekIndex])
         guard let index = viewModel.weekdays.firstIndex(of: day) else { return day }
