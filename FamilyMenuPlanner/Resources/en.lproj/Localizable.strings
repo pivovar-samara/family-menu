@@ -185,6 +185,10 @@
 
 "Sort products" = "Sort products";
 
+"No Menu Planned" = "No Menu Planned";
+"Generate a menu for this week to start planning your meals" = "Generate a menu for this week to start planning your meals";
+"Are you sure you want to clear the dishes for %@?" = "Are you sure you want to clear the dishes for %@?";
+
 // Product Creation/Editing UI
 "Create a product for your pantry" = "Create a product for your pantry";
 "Update product details" = "Update product details";

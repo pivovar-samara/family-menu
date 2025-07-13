@@ -114,6 +114,18 @@ extension ViewHelper {
     /// Returns the appropriate icon for a meal type
     static func mealTypeIcon(for mealType: MealType) -> String {
         guard let name = mealType.name?.lowercased() else { return "fork.knife" }
+        return mealTypeIcon(for: name)
+    }
+    
+    /// Returns the appropriate color for a meal type
+    static func mealTypeColor(for mealType: MealType) -> Color {
+        guard let name = mealType.name?.lowercased() else { return .orange }
+        return mealTypeColor(for: name)
+    }
+    
+    /// Returns the appropriate icon for a meal type string
+    static func mealTypeIcon(for mealTypeName: String) -> String {
+        let name = mealTypeName.lowercased()
         switch name {
         case "breakfast": return "sunrise.fill"
         case "lunch": return "sun.max.fill"
@@ -123,9 +135,9 @@ extension ViewHelper {
         }
     }
     
-    /// Returns the appropriate color for a meal type
-    static func mealTypeColor(for mealType: MealType) -> Color {
-        guard let name = mealType.name?.lowercased() else { return .orange }
+    /// Returns the appropriate color for a meal type string
+    static func mealTypeColor(for mealTypeName: String) -> Color {
+        let name = mealTypeName.lowercased()
         switch name {
         case "breakfast": return .orange
         case "lunch": return .yellow
