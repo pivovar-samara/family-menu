@@ -16,25 +16,16 @@ final class ShoppingListUnitTests: XCTestCase {
         viewModel = ShoppingListViewModel()
         // Clear any existing UserDefaults from previous tests
         UserDefaults.standard.removeObject(forKey: "ShoppingListSortPreference")
-        clearAllSelectionKeys()
+        viewModel.clearAllSelections()
     }
     
     override func tearDown() {
         viewModel = nil
         // Clean up UserDefaults
         UserDefaults.standard.removeObject(forKey: "ShoppingListSortPreference")
-        clearAllSelectionKeys()
+        // Use a temporary view model to clear all selections
+        ShoppingListViewModel().clearAllSelections()
         super.tearDown()
-    }
-    
-    private func clearAllSelectionKeys() {
-        let defaults = UserDefaults.standard
-        let allKeys = defaults.dictionaryRepresentation().keys
-        for key in allKeys {
-            if key.hasPrefix("ShoppingListSelection") || key.hasPrefix("ShoppingListQuantity") {
-                defaults.removeObject(forKey: key)
-            }
-        }
     }
     
     private func createTestWeekDate() -> Date {
@@ -548,6 +539,27 @@ final class ShoppingListUnitTests: XCTestCase {
         
         let newEggsItem = newViewModel.shoppingItems.first { $0.productName == "Eggs" }!
         XCTAssertFalse(newEggsItem.isSelected)
+    }
+    
+    func testQuantityStateIsSavedOnLoad() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Eggs": ["pcs": 6.0]
+        ]
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+
+        // Check that quantity is saved in UserDefaults for each item
+        let encodedWeek = Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: weekDate)
+        let year = encodedWeek.yearForWeekOfYear ?? 0
+        let week = encodedWeek.weekOfYear ?? 0
+        let weekKey = year * 100 + week
+        let milkKey = "ShoppingListQuantity_\(weekKey)_Milk_ml"
+        let eggsKey = "ShoppingListQuantity_\(weekKey)_Eggs_pcs"
+        let milkQuantity = UserDefaults.standard.double(forKey: milkKey)
+        let eggsQuantity = UserDefaults.standard.double(forKey: eggsKey)
+        XCTAssertEqual(milkQuantity, 500.0)
+        XCTAssertEqual(eggsQuantity, 6.0)
     }
     
     func testClearOldSelections() {

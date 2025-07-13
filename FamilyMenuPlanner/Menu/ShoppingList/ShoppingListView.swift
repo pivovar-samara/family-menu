@@ -39,8 +39,8 @@ struct ShoppingListView: View {
             )
         }
         .onAppear {
-            viewModel.loadShoppingList(from: shoppingList, for: weekDate)
             viewModel.clearOldSelections()
+            viewModel.loadShoppingList(from: shoppingList, for: weekDate)
         }
     }
 

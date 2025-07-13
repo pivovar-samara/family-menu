@@ -102,10 +102,11 @@ class ShoppingListViewModel: ObservableObject {
                     isSelected: finalIsSelected
                 ))
                 
+                // Always save the current quantity state for baseline comparison
+                saveQuantityState(for: productName, unit: unitName, quantity: quantity, weekDate: weekDate)
                 // If quantity changed and item was selected, reset the selection
                 if shouldResetSelection {
                     saveSelectionState(for: productName, unit: unitName, isSelected: false, weekDate: weekDate)
-                    saveQuantityState(for: productName, unit: unitName, quantity: quantity, weekDate: weekDate)
                 }
             }
         }
@@ -225,9 +226,6 @@ class ShoppingListViewModel: ObservableObject {
         // If quantity changed and item was selected, we should reset the selection
         // Only reset if we have a saved quantity and it's different from current
         let shouldResetSelection = isSelected && hasSavedQuantity && abs(savedQuantity - currentQuantity) > 0.001 // Use small epsilon for floating point comparison
-        
-        // Debug logging
-        print("🔍 \(productName) (\(unit)): isSelected=\(isSelected), hasSavedQuantity=\(hasSavedQuantity), savedQuantity=\(savedQuantity), currentQuantity=\(currentQuantity), shouldReset=\(shouldResetSelection)")
         
         return (isSelected, shouldResetSelection)
     }
