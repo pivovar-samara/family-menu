@@ -199,3 +199,15 @@
 "no unit" = "без единицы";
 "Currently selected" = "В настоящее время выбрано";
 "Tap to select this product" = "Нажмите, чтобы выбрать этот продукт";
+
+// Shopping List
+"Search items..." = "Поиск товаров...";
+"Selection options" = "Параметры выбора";
+"Select All" = "Выбрать все";
+"Deselect All" = "Снять выбор";
+"Sort shopping list" = "Сортировать список покупок";
+"No Shopping Items" = "Нет товаров для покупок";
+"Generate a menu first to see your shopping list" = "Сначала создайте меню, чтобы увидеть список покупок";
+"Selected" = "Выбрано";
+"Tap to select this item" = "Нажмите, чтобы выбрать этот товар";
+"InvalidWeekSelectionMessage" = "Некорректный выбор недели. Пожалуйста, попробуйте еще раз.";

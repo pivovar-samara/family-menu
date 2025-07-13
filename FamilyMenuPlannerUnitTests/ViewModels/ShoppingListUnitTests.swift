@@ -1,112 +1,732 @@
 //
 //  ShoppingListUnitTests.swift
-//  FamilyMenuPlanner
+//  FamilyMenuPlannerUnitTests
 //
-//  Created by Pivovar 63 on 27.05.25.
+//  Created by Ilya Khokhlov on 18.12.24.
 //
 
 import XCTest
 @testable import FamilyMenuPlanner
 
 final class ShoppingListUnitTests: XCTestCase {
-    // Helper to mimic the formattedDoubleForUnits logic
-    func formattedDoubleForUnits(_ value: Double) -> String {
-        if value.truncatingRemainder(dividingBy: 1) == 0 {
-            return String(format: "%.0f", value)
-        } else {
-            return String(format: "%.2f", value)
+    var viewModel: ShoppingListViewModel!
+    
+    override func setUp() {
+        super.setUp()
+        viewModel = ShoppingListViewModel()
+        // Clear any existing UserDefaults from previous tests
+        UserDefaults.standard.removeObject(forKey: "ShoppingListSortPreference")
+        viewModel.clearAllSelections()
+    }
+    
+    override func tearDown() {
+        viewModel = nil
+        // Clean up UserDefaults
+        UserDefaults.standard.removeObject(forKey: "ShoppingListSortPreference")
+        // Use a temporary view model to clear all selections
+        ShoppingListViewModel().clearAllSelections()
+        super.tearDown()
+    }
+    
+    private func createTestWeekDate() -> Date {
+        let calendar = Calendar.current
+        let today = Date()
+        return calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today))!
+    }
+    
+    // MARK: - Shopping List Loading Tests
+    
+    func testLoadShoppingList() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Eggs": ["pcs": 6.0],
+            "Flour": ["g": 250.0]
+        ]
+        
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        
+        XCTAssertEqual(viewModel.shoppingItems.count, 3)
+        XCTAssertEqual(viewModel.filteredItems.count, 3)
+        
+        let milkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }
+        XCTAssertNotNil(milkItem)
+        XCTAssertEqual(milkItem?.quantity, 500.0)
+        XCTAssertEqual(milkItem?.unitName, "ml")
+        XCTAssertFalse(milkItem?.isSelected ?? true)
+    }
+    
+    func testLoadShoppingListWithMultipleUnits() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Sugar": ["g": 100.0, "kg": 0.5],
+            "Water": ["ml": 1000.0, "l": 2.0]
+        ]
+        
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        
+        XCTAssertEqual(viewModel.shoppingItems.count, 4)
+        XCTAssertEqual(viewModel.filteredItems.count, 4)
+        
+        let sugarItems = viewModel.shoppingItems.filter { $0.productName == "Sugar" }
+        XCTAssertEqual(sugarItems.count, 2)
+        
+        let waterItems = viewModel.shoppingItems.filter { $0.productName == "Water" }
+        XCTAssertEqual(waterItems.count, 2)
+    }
+    
+    func testLoadEmptyShoppingList() {
+        let rawShoppingList: [String: [String: Double]] = [:]
+        
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        
+        XCTAssertEqual(viewModel.shoppingItems.count, 0)
+        XCTAssertEqual(viewModel.filteredItems.count, 0)
+    }
+    
+    // MARK: - Selection Tests
+    
+    func testToggleSelection() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Eggs": ["pcs": 6.0]
+        ]
+        
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        
+        let milkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        
+        // Initially not selected
+        XCTAssertFalse(milkItem.isSelected)
+        
+        // Toggle selection
+        viewModel.toggleSelection(for: milkItem)
+        
+        let updatedMilkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        XCTAssertTrue(updatedMilkItem.isSelected)
+        
+        // Toggle again
+        viewModel.toggleSelection(for: updatedMilkItem)
+        
+        let finalMilkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        XCTAssertFalse(finalMilkItem.isSelected)
+    }
+    
+    func testSelectAll() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Eggs": ["pcs": 6.0],
+            "Flour": ["g": 250.0]
+        ]
+        
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        
+        // Initially none selected
+        XCTAssertTrue(viewModel.shoppingItems.allSatisfy { !$0.isSelected })
+        
+        // Select all
+        viewModel.selectAll()
+        
+        // All should be selected
+        XCTAssertTrue(viewModel.shoppingItems.allSatisfy { $0.isSelected })
+    }
+    
+    func testDeselectAll() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Eggs": ["pcs": 6.0]
+        ]
+        
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        
+        // Select all first
+        viewModel.selectAll()
+        XCTAssertTrue(viewModel.shoppingItems.allSatisfy { $0.isSelected })
+        
+        // Deselect all
+        viewModel.deselectAll()
+        
+        // None should be selected
+        XCTAssertTrue(viewModel.shoppingItems.allSatisfy { !$0.isSelected })
+    }
+    
+    // MARK: - Quantity Change Tests
+    
+    func testQuantityChangeResetsSelection() {
+        let weekDate = createTestWeekDate()
+        
+        // Initial shopping list with Milk at 500ml
+        let initialShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Eggs": ["pcs": 6.0]
+        ]
+        
+        viewModel.loadShoppingList(from: initialShoppingList, for: weekDate)
+        
+        // Select Milk
+        let milkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        viewModel.toggleSelection(for: milkItem)
+        
+        // Verify Milk is selected by fetching updated item
+        let updatedMilkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        XCTAssertTrue(updatedMilkItem.isSelected)
+        
+        // Create new view model and load with changed quantity
+        let newViewModel = ShoppingListViewModel()
+        let updatedShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 750.0], // Quantity changed from 500 to 750
+            "Eggs": ["pcs": 6.0]
+        ]
+        
+        newViewModel.loadShoppingList(from: updatedShoppingList, for: weekDate)
+        
+        // Milk should no longer be selected due to quantity change
+        let updatedMilkItem2 = newViewModel.shoppingItems.first { $0.productName == "Milk" }!
+        XCTAssertFalse(updatedMilkItem2.isSelected)
+        
+        // Eggs should still be unselected (no change)
+        let eggsItem = newViewModel.shoppingItems.first { $0.productName == "Eggs" }!
+        XCTAssertFalse(eggsItem.isSelected)
+    }
+    
+    func testQuantityChangePreservesUnselectedState() {
+        let weekDate = createTestWeekDate()
+        
+        // Initial shopping list
+        let initialShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Eggs": ["pcs": 6.0]
+        ]
+        
+        viewModel.loadShoppingList(from: initialShoppingList, for: weekDate)
+        
+        // Don't select anything
+        XCTAssertTrue(viewModel.shoppingItems.allSatisfy { !$0.isSelected })
+        
+        // Create new view model and load with changed quantity
+        let newViewModel = ShoppingListViewModel()
+        let updatedShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 750.0], // Quantity changed
+            "Eggs": ["pcs": 6.0]
+        ]
+        
+        newViewModel.loadShoppingList(from: updatedShoppingList, for: weekDate)
+        
+        // All items should still be unselected
+        XCTAssertTrue(newViewModel.shoppingItems.allSatisfy { !$0.isSelected })
+    }
+    
+    func testSmallQuantityChangesDoNotResetSelection() {
+        let weekDate = createTestWeekDate()
+        
+        // Initial shopping list
+        let initialShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0]
+        ]
+        
+        viewModel.loadShoppingList(from: initialShoppingList, for: weekDate)
+        
+        // Select Milk
+        let milkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        viewModel.toggleSelection(for: milkItem)
+        
+        // Verify Milk is selected by fetching updated item
+        let updatedMilkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        XCTAssertTrue(updatedMilkItem.isSelected)
+        
+        // Create new view model and load with very small quantity change (within epsilon)
+        let newViewModel = ShoppingListViewModel()
+        let updatedShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0001] // Very small change, should not reset
+        ]
+        
+        newViewModel.loadShoppingList(from: updatedShoppingList, for: weekDate)
+        
+        // Milk should still be selected due to small quantity change
+        let updatedMilkItem2 = newViewModel.shoppingItems.first { $0.productName == "Milk" }!
+        XCTAssertTrue(updatedMilkItem2.isSelected)
+    }
+    
+    func testQuantityChangeWithMultipleUnits() {
+        let weekDate = createTestWeekDate()
+        
+        // Initial shopping list with multiple units for same product
+        let initialShoppingList: [String: [String: Double]] = [
+            "Sugar": ["g": 100.0, "kg": 0.5]
+        ]
+        
+        viewModel.loadShoppingList(from: initialShoppingList, for: weekDate)
+        
+        // Select both sugar items
+        let sugarGItem = viewModel.shoppingItems.first { $0.productName == "Sugar" && $0.unitName == "g" }!
+        let sugarKgItem = viewModel.shoppingItems.first { $0.productName == "Sugar" && $0.unitName == "kg" }!
+        
+        viewModel.toggleSelection(for: sugarGItem)
+        viewModel.toggleSelection(for: sugarKgItem)
+        
+        // Verify both items are selected by fetching updated items
+        let updatedSugarGItem = viewModel.shoppingItems.first { $0.productName == "Sugar" && $0.unitName == "g" }!
+        let updatedSugarKgItem = viewModel.shoppingItems.first { $0.productName == "Sugar" && $0.unitName == "kg" }!
+        XCTAssertTrue(updatedSugarGItem.isSelected)
+        XCTAssertTrue(updatedSugarKgItem.isSelected)
+        
+        // Create new view model and load with changed quantities
+        let newViewModel = ShoppingListViewModel()
+        let updatedShoppingList: [String: [String: Double]] = [
+            "Sugar": ["g": 150.0, "kg": 0.5] // Only g quantity changed
+        ]
+        
+        newViewModel.loadShoppingList(from: updatedShoppingList, for: weekDate)
+        
+        // Sugar in grams should be unselected (quantity changed)
+        let updatedSugarGItem2 = newViewModel.shoppingItems.first { $0.productName == "Sugar" && $0.unitName == "g" }!
+        XCTAssertFalse(updatedSugarGItem2.isSelected)
+        
+        // Sugar in kg should still be selected (quantity unchanged)
+        let updatedSugarKgItem2 = newViewModel.shoppingItems.first { $0.productName == "Sugar" && $0.unitName == "kg" }!
+        XCTAssertTrue(updatedSugarKgItem2.isSelected)
+    }
+    
+    func testQuantityChangePreservesOtherSelections() {
+        let weekDate = createTestWeekDate()
+        
+        // Initial shopping list
+        let initialShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Eggs": ["pcs": 6.0],
+            "Flour": ["g": 250.0]
+        ]
+        
+        viewModel.loadShoppingList(from: initialShoppingList, for: weekDate)
+        
+        // Select Milk and Eggs
+        let milkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        let eggsItem = viewModel.shoppingItems.first { $0.productName == "Eggs" }!
+        
+        viewModel.toggleSelection(for: milkItem)
+        viewModel.toggleSelection(for: eggsItem)
+        
+        // Verify both items are selected by fetching updated items
+        let updatedMilkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        let updatedEggsItem = viewModel.shoppingItems.first { $0.productName == "Eggs" }!
+        XCTAssertTrue(updatedMilkItem.isSelected)
+        XCTAssertTrue(updatedEggsItem.isSelected)
+        
+        // Create new view model and load with changed quantity for Milk only
+        let newViewModel = ShoppingListViewModel()
+        let updatedShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 750.0], // Quantity changed
+            "Eggs": ["pcs": 6.0],  // Quantity unchanged
+            "Flour": ["g": 250.0]  // Quantity unchanged
+        ]
+        
+        newViewModel.loadShoppingList(from: updatedShoppingList, for: weekDate)
+        
+        // Milk should be unselected (quantity changed)
+        let updatedMilkItem2 = newViewModel.shoppingItems.first { $0.productName == "Milk" }!
+        XCTAssertFalse(updatedMilkItem2.isSelected)
+        
+        // Eggs should still be selected (quantity unchanged)
+        let updatedEggsItem2 = newViewModel.shoppingItems.first { $0.productName == "Eggs" }!
+        XCTAssertTrue(updatedEggsItem2.isSelected)
+        
+        // Flour should still be unselected (was never selected)
+        let flourItem = newViewModel.shoppingItems.first { $0.productName == "Flour" }!
+        XCTAssertFalse(flourItem.isSelected)
+    }
+    
+    // MARK: - Sorting Tests
+    
+    func testSortByNameAscending() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Zucchini": ["pcs": 2.0],
+            "Apple": ["pcs": 5.0],
+            "Banana": ["pcs": 3.0]
+        ]
+        
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        viewModel.updateSortOption(.nameAscending)
+        
+        let sortedNames = viewModel.filteredItems.map { $0.productName }
+        XCTAssertEqual(sortedNames, ["Apple", "Banana", "Zucchini"])
+    }
+    
+    func testSortByNameDescending() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Apple": ["pcs": 5.0],
+            "Banana": ["pcs": 3.0],
+            "Zucchini": ["pcs": 2.0]
+        ]
+        
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        viewModel.updateSortOption(.nameDescending)
+        
+        let sortedNames = viewModel.filteredItems.map { $0.productName }
+        XCTAssertEqual(sortedNames, ["Zucchini", "Banana", "Apple"])
+    }
+    
+    func testSortByQuantityHighToLow() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Flour": ["g": 1000.0],
+            "Sugar": ["g": 250.0]
+        ]
+        
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        viewModel.updateSortOption(.quantityHighToLow)
+        
+        let sortedQuantities = viewModel.filteredItems.map { $0.quantity }
+        XCTAssertEqual(sortedQuantities, [1000.0, 500.0, 250.0])
+    }
+    
+    func testSortByQuantityLowToHigh() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Flour": ["g": 1000.0],
+            "Sugar": ["g": 250.0]
+        ]
+        
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        viewModel.updateSortOption(.quantityLowToHigh)
+        
+        let sortedQuantities = viewModel.filteredItems.map { $0.quantity }
+        XCTAssertEqual(sortedQuantities, [250.0, 500.0, 1000.0])
+    }
+    
+    func testSortByUnit() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Flour": ["g": 1000.0],
+            "Water": ["l": 2.0],
+            "Eggs": ["pcs": 6.0]
+        ]
+        
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        viewModel.updateSortOption(.unit)
+        
+        let sortedUnits = viewModel.filteredItems.map { $0.unitName }
+        XCTAssertEqual(sortedUnits, ["g", "l", "ml", "pcs"])
+    }
+    
+    // MARK: - Search Tests
+    
+    func testSearchByProductName() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Eggs": ["pcs": 6.0],
+            "Flour": ["g": 250.0]
+        ]
+        
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        viewModel.searchText = "milk"
+        
+        // Wait for debounced search to complete
+        let expectation = XCTestExpectation(description: "Search completed")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            expectation.fulfill()
         }
-    }
-
-    func testFormattedDoubleForUnits() {
-        // Test whole numbers
-        XCTAssertEqual(formattedDoubleForUnits(2.0), "2")
-        XCTAssertEqual(formattedDoubleForUnits(100.0), "100")
+        wait(for: [expectation], timeout: 1.0)
         
-        // Test decimals
-        XCTAssertEqual(formattedDoubleForUnits(2.5), "2.50")
-        XCTAssertEqual(formattedDoubleForUnits(0.333), "0.33")
-        
-        // Test edge cases
-        XCTAssertEqual(formattedDoubleForUnits(0.0), "0")
-        XCTAssertEqual(formattedDoubleForUnits(-1.5), "-1.50")
-    }
-
-    func testShoppingListSorting() {
-        let shoppingList: [String: [String: Double]] = [
-            "Banana": ["kg": 1.0],
-            "Apple": ["kg": 2.0],
-            "Carrot": ["pcs": 5.0],
-            "Zucchini": ["kg": 0.5],
-            "Milk": ["l": 1.0]
-        ]
-        
-        let sorted = shoppingList.sorted(by: { $0.key < $1.key })
-        let sortedKeys = sorted.map { $0.key }
-        
-        // Test alphabetical sorting
-        XCTAssertEqual(sortedKeys, ["Apple", "Banana", "Carrot", "Milk", "Zucchini"])
-        
-        // Test that sorting preserves all entries
-        XCTAssertEqual(sorted.count, shoppingList.count)
-    }
-
-    func testShoppingListEmpty() {
-        let shoppingList: [String: [String: Double]] = [:]
-        XCTAssertTrue(shoppingList.isEmpty)
-        
-        let nonEmptyList: [String: [String: Double]] = ["Apple": [:]]
-        XCTAssertFalse(nonEmptyList.isEmpty)
-    }
-
-    func testShoppingListProductDetails() {
-        let shoppingList: [String: [String: Double]] = [
-            "Milk": ["l": 1.5],
-            "Eggs": ["pcs": 12.0],
-            "Flour": ["g": 500.0]
-        ]
-        
-        // Test single product details
-        let milk = shoppingList["Milk"]
-        XCTAssertEqual(milk?["l"], 1.5)
-        
-        // Test multiple products
-        XCTAssertEqual(shoppingList["Eggs"]?["pcs"], 12.0)
-        XCTAssertEqual(shoppingList["Flour"]?["g"], 500.0)
-        
-        // Test non-existent product
-        XCTAssertNil(shoppingList["NonExistent"])
-        
-        // Test non-existent unit
-        XCTAssertNil(shoppingList["Milk"]?["kg"])
+        XCTAssertEqual(viewModel.filteredItems.count, 1)
+        XCTAssertEqual(viewModel.filteredItems.first?.productName, "Milk")
     }
     
-    func testShoppingListMultipleUnits() {
-        let shoppingList: [String: [String: Double]] = [
-            "Sugar": ["g": 500.0, "kg": 1.5],
-            "Water": ["ml": 500.0, "l": 2.0]
+    func testSearchByUnit() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Eggs": ["pcs": 6.0],
+            "Flour": ["g": 250.0]
         ]
         
-        // Test multiple units for same product
-        let sugar = shoppingList["Sugar"]
-        XCTAssertEqual(sugar?.count, 2)
-        XCTAssertEqual(sugar?["g"], 500.0)
-        XCTAssertEqual(sugar?["kg"], 1.5)
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        viewModel.searchText = "ml"
         
-        // Test all units are preserved
-        let water = shoppingList["Water"]
-        XCTAssertEqual(water?.count, 2)
-        XCTAssertEqual(water?["ml"], 500.0)
-        XCTAssertEqual(water?["l"], 2.0)
+        // Wait for debounced search to complete
+        let expectation = XCTestExpectation(description: "Search completed")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 1.0)
+        
+        XCTAssertEqual(viewModel.filteredItems.count, 1)
+        XCTAssertEqual(viewModel.filteredItems.first?.unitName, "ml")
     }
     
-    func testShoppingListLocalization() {
-        let shoppingList: [String: [String: Double]] = [
-            "Milk".localized(): ["l".localized(): 1.5]
+    func testSearchNoResults() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Eggs": ["pcs": 6.0]
         ]
         
-        // Test that keys and units can be localized
-        XCTAssertNotNil(shoppingList["Milk".localized()])
-        XCTAssertNotNil(shoppingList["Milk".localized()]?["l".localized()])
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        viewModel.searchText = "nonexistent"
+        
+        // Wait for debounced search to complete
+        let expectation = XCTestExpectation(description: "Search completed")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 1.0)
+        
+        XCTAssertEqual(viewModel.filteredItems.count, 0)
+    }
+    
+    func testSearchEmpty() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Eggs": ["pcs": 6.0]
+        ]
+        
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        viewModel.searchText = ""
+        
+        // Wait for debounced search to complete
+        let expectation = XCTestExpectation(description: "Search completed")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 1.0)
+        
+        XCTAssertEqual(viewModel.filteredItems.count, 2)
+    }
+    
+    // MARK: - Persistence Tests
+    
+    func testSortPreferencePersistence() {
+        // Test that sort option is persisted in UserDefaults
+        viewModel.updateSortOption(.quantityHighToLow)
+        
+        // Create a new view model instance
+        let newViewModel = ShoppingListViewModel()
+        
+        // Verify sort option is restored from UserDefaults
+        XCTAssertEqual(newViewModel.sortOption, .quantityHighToLow)
+    }
+    
+    func testSelectionStatePersistence() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Eggs": ["pcs": 6.0]
+        ]
+        
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        
+        // Select an item
+        let milkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        viewModel.toggleSelection(for: milkItem)
+        
+        // Create a new view model and load the same shopping list
+        let newViewModel = ShoppingListViewModel()
+        newViewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        
+        // Verify selection state is restored
+        let newMilkItem = newViewModel.shoppingItems.first { $0.productName == "Milk" }!
+        XCTAssertTrue(newMilkItem.isSelected)
+        
+        let newEggsItem = newViewModel.shoppingItems.first { $0.productName == "Eggs" }!
+        XCTAssertFalse(newEggsItem.isSelected)
+    }
+    
+    func testQuantityStateIsSavedOnLoad() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Eggs": ["pcs": 6.0]
+        ]
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+
+        // Check that quantity is saved in UserDefaults for each item
+        let encodedWeek = Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: weekDate)
+        let year = encodedWeek.yearForWeekOfYear ?? 0
+        let week = encodedWeek.weekOfYear ?? 0
+        let weekKey = year * 100 + week
+        let milkKey = "ShoppingListQuantity_\(weekKey)_Milk_ml"
+        let eggsKey = "ShoppingListQuantity_\(weekKey)_Eggs_pcs"
+        let milkQuantity = UserDefaults.standard.double(forKey: milkKey)
+        let eggsQuantity = UserDefaults.standard.double(forKey: eggsKey)
+        XCTAssertEqual(milkQuantity, 500.0)
+        XCTAssertEqual(eggsQuantity, 6.0)
+    }
+    
+    func testClearOldSelections() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Eggs": ["pcs": 6.0]
+        ]
+        
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        
+        // Select some items
+        viewModel.selectAll()
+        
+        // Clear old selections
+        viewModel.clearOldSelections()
+        
+        // Load the shopping list again
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        
+        // Current week selections should remain (since they're not old)
+        XCTAssertTrue(viewModel.shoppingItems.allSatisfy { $0.isSelected })
+    }
+    
+    func testClearOldSelectionsDeletesAllOldWeeks() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0]
+        ]
+        
+        // Create a week from 6 months ago
+        let calendar = Calendar.current
+        let today = Date()
+        let oldWeekDate = calendar.date(byAdding: .month, value: -6, to: today) ?? today
+        
+        // Load and select items for the old week
+        viewModel.loadShoppingList(from: rawShoppingList, for: oldWeekDate)
+        let milkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        viewModel.toggleSelection(for: milkItem)
+        
+        // Clear old selections
+        viewModel.clearOldSelections()
+        
+        // Load the old week again
+        viewModel.loadShoppingList(from: rawShoppingList, for: oldWeekDate)
+        
+        // The old selection should be cleared (since it's older than current week)
+        let oldMilkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        XCTAssertFalse(oldMilkItem.isSelected)
+        
+        // Load current week and make a selection
+        let startOfCurrentWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today))!
+        viewModel.loadShoppingList(from: rawShoppingList, for: startOfCurrentWeek)
+        let currentMilkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        viewModel.toggleSelection(for: currentMilkItem)
+        
+        // Clear old selections again
+        viewModel.clearOldSelections()
+        
+        // Current week selection should remain (since it's not old)
+        viewModel.loadShoppingList(from: rawShoppingList, for: startOfCurrentWeek)
+        let currentMilkItemAfterCleanup = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        XCTAssertTrue(currentMilkItemAfterCleanup.isSelected)
+    }
+    
+    // MARK: - Edge Cases
+    
+    func testToggleSelectionWithNonExistentItem() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0]
+        ]
+        
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        
+        let nonExistentItem = ShoppingListItem(
+            productName: "NonExistent",
+            unitName: "pcs",
+            quantity: 1.0,
+            isSelected: false
+        )
+        
+        // Should not crash
+        viewModel.toggleSelection(for: nonExistentItem)
+        
+        // Original item should remain unchanged
+        let milkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        XCTAssertFalse(milkItem.isSelected)
+    }
+    
+    func testLoadShoppingListWithEmptyProductName() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "": ["pcs": 1.0],
+            "Valid Product": ["g": 100.0]
+        ]
+        
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        
+        // Should handle empty product names gracefully
+        XCTAssertEqual(viewModel.shoppingItems.count, 2)
+    }
+    
+    func testLoadShoppingListWithEmptyUnit() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Product": ["": 1.0],
+            "Valid Product": ["g": 100.0]
+        ]
+        
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        
+        // Should handle empty units gracefully
+        XCTAssertEqual(viewModel.shoppingItems.count, 2)
+    }
+    
+    func testWeekIsolation() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Eggs": ["pcs": 6.0]
+        ]
+        
+        // Create two different week dates
+        let calendar = Calendar.current
+        let today = Date()
+        let week1Date = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today))!
+        let week2Date = calendar.date(byAdding: .weekOfYear, value: 1, to: week1Date)!
+        
+        // Load shopping list for week 1 and select an item
+        viewModel.loadShoppingList(from: rawShoppingList, for: week1Date)
+        let milkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        viewModel.toggleSelection(for: milkItem)
+        
+        // Load shopping list for week 2 - should not have any selections
+        viewModel.loadShoppingList(from: rawShoppingList, for: week2Date)
+        let week2MilkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        XCTAssertFalse(week2MilkItem.isSelected)
+        
+        // Load back to week 1 - should have the selection
+        viewModel.loadShoppingList(from: rawShoppingList, for: week1Date)
+        let week1MilkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        XCTAssertTrue(week1MilkItem.isSelected)
+    }
+    
+    func testEncodedWeekConsistency() {
+        // Test that our encodeWeek method produces the same result as MenuService
+        let calendar = Calendar.current
+        let today = Date()
+        let weekComponents = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)
+        
+        // Our implementation
+        let year = weekComponents.yearForWeekOfYear ?? 0
+        let week = weekComponents.weekOfYear ?? 0
+        let ourEncodedWeek = year * 100 + week
+        
+        // Verify the encoded week is reasonable (should be a large number like 202501 for week 1 of 2025)
+        XCTAssertGreaterThan(ourEncodedWeek, 200000)
+        XCTAssertLessThan(ourEncodedWeek, 210000)
+        
+        // Test with a specific known date
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        if let testDate = formatter.date(from: "2025-01-06") { // Week 2 of 2025
+            let testComponents = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: testDate)
+            let testYear = testComponents.yearForWeekOfYear ?? 0
+            let testWeek = testComponents.weekOfYear ?? 0
+            let testEncodedWeek = testYear * 100 + testWeek
+            XCTAssertEqual(testEncodedWeek, 202502) // 2025 * 100 + 2
+        }
     }
 }

@@ -198,4 +198,16 @@
 // Accessibility strings
 "no unit" = "no unit";
 "Currently selected" = "Currently selected";
+
+// Shopping List
+"Search items..." = "Search items...";
+"Selection options" = "Selection options";
+"Select All" = "Select All";
+"Deselect All" = "Deselect All";
+"Sort shopping list" = "Sort shopping list";
+"No Shopping Items" = "No Shopping Items";
+"Generate a menu first to see your shopping list" = "Generate a menu first to see your shopping list";
+"Selected" = "Selected";
+"Tap to select this item" = "Tap to select this item";
 "Tap to select this product" = "Tap to select this product";
+"InvalidWeekSelectionMessage" = "Invalid week selection. Please try again.";

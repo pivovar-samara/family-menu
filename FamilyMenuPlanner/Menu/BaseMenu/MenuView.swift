@@ -33,8 +33,19 @@ struct MenuView: View {
             }
         }
         .sheet(isPresented: $viewModel.isShowingShoppingList) {
-            NavigationStack {
-                ShoppingListView(shoppingList: viewModel.generateShoppingList())
+            if viewModel.selectedWeekIndex >= 0 && viewModel.selectedWeekIndex < viewModel.weekOptions.count {
+                NavigationStack {
+                    ShoppingListView(
+                        shoppingList: viewModel.generateShoppingList(),
+                        weekDate: viewModel.weekOptions[viewModel.selectedWeekIndex]
+                    )
+                }
+            } else {
+                NavigationStack {
+                    ShoppingListIncorrectView(onDismiss: {
+                        viewModel.isShowingShoppingList = false
+                    })
+                }
             }
         }
         .onAppear {
@@ -142,6 +153,9 @@ struct MenuView: View {
     }
     
     private func sectionHeader(for day: String) -> String {
+        guard viewModel.selectedWeekIndex >= 0 && viewModel.selectedWeekIndex < viewModel.weekOptions.count else {
+            return day + ", " + "InvalidWeekSelectionMessage".localized()
+        }
         let startDate = startOfWeek(for: viewModel.weekOptions[viewModel.selectedWeekIndex])
         guard let index = viewModel.weekdays.firstIndex(of: day) else { return day }
         let date = Calendar.current.date(byAdding: .day, value: index, to: startDate) ?? Date()
@@ -154,4 +168,29 @@ struct MenuView: View {
         return resultArray.joined(separator: ", ")
     }
 
+}
+
+struct ShoppingListIncorrectView: View {
+    let onDismiss: (() -> Void)?
+    
+    var body: some View {
+        List {
+            Color.clear
+                .emptyState(message: "InvalidWeekSelectionMessage".localized())
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .accessibilityIdentifier("product_selection_no_results_state")
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color("BackgroundColor"))
+        .navigationTitle("Shopping List".localized())
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Close".localized()) {
+                    onDismiss?()
+                }
+                .foregroundColor(Color("AccentColor"))
+            }
+        }
+    }
 }
