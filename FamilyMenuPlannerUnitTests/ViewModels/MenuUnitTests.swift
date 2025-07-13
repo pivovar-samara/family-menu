@@ -125,4 +125,46 @@ final class MenuUnitTests: XCTestCase {
         }
         wait(for: [exp], timeout: 1)
     }
+
+    func testGenerateMenuWithInvalidIndexShowsAlert() {
+        let mock = MockMenuService()
+        let viewModel = MenuViewModel(menuService: mock)
+        viewModel.selectedWeekIndex = 10 // Out of bounds
+        let exp = expectation(description: "Alert shown")
+        viewModel.generateMenu()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            XCTAssertNotNil(viewModel.currentAlert)
+            XCTAssertFalse(mock.generateMenuCalled)
+            exp.fulfill()
+        }
+        wait(for: [exp], timeout: 1)
+    }
+
+    func testReplaceDishesWithInvalidIndexShowsAlert() {
+        let mock = MockMenuService()
+        let viewModel = MenuViewModel(menuService: mock)
+        viewModel.selectedWeekIndex = -1 // Out of bounds
+        let exp = expectation(description: "Alert shown")
+        viewModel.replaceDishes(for: "Monday", mealType: "Lunch", with: [])
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            XCTAssertNotNil(viewModel.currentAlert)
+            XCTAssertFalse(mock.replaceDishesCalled)
+            exp.fulfill()
+        }
+        wait(for: [exp], timeout: 1)
+    }
+
+    func testClearMealTypeWithInvalidIndexShowsAlert() {
+        let mock = MockMenuService()
+        let viewModel = MenuViewModel(menuService: mock)
+        viewModel.selectedWeekIndex = 100 // Out of bounds
+        let exp = expectation(description: "Alert shown")
+        viewModel.clearMealType(for: "Monday", mealType: "Lunch")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            XCTAssertNotNil(viewModel.currentAlert)
+            XCTAssertFalse(mock.clearMealTypeCalled)
+            exp.fulfill()
+        }
+        wait(for: [exp], timeout: 1)
+    }
 }

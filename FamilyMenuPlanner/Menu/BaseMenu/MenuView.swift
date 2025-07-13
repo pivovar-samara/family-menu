@@ -34,10 +34,16 @@ struct MenuView: View {
         }
         .sheet(isPresented: $viewModel.isShowingShoppingList) {
             NavigationStack {
-                ShoppingListView(
-                    shoppingList: viewModel.generateShoppingList(),
-                    weekDate: viewModel.weekOptions[viewModel.selectedWeekIndex]
-                )
+                if viewModel.selectedWeekIndex >= 0 && viewModel.selectedWeekIndex < viewModel.weekOptions.count {
+                    ShoppingListView(
+                        shoppingList: viewModel.generateShoppingList(),
+                        weekDate: viewModel.weekOptions[viewModel.selectedWeekIndex]
+                    )
+                } else {
+                    Text("Invalid week selection. Please try again.")
+                        .foregroundColor(.red)
+                        .padding()
+                }
             }
         }
         .onAppear {
@@ -145,6 +151,9 @@ struct MenuView: View {
     }
     
     private func sectionHeader(for day: String) -> String {
+        guard viewModel.selectedWeekIndex >= 0 && viewModel.selectedWeekIndex < viewModel.weekOptions.count else {
+            return day + ", " + "Invalid week".localized()
+        }
         let startDate = startOfWeek(for: viewModel.weekOptions[viewModel.selectedWeekIndex])
         guard let index = viewModel.weekdays.firstIndex(of: day) else { return day }
         let date = Calendar.current.date(byAdding: .day, value: index, to: startDate) ?? Date()
