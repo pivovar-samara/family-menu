@@ -82,7 +82,7 @@ struct ShoppingListView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .navigationBarLeading) {
+        ToolbarItem(placement: .cancellationAction) {
             Button("Close".localized()) {
                 dismiss()
             }
@@ -254,4 +254,3 @@ struct ShoppingListScaleButtonStyle: ButtonStyle {
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
-

@@ -33,16 +33,18 @@ struct MenuView: View {
             }
         }
         .sheet(isPresented: $viewModel.isShowingShoppingList) {
-            NavigationStack {
-                if viewModel.selectedWeekIndex >= 0 && viewModel.selectedWeekIndex < viewModel.weekOptions.count {
+            if viewModel.selectedWeekIndex >= 0 && viewModel.selectedWeekIndex < viewModel.weekOptions.count {
+                NavigationStack {
                     ShoppingListView(
                         shoppingList: viewModel.generateShoppingList(),
                         weekDate: viewModel.weekOptions[viewModel.selectedWeekIndex]
                     )
-                } else {
-                    Text("InvalidWeekSelectionMessage".localized())
-                        .foregroundColor(.red)
-                        .padding()
+                }
+            } else {
+                NavigationStack {
+                    ShoppingListIncorrectView(onDismiss: {
+                        viewModel.isShowingShoppingList = false
+                    })
                 }
             }
         }
@@ -166,4 +168,29 @@ struct MenuView: View {
         return resultArray.joined(separator: ", ")
     }
 
+}
+
+struct ShoppingListIncorrectView: View {
+    let onDismiss: (() -> Void)?
+    
+    var body: some View {
+        List {
+            Color.clear
+                .emptyState(message: "InvalidWeekSelectionMessage".localized())
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .accessibilityIdentifier("product_selection_no_results_state")
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color("BackgroundColor"))
+        .navigationTitle("Shopping List".localized())
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Close".localized()) {
+                    onDismiss?()
+                }
+                .foregroundColor(Color("AccentColor"))
+            }
+        }
+    }
 }
