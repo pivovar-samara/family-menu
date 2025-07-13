@@ -18,103 +18,14 @@ struct ShoppingListView: View {
     
     var body: some View {
         List {
-            // Empty state handling
-            if viewModel.filteredItems.isEmpty {
-                if viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    // No items at all – show onboarding empty state
-                    EmptyShoppingListView()
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .accessibilityIdentifier("shopping_list_empty_state")
-                } else {
-                    // Search yielded no results
-                    Color.clear
-                        .emptyState(message: "No results found".localized())
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .accessibilityIdentifier("shopping_list_no_results_state")
-                }
-            } else {
-                // Shopping list cards
-                ForEach(viewModel.filteredItems, id: \.id) { item in
-                    ShoppingListCardView(
-                        item: item,
-                        onToggleSelection: {
-                            viewModel.toggleSelection(for: item)
-                        }
-                    )
-                    .padding(.vertical, 8)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .accessibilityIdentifier("shopping_list_item_\(item.productName)")
-                }
-            }
-
-            // Spacer to keep content above any bottom elements
-            Color.clear
-                .frame(height: 20)
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
+            listContent
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(Color("BackgroundColor"))
         .navigationTitle("Shopping List".localized())
         .searchable(text: $viewModel.searchText, prompt: "Search items...".localized())
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button("Close".localized()) {
-                    dismiss()
-                }
-                .foregroundColor(Color("AccentColor"))
-            }
-            
-            ToolbarItem(placement: .navigationBarTrailing) {
-                HStack(spacing: 12) {
-                    // Selection options button
-                    if !viewModel.shoppingItems.isEmpty {
-                        Button(action: {
-                            showingSelectionOptions = true
-                        }) {
-                            Image(systemName: "checkmark.circle")
-                                .font(.body)
-                                .foregroundColor(Color("AccentColor"))
-                        }
-                        .accessibilityIdentifier("selection_options_button")
-                        .accessibilityLabel("Selection options".localized())
-                        .confirmationDialog("Selection options".localized(), isPresented: $showingSelectionOptions, titleVisibility: .visible) {
-                            Button("Select All".localized()) {
-                                viewModel.selectAll()
-                            }
-                            Button("Deselect All".localized()) {
-                                viewModel.deselectAll()
-                            }
-                            Button("Cancel".localized(), role: .cancel) {}
-                        }
-                    }
-                    
-                    // Sort button
-                    Button(action: {
-                        showingSortOptions = true
-                    }) {
-                        Image(systemName: "arrow.up.arrow.down")
-                            .font(.body)
-                            .foregroundColor(Color("AccentColor"))
-                    }
-                    .accessibilityIdentifier("sort_shopping_list_button")
-                    .accessibilityLabel("Sort shopping list".localized())
-                    .confirmationDialog("Sort shopping list".localized(), isPresented: $showingSortOptions, titleVisibility: .visible) {
-                        ForEach(ShoppingListSortOption.allCases, id: \.self) { option in
-                            Button(option.displayName) {
-                                viewModel.updateSortOption(option)
-                            }
-                        }
-                        Button("Cancel".localized(), role: .cancel) {}
-                    }
-                }
-            }
-        }
+        .toolbar { toolbarContent }
         .alert(item: Binding(
             get: { viewModel.currentAlert },
             set: { _ in viewModel.dismissAlert() }
@@ -130,6 +41,95 @@ struct ShoppingListView: View {
         .onAppear {
             viewModel.loadShoppingList(from: shoppingList, for: weekDate)
             viewModel.clearOldSelections()
+        }
+    }
+
+    @ViewBuilder
+    private var listContent: some View {
+        if viewModel.filteredItems.isEmpty {
+            if viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                EmptyShoppingListView()
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .accessibilityIdentifier("shopping_list_empty_state")
+            } else {
+                Color.clear
+                    .emptyState(message: "No results found".localized())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .accessibilityIdentifier("shopping_list_no_results_state")
+            }
+        } else {
+            ForEach(viewModel.filteredItems, id: \.id) { item in
+                ShoppingListCardView(
+                    item: item,
+                    onToggleSelection: {
+                        viewModel.toggleSelection(for: item)
+                    }
+                )
+                .padding(.vertical, 8)
+                .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .accessibilityIdentifier("shopping_list_item_\(item.productName)")
+            }
+        }
+        Color.clear
+            .frame(height: 20)
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .navigationBarLeading) {
+            Button("Close".localized()) {
+                dismiss()
+            }
+            .foregroundColor(Color("AccentColor"))
+        }
+        ToolbarItem(placement: .navigationBarTrailing) {
+            HStack(spacing: 12) {
+                // Selection options button
+                if !viewModel.shoppingItems.isEmpty {
+                    Button(action: {
+                        showingSelectionOptions = true
+                    }) {
+                        Image(systemName: "checkmark.circle")
+                            .font(.body)
+                            .foregroundColor(Color("AccentColor"))
+                    }
+                    .accessibilityIdentifier("selection_options_button")
+                    .accessibilityLabel("Selection options".localized())
+                    .confirmationDialog("Selection options".localized(), isPresented: $showingSelectionOptions, titleVisibility: .visible) {
+                        Button("Select All".localized()) {
+                            viewModel.selectAll()
+                        }
+                        Button("Deselect All".localized()) {
+                            viewModel.deselectAll()
+                        }
+                        Button("Cancel".localized(), role: .cancel) {}
+                    }
+                }
+                // Sort button
+                Button(action: {
+                    showingSortOptions = true
+                }) {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.body)
+                        .foregroundColor(Color("AccentColor"))
+                }
+                .accessibilityIdentifier("sort_shopping_list_button")
+                .accessibilityLabel("Sort shopping list".localized())
+                .confirmationDialog("Sort shopping list".localized(), isPresented: $showingSortOptions, titleVisibility: .visible) {
+                    ForEach(ShoppingListSortOption.allCases, id: \.self) { option in
+                        Button(option.displayName) {
+                            viewModel.updateSortOption(option)
+                        }
+                    }
+                    Button("Cancel".localized(), role: .cancel) {}
+                }
+            }
         }
     }
 }

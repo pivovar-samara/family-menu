@@ -31,7 +31,7 @@ final class ShoppingListUnitTests: XCTestCase {
         let defaults = UserDefaults.standard
         let allKeys = defaults.dictionaryRepresentation().keys
         for key in allKeys {
-            if key.hasPrefix("ShoppingListSelection") {
+            if key.hasPrefix("ShoppingListSelection") || key.hasPrefix("ShoppingListQuantity") {
                 defaults.removeObject(forKey: key)
             }
         }
@@ -161,6 +161,191 @@ final class ShoppingListUnitTests: XCTestCase {
         
         // None should be selected
         XCTAssertTrue(viewModel.shoppingItems.allSatisfy { !$0.isSelected })
+    }
+    
+    // MARK: - Quantity Change Tests
+    
+    func testQuantityChangeResetsSelection() {
+        let weekDate = createTestWeekDate()
+        
+        // Initial shopping list with Milk at 500ml
+        let initialShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Eggs": ["pcs": 6.0]
+        ]
+        
+        viewModel.loadShoppingList(from: initialShoppingList, for: weekDate)
+        
+        // Select Milk
+        let milkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        viewModel.toggleSelection(for: milkItem)
+        
+        // Verify Milk is selected by fetching updated item
+        let updatedMilkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        XCTAssertTrue(updatedMilkItem.isSelected)
+        
+        // Create new view model and load with changed quantity
+        let newViewModel = ShoppingListViewModel()
+        let updatedShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 750.0], // Quantity changed from 500 to 750
+            "Eggs": ["pcs": 6.0]
+        ]
+        
+        newViewModel.loadShoppingList(from: updatedShoppingList, for: weekDate)
+        
+        // Milk should no longer be selected due to quantity change
+        let updatedMilkItem2 = newViewModel.shoppingItems.first { $0.productName == "Milk" }!
+        XCTAssertFalse(updatedMilkItem2.isSelected)
+        
+        // Eggs should still be unselected (no change)
+        let eggsItem = newViewModel.shoppingItems.first { $0.productName == "Eggs" }!
+        XCTAssertFalse(eggsItem.isSelected)
+    }
+    
+    func testQuantityChangePreservesUnselectedState() {
+        let weekDate = createTestWeekDate()
+        
+        // Initial shopping list
+        let initialShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Eggs": ["pcs": 6.0]
+        ]
+        
+        viewModel.loadShoppingList(from: initialShoppingList, for: weekDate)
+        
+        // Don't select anything
+        XCTAssertTrue(viewModel.shoppingItems.allSatisfy { !$0.isSelected })
+        
+        // Create new view model and load with changed quantity
+        let newViewModel = ShoppingListViewModel()
+        let updatedShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 750.0], // Quantity changed
+            "Eggs": ["pcs": 6.0]
+        ]
+        
+        newViewModel.loadShoppingList(from: updatedShoppingList, for: weekDate)
+        
+        // All items should still be unselected
+        XCTAssertTrue(newViewModel.shoppingItems.allSatisfy { !$0.isSelected })
+    }
+    
+    func testSmallQuantityChangesDoNotResetSelection() {
+        let weekDate = createTestWeekDate()
+        
+        // Initial shopping list
+        let initialShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0]
+        ]
+        
+        viewModel.loadShoppingList(from: initialShoppingList, for: weekDate)
+        
+        // Select Milk
+        let milkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        viewModel.toggleSelection(for: milkItem)
+        
+        // Verify Milk is selected by fetching updated item
+        let updatedMilkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        XCTAssertTrue(updatedMilkItem.isSelected)
+        
+        // Create new view model and load with very small quantity change (within epsilon)
+        let newViewModel = ShoppingListViewModel()
+        let updatedShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0001] // Very small change, should not reset
+        ]
+        
+        newViewModel.loadShoppingList(from: updatedShoppingList, for: weekDate)
+        
+        // Milk should still be selected due to small quantity change
+        let updatedMilkItem2 = newViewModel.shoppingItems.first { $0.productName == "Milk" }!
+        XCTAssertTrue(updatedMilkItem2.isSelected)
+    }
+    
+    func testQuantityChangeWithMultipleUnits() {
+        let weekDate = createTestWeekDate()
+        
+        // Initial shopping list with multiple units for same product
+        let initialShoppingList: [String: [String: Double]] = [
+            "Sugar": ["g": 100.0, "kg": 0.5]
+        ]
+        
+        viewModel.loadShoppingList(from: initialShoppingList, for: weekDate)
+        
+        // Select both sugar items
+        let sugarGItem = viewModel.shoppingItems.first { $0.productName == "Sugar" && $0.unitName == "g" }!
+        let sugarKgItem = viewModel.shoppingItems.first { $0.productName == "Sugar" && $0.unitName == "kg" }!
+        
+        viewModel.toggleSelection(for: sugarGItem)
+        viewModel.toggleSelection(for: sugarKgItem)
+        
+        // Verify both items are selected by fetching updated items
+        let updatedSugarGItem = viewModel.shoppingItems.first { $0.productName == "Sugar" && $0.unitName == "g" }!
+        let updatedSugarKgItem = viewModel.shoppingItems.first { $0.productName == "Sugar" && $0.unitName == "kg" }!
+        XCTAssertTrue(updatedSugarGItem.isSelected)
+        XCTAssertTrue(updatedSugarKgItem.isSelected)
+        
+        // Create new view model and load with changed quantities
+        let newViewModel = ShoppingListViewModel()
+        let updatedShoppingList: [String: [String: Double]] = [
+            "Sugar": ["g": 150.0, "kg": 0.5] // Only g quantity changed
+        ]
+        
+        newViewModel.loadShoppingList(from: updatedShoppingList, for: weekDate)
+        
+        // Sugar in grams should be unselected (quantity changed)
+        let updatedSugarGItem2 = newViewModel.shoppingItems.first { $0.productName == "Sugar" && $0.unitName == "g" }!
+        XCTAssertFalse(updatedSugarGItem2.isSelected)
+        
+        // Sugar in kg should still be selected (quantity unchanged)
+        let updatedSugarKgItem2 = newViewModel.shoppingItems.first { $0.productName == "Sugar" && $0.unitName == "kg" }!
+        XCTAssertTrue(updatedSugarKgItem2.isSelected)
+    }
+    
+    func testQuantityChangePreservesOtherSelections() {
+        let weekDate = createTestWeekDate()
+        
+        // Initial shopping list
+        let initialShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Eggs": ["pcs": 6.0],
+            "Flour": ["g": 250.0]
+        ]
+        
+        viewModel.loadShoppingList(from: initialShoppingList, for: weekDate)
+        
+        // Select Milk and Eggs
+        let milkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        let eggsItem = viewModel.shoppingItems.first { $0.productName == "Eggs" }!
+        
+        viewModel.toggleSelection(for: milkItem)
+        viewModel.toggleSelection(for: eggsItem)
+        
+        // Verify both items are selected by fetching updated items
+        let updatedMilkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
+        let updatedEggsItem = viewModel.shoppingItems.first { $0.productName == "Eggs" }!
+        XCTAssertTrue(updatedMilkItem.isSelected)
+        XCTAssertTrue(updatedEggsItem.isSelected)
+        
+        // Create new view model and load with changed quantity for Milk only
+        let newViewModel = ShoppingListViewModel()
+        let updatedShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 750.0], // Quantity changed
+            "Eggs": ["pcs": 6.0],  // Quantity unchanged
+            "Flour": ["g": 250.0]  // Quantity unchanged
+        ]
+        
+        newViewModel.loadShoppingList(from: updatedShoppingList, for: weekDate)
+        
+        // Milk should be unselected (quantity changed)
+        let updatedMilkItem2 = newViewModel.shoppingItems.first { $0.productName == "Milk" }!
+        XCTAssertFalse(updatedMilkItem2.isSelected)
+        
+        // Eggs should still be selected (quantity unchanged)
+        let updatedEggsItem2 = newViewModel.shoppingItems.first { $0.productName == "Eggs" }!
+        XCTAssertTrue(updatedEggsItem2.isSelected)
+        
+        // Flour should still be unselected (was never selected)
+        let flourItem = newViewModel.shoppingItems.first { $0.productName == "Flour" }!
+        XCTAssertFalse(flourItem.isSelected)
     }
     
     // MARK: - Sorting Tests

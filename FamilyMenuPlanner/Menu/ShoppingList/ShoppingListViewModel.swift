@@ -59,6 +59,7 @@ class ShoppingListViewModel: ObservableObject {
     private let alertManager = AlertQueueManager()
     private static let sortPreferenceKey = "ShoppingListSortPreference"
     private static let selectionKey = "ShoppingListSelection"
+    private static let quantityKey = "ShoppingListQuantity"
     private var cancellables = Set<AnyCancellable>()
     private var currentWeekDate: Date?
     
@@ -84,13 +85,28 @@ class ShoppingListViewModel: ObservableObject {
         
         for (productName, unitDetails) in rawShoppingList {
             for (unitName, quantity) in unitDetails {
-                let isSelected = loadSelectionState(for: productName, unit: unitName, weekDate: weekDate)
+                let (isSelected, shouldResetSelection) = loadSelectionStateWithQuantityCheck(
+                    for: productName, 
+                    unit: unitName, 
+                    currentQuantity: quantity, 
+                    weekDate: weekDate
+                )
+                
+                // If quantity changed and item was selected, reset the selection
+                let finalIsSelected = shouldResetSelection ? false : isSelected
+                
                 items.append(ShoppingListItem(
                     productName: productName,
                     unitName: unitName,
                     quantity: quantity,
-                    isSelected: isSelected
+                    isSelected: finalIsSelected
                 ))
+                
+                // If quantity changed and item was selected, reset the selection
+                if shouldResetSelection {
+                    saveSelectionState(for: productName, unit: unitName, isSelected: false, weekDate: weekDate)
+                    saveQuantityState(for: productName, unit: unitName, quantity: quantity, weekDate: weekDate)
+                }
             }
         }
         
@@ -104,6 +120,7 @@ class ShoppingListViewModel: ObservableObject {
         if let index = shoppingItems.firstIndex(where: { $0.id == item.id }) {
             shoppingItems[index].isSelected.toggle()
             saveSelectionState(for: item.productName, unit: item.unitName, isSelected: shoppingItems[index].isSelected, weekDate: weekDate)
+            saveQuantityState(for: item.productName, unit: item.unitName, quantity: item.quantity, weekDate: weekDate)
             applyFiltersAndSort()
         }
     }
@@ -114,6 +131,7 @@ class ShoppingListViewModel: ObservableObject {
         for index in shoppingItems.indices {
             shoppingItems[index].isSelected = true
             saveSelectionState(for: shoppingItems[index].productName, unit: shoppingItems[index].unitName, isSelected: true, weekDate: weekDate)
+            saveQuantityState(for: shoppingItems[index].productName, unit: shoppingItems[index].unitName, quantity: shoppingItems[index].quantity, weekDate: weekDate)
         }
         applyFiltersAndSort()
     }
@@ -124,6 +142,7 @@ class ShoppingListViewModel: ObservableObject {
         for index in shoppingItems.indices {
             shoppingItems[index].isSelected = false
             saveSelectionState(for: shoppingItems[index].productName, unit: shoppingItems[index].unitName, isSelected: false, weekDate: weekDate)
+            saveQuantityState(for: shoppingItems[index].productName, unit: shoppingItems[index].unitName, quantity: shoppingItems[index].quantity, weekDate: weekDate)
         }
         applyFiltersAndSort()
     }
@@ -180,16 +199,61 @@ class ShoppingListViewModel: ObservableObject {
         return year * 100 + week
     }
     
+    private func percentEncode(_ string: String) -> String {
+        // Escape everything except alphanumerics and dash
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-"))
+        return string.addingPercentEncoding(withAllowedCharacters: allowed) ?? string
+    }
+
+    private func percentDecode(_ string: String) -> String {
+        return string.removingPercentEncoding ?? string
+    }
+    
+    private func loadSelectionStateWithQuantityCheck(for productName: String, unit: String, currentQuantity: Double, weekDate: Date) -> (isSelected: Bool, shouldResetSelection: Bool) {
+        let encodedWeek = encodeWeek(for: weekDate)
+        let encodedProduct = percentEncode(productName)
+        let encodedUnit = percentEncode(unit)
+        let selectionKey = "\(Self.selectionKey)_\(encodedWeek)_\(encodedProduct)_\(encodedUnit)"
+        let quantityKey = "\(Self.quantityKey)_\(encodedWeek)_\(encodedProduct)_\(encodedUnit)"
+        
+        let isSelected = UserDefaults.standard.bool(forKey: selectionKey)
+        let savedQuantity = UserDefaults.standard.double(forKey: quantityKey)
+        
+        // Check if we have a saved quantity
+        let hasSavedQuantity = UserDefaults.standard.object(forKey: quantityKey) != nil
+        
+        // If quantity changed and item was selected, we should reset the selection
+        // Only reset if we have a saved quantity and it's different from current
+        let shouldResetSelection = isSelected && hasSavedQuantity && abs(savedQuantity - currentQuantity) > 0.001 // Use small epsilon for floating point comparison
+        
+        // Debug logging
+        print("🔍 \(productName) (\(unit)): isSelected=\(isSelected), hasSavedQuantity=\(hasSavedQuantity), savedQuantity=\(savedQuantity), currentQuantity=\(currentQuantity), shouldReset=\(shouldResetSelection)")
+        
+        return (isSelected, shouldResetSelection)
+    }
+    
     private func loadSelectionState(for productName: String, unit: String, weekDate: Date) -> Bool {
         let encodedWeek = encodeWeek(for: weekDate)
-        let key = "\(Self.selectionKey)_\(encodedWeek)_\(productName)_\(unit)"
+        let encodedProduct = percentEncode(productName)
+        let encodedUnit = percentEncode(unit)
+        let key = "\(Self.selectionKey)_\(encodedWeek)_\(encodedProduct)_\(encodedUnit)"
         return UserDefaults.standard.bool(forKey: key)
     }
     
     private func saveSelectionState(for productName: String, unit: String, isSelected: Bool, weekDate: Date) {
         let encodedWeek = encodeWeek(for: weekDate)
-        let key = "\(Self.selectionKey)_\(encodedWeek)_\(productName)_\(unit)"
+        let encodedProduct = percentEncode(productName)
+        let encodedUnit = percentEncode(unit)
+        let key = "\(Self.selectionKey)_\(encodedWeek)_\(encodedProduct)_\(encodedUnit)"
         UserDefaults.standard.set(isSelected, forKey: key)
+    }
+    
+    private func saveQuantityState(for productName: String, unit: String, quantity: Double, weekDate: Date) {
+        let encodedWeek = encodeWeek(for: weekDate)
+        let encodedProduct = percentEncode(productName)
+        let encodedUnit = percentEncode(unit)
+        let key = "\(Self.quantityKey)_\(encodedWeek)_\(encodedProduct)_\(encodedUnit)"
+        UserDefaults.standard.set(quantity, forKey: key)
     }
     
     func clearOldSelections() {
@@ -202,15 +266,48 @@ class ShoppingListViewModel: ObservableObject {
         let allKeys = defaults.dictionaryRepresentation().keys
         
         for key in allKeys {
-            if key.hasPrefix(Self.selectionKey) {
+            if key.hasPrefix(Self.selectionKey) || key.hasPrefix(Self.quantityKey) {
                 // Extract encoded week from key and check if it's old
                 let components = key.components(separatedBy: "_")
-                if components.count >= 3 {
+                if components.count >= 4 {
                     let encodedWeekString = components[1]
                     if let encodedWeek = Int(encodedWeekString),
                        encodedWeek < currentEncodedWeek {
-                        // Delete ALL weeks older than the current week
-                        // This prevents accumulation of old data when app is used infrequently
+                        // Optionally decode product/unit if needed:
+                        // let productName = percentDecode(components[2])
+                        // let unitName = percentDecode(components[3])
+                        defaults.removeObject(forKey: key)
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - Testing Support
+    
+    func clearAllSelections() {
+        let defaults = UserDefaults.standard
+        let allKeys = defaults.dictionaryRepresentation().keys
+        
+        for key in allKeys {
+            if key.hasPrefix(Self.selectionKey) || key.hasPrefix(Self.quantityKey) {
+                defaults.removeObject(forKey: key)
+            }
+        }
+    }
+    
+    func clearSelectionsForWeek(_ weekDate: Date) {
+        let targetEncodedWeek = encodeWeek(for: weekDate)
+        let defaults = UserDefaults.standard
+        let allKeys = defaults.dictionaryRepresentation().keys
+        
+        for key in allKeys {
+            if key.hasPrefix(Self.selectionKey) || key.hasPrefix(Self.quantityKey) {
+                let components = key.components(separatedBy: "_")
+                if components.count >= 4 {
+                    let encodedWeekString = components[1]
+                    if let encodedWeek = Int(encodedWeekString),
+                       encodedWeek == targetEncodedWeek {
                         defaults.removeObject(forKey: key)
                     }
                 }
