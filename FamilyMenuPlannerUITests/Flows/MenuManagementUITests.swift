@@ -226,30 +226,20 @@ final class MenuManagementUITests: XCTestCase {
                         for i in 0..<cells.count {
                             let cell = cells.element(boundBy: i)
                             if cell.exists {
-                                // Check if this cell contains our meal type text
-                                let cellTexts = cell.staticTexts
-                                var cellContainsMealType = false
-                                
-                                for j in 0..<cellTexts.count {
-                                    let text = cellTexts.element(boundBy: j)
-                                    if text.exists && text.label == mealType {
-                                        cellContainsMealType = true
-                                        break
-                                    }
-                                }
-                                
-                                // If this cell contains our meal type, look for its pencil icon
-                                if cellContainsMealType {
-                                    let pencilInCell = cell.images["pencil"]
-                                    if pencilInCell.exists {
-                                        print("✅ Found pencil icon in cell containing \(mealType)")
-                                        pencilInCell.tap()
+                                // Check if this cell contains the meal button
+                                let mealButton = cell.buttons.containing(NSPredicate(format: "label == %@", mealType)).firstMatch
+                                if mealButton.exists {
+                                    // Found the meal button, now look for its pencil icon
+                                    let pencilImage = mealButton.images["pencil"]
+                                    if pencilImage.exists {
+                                        print("✅ Found pencil icon in button for \(mealType)")
+                                        pencilImage.tap()
                                         tappedSuccessfully = true
                                         break
                                     } else {
-                                        // Try tapping the cell itself if no pencil found
-                                        print("📱 No pencil found, tapping cell containing \(mealType)")
-                                        cell.tap()
+                                        // Try tapping the meal button itself if no pencil found
+                                        print("📱 No pencil found, tapping meal button for \(mealType)")
+                                        mealButton.tap()
                                         tappedSuccessfully = true
                                         break
                                     }
@@ -370,30 +360,20 @@ final class MenuManagementUITests: XCTestCase {
                         for i in 0..<cells.count {
                             let cell = cells.element(boundBy: i)
                             if cell.exists {
-                                // Check if this cell contains our meal type text
-                                let cellTexts = cell.staticTexts
-                                var cellContainsMealType = false
-                                
-                                for j in 0..<cellTexts.count {
-                                    let text = cellTexts.element(boundBy: j)
-                                    if text.exists && text.label == mealType {
-                                        cellContainsMealType = true
-                                        break
-                                    }
-                                }
-                                
-                                // If this cell contains our meal type, look for its pencil icon
-                                if cellContainsMealType {
-                                    let pencilInCell = cell.images["pencil"]
-                                    if pencilInCell.exists {
-                                        print("✅ Found pencil icon in cell containing \(mealType)")
-                                        pencilInCell.tap()
+                                // Check if this cell contains the meal button
+                                let mealButton = cell.buttons.containing(NSPredicate(format: "label == %@", mealType)).firstMatch
+                                if mealButton.exists {
+                                    // Found the meal button, now look for its pencil icon
+                                    let pencilImage = mealButton.images["pencil"]
+                                    if pencilImage.exists {
+                                        print("✅ Found pencil icon in button for \(mealType)")
+                                        pencilImage.tap()
                                         tappedSuccessfully = true
                                         break
                                     } else {
-                                        // Try tapping the cell itself if no pencil found
-                                        print("📱 No pencil found, tapping cell containing \(mealType)")
-                                        cell.tap()
+                                        // Try tapping the meal button itself if no pencil found
+                                        print("📱 No pencil found, tapping meal button for \(mealType)")
+                                        mealButton.tap()
                                         tappedSuccessfully = true
                                         break
                                     }
@@ -691,16 +671,12 @@ final class MenuManagementUITests: XCTestCase {
                         // If this cell contains our meal type, tap it
                         if cellContainsMealType {
                             print("🍽️ Found \(mealType) cell for search test")
-                            
-                            // Try to find pencil icon in this cell first
-                            let pencilInCell = cell.images["pencil"]
-                            if pencilInCell.exists {
-                                pencilInCell.tap()
-                            } else {
-                                // Fallback: tap the cell itself
-                                cell.tap()
-                            }
-                            
+                            // Find the button for the meal type inside the cell
+                            let mealButton = cell.buttons.containing(NSPredicate(format: "label == %@", mealType)).firstMatch
+                            XCTAssertTrue(mealButton.exists, "Meal button for \(mealType) should exist")
+                            let pencilImage = mealButton.images["pencil"]
+                            XCTAssertTrue(pencilImage.exists, "Pencil image for \(mealType) should exist")
+                            pencilImage.tap()
                             let dishSelectionTitle = app.navigationBars["Select Dish"]
                             if dishSelectionTitle.waitForExistence(timeout: 3) {
                                 openedDishSelection = true

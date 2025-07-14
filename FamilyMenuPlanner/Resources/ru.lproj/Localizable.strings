@@ -185,6 +185,10 @@
 
 "Sort products" = "Сортировать продукты";
 
+"No Menu Planned" = "Меню не планировалось";
+"Generate a menu for this week to start planning your meals" = "Создайте меню на эту неделю, чтобы начать планировать приемы пищи";
+"Are you sure you want to clear the dishes for %@?" = "Вы уверены, что хотите очистить блюда для %@?";
+
 // Product Creation/Editing UI
 "Create a product for your pantry" = "Создайте продукт для вашей кладовой";
 "Update product details" = "Обновите параметры продукта";

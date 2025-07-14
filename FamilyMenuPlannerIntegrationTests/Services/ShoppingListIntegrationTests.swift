@@ -182,7 +182,7 @@ class ShoppingListIntegrationTests: BaseIntegrationTest {
     // MARK: - Quantity Change Integration Tests
     
     func testQuantityChangeResetsSelectionInShoppingList() {
-        let (products, _, dishes) = createTestDataWithKnownQuantities()
+        let (_, _, dishes) = createTestDataWithKnownQuantities()
         let weekDate = Date()
         
         // Add dishes to menu
@@ -232,7 +232,7 @@ class ShoppingListIntegrationTests: BaseIntegrationTest {
     }
     
     func testQuantityChangePreservesOtherSelectionsInShoppingList() {
-        let (products, _, dishes) = createTestDataWithKnownQuantities()
+        let (_, _, dishes) = createTestDataWithKnownQuantities()
         let weekDate = Date()
         
         // Add dishes to menu
@@ -287,7 +287,7 @@ class ShoppingListIntegrationTests: BaseIntegrationTest {
     }
     
     func testSmallQuantityChangesDoNotResetSelectionInShoppingList() {
-        let (products, _, dishes) = createTestDataWithKnownQuantities()
+        let (_, _, dishes) = createTestDataWithKnownQuantities()
         let weekDate = Date()
         
         // Add dishes to menu
