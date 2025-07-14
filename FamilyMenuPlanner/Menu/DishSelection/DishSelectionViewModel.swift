@@ -64,15 +64,6 @@ class DishSelectionViewModel: ObservableObject {
         allDishes = dishSelectionService.fetchAllDishes()
     }
     
-    func rollback() {
-        dishSelectionService.rollback()
-    }
-    
-    // Ensure unsaved changes in the editing context are reverted if the view model is deallocated without an explicit cancel.
-    deinit {
-        rollback()
-    }
-    
     /// Splits dishes into two sections: those matching the meal type and others.
     /// Now uses pre-filtered dishes from SearchOptimizationHelper for better performance.
     func splitDishes() -> (dishesForMealType: [Dish], otherDishes: [Dish]) {

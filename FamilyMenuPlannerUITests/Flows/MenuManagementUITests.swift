@@ -314,7 +314,7 @@ final class MenuManagementUITests: XCTestCase {
         }
         
         // Done the selection
-        let doneButton = app.navigationBars.buttons["Done"]
+        let doneButton = app.navigationBars.buttons.matching(identifier: "dish_selection_done_button").firstMatch
         XCTAssertTrue(doneButton.exists, "Done button should exist in dish selection")
         doneButton.tap()
         
@@ -449,7 +449,7 @@ final class MenuManagementUITests: XCTestCase {
         }
         
         // Done the selection
-        let doneButton = app.navigationBars.buttons["Done"]
+        let doneButton = app.navigationBars.buttons.matching(identifier: "dish_selection_done_button").firstMatch
         XCTAssertTrue(doneButton.exists, "Done button should exist in dish selection")
         doneButton.tap()
         

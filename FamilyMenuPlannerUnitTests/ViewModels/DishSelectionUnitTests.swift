@@ -10,25 +10,15 @@ import XCTest
 
 // MARK: - Mock Service
 protocol MockDishSelectionServiceProtocol {
+    var dishes: [MockDish] { get set }
     func fetchAllDishes() -> [MockDish]
-    func rollback()
 }
 
 class MockDishSelectionService: MockDishSelectionServiceProtocol {
     var dishes: [MockDish] = []
-    var rollbackCalled = false
-    var error: Error?
     
     func fetchAllDishes() -> [MockDish] {
-        if let error = error {
-            print("Error fetching dishes: \(error)")
-            return []
-        }
         return dishes
-    }
-    
-    func rollback() {
-        rollbackCalled = true
     }
 }
 
@@ -83,19 +73,6 @@ class DishSelectionUnitTests: XCTestCase {
     }
     
     // MARK: - Error Handling Tests
-    
-    func testFetchDishesWithError() {
-        mockService.error = NSError(domain: "TestError", code: -1, userInfo: nil)
-        viewModel = MockDishSelectionViewModel(
-            selectedDishes: [],
-            mealType: "Breakfast",
-            dishSelectionService: mockService
-        ) { _ in }
-        
-        let (dishesForMealType, otherDishes) = viewModel.splitDishes()
-        XCTAssertTrue(dishesForMealType.isEmpty)
-        XCTAssertTrue(otherDishes.isEmpty)
-    }
     
     // MARK: - Search Tests
     
@@ -333,33 +310,6 @@ class DishSelectionUnitTests: XCTestCase {
         // - dish_selection_card_Test Dish
         // - dish_selection_done_button
         // - dish_selection_empty_state (when applicable)
-    }
-    
-    func testRollbackWithUnsavedSelections() {
-        let breakfast = MockMealType(name: "Breakfast")
-        let dish = MockDish(name: "Test Dish", mealTypes: [breakfast])
-        mockService.dishes = [dish]
-        
-        var selectedDishes: [MockDish] = []
-        viewModel = MockDishSelectionViewModel(
-            selectedDishes: [],
-            mealType: "Breakfast",
-            dishSelectionService: mockService
-        ) { dishes in
-            selectedDishes = dishes
-        }
-        
-        // Select a dish
-        viewModel.selectedDishes.append(dish)
-        viewModel.onDishesSelected(viewModel.selectedDishes)
-        
-        XCTAssertEqual(selectedDishes.count, 1)
-        
-        // Rollback without saving
-        mockService.rollback()
-        
-        // Verify rollback occurred
-        XCTAssertTrue(mockService.rollbackCalled)
     }
     
     func testCardSelectionWithCategoryAndMealTypes() {

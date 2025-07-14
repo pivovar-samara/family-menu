@@ -100,23 +100,6 @@ class DishSelectionIntegrationTests: BaseIntegrationTest {
         XCTAssertEqual(mealTypeCount, newMealTypeCount)
     }
     
-    func testContextSaveAndRollback() {
-        // Create initial state
-        let dish = createDishWithMealTypes(name: "Original Name", mealTypeNames: ["Breakfast"])
-        let originalMealTypes = dish.mealTypes?.count ?? 0
-        
-        // Modify dish
-        dish.name = "Modified Name"
-        dish.mealTypes = nil
-        
-        // Rollback
-        context.rollback()
-        
-        // Verify original state is restored
-        XCTAssertEqual(dish.name, "Original Name")
-        XCTAssertEqual(dish.mealTypes?.count ?? 0, originalMealTypes)
-    }
-    
     func testConcurrentContextOperations() {
         // Create a background context
         let backgroundContext = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
@@ -436,20 +419,6 @@ class DishSelectionIntegrationTests: BaseIntegrationTest {
         wait(for: [expectation], timeout: 1.0)
     }
     
-    func testRollbackFunctionality() {
-        // Create initial state
-        let dish = createDishWithMealTypes(name: "Test Dish", mealTypeNames: ["Breakfast"])
-        
-        // Modify dish
-        dish.name = "Modified Name"
-        
-        // Rollback
-        dishSelectionService.rollback()
-        
-        // Verify rollback
-        XCTAssertEqual(dish.name, "Test Dish")
-    }
-    
     func testPersistenceOfSelections() {
         // Create test dishes
         let dish1 = createDishWithMealTypes(name: "Dish 1", mealTypeNames: ["Breakfast"])
@@ -655,32 +624,5 @@ class DishSelectionIntegrationTests: BaseIntegrationTest {
         }
         
         wait(for: [expectation], timeout: 1.0)
-    }
-    
-    func testRollbackWithUnsavedSelections() {
-        let dish = createDishWithMealTypes(name: "Test Dish", mealTypeNames: ["Breakfast"])
-        
-        var selectedDishes: [Dish] = []
-        viewModel = DishSelectionViewModel(
-            selectedDishes: [],
-            mealType: "Breakfast",
-            dishSelectionService: dishSelectionService
-        ) { dishes in
-            selectedDishes = dishes
-        }
-        
-        // Select a dish
-        viewModel.selectedDishes.append(dish)
-        viewModel.onDishesSelected(viewModel.selectedDishes)
-        
-        XCTAssertEqual(selectedDishes.count, 1)
-        
-        // Rollback using the service
-        dishSelectionService.rollback()
-        
-        // Verify rollback occurred - selected dishes should remain in view model
-        // but the underlying data should be rolled back
-        XCTAssertEqual(viewModel.selectedDishes.count, 1)
-        XCTAssertTrue(viewModel.selectedDishes.contains(dish))
     }
 } 

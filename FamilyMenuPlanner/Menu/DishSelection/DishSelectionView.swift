@@ -35,7 +35,7 @@ struct DishSelectionView: View {
             } else {
                 if !dishesForMealType.isEmpty {
                     // Custom header for dishes for meal type
-                    Text(String(format: "Dishes for %@".localized(), viewModel.mealType))
+                    Text(String(format: "Dishes for %@".localized(), localizedMealTypeName(viewModel.mealType)))
                         .font(.headline)
                         .padding(.vertical, 12)
                         .padding(.horizontal, 20)
@@ -171,6 +171,21 @@ struct DishSelectionView: View {
         default:
             return Color.gray
         }
+    }
+}
+
+// Add this helper function inside DishSelectionView
+private func localizedMealTypeName(_ mealType: String) -> String {
+    // Try to localize the meal type name using the keys in Localizable.strings
+    switch mealType {
+    case "Breakfast":
+        return "Breakfast".localized()
+    case "Lunch":
+        return "Lunch".localized()
+    case "Dinner":
+        return "Dinner".localized()
+    default:
+        return mealType.localized()
     }
 }
 

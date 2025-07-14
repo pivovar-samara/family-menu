@@ -10,7 +10,6 @@ import CoreData
 
 protocol DishSelectionServiceProtocol {
     func fetchAllDishes() -> [Dish]
-    func rollback()
 }
 
 extension DishSelectionService: DishSelectionServiceProtocol {}
@@ -20,10 +19,6 @@ class DishSelectionService {
     
     init(context: NSManagedObjectContext) {
         self.context = context
-    }
-    
-    func rollback() {
-        context.rollback()
     }
     
     func fetchAllDishes() -> [Dish] {
