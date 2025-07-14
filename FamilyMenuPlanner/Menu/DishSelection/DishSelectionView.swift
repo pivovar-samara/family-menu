@@ -20,46 +20,101 @@ struct DishSelectionView: View {
         let (dishesForMealType, otherDishes) = viewModel.splitDishes()
         List {
             if dishesForMealType.isEmpty && otherDishes.isEmpty {
-                Color.clear.emptyState(message: "No results found".localized())
+                if viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    EmptyDishSelectionView()
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .accessibilityIdentifier("dish_selection_empty_state")
+                } else {
+                    Color.clear
+                        .emptyState(message: "No results found".localized())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .accessibilityIdentifier("dish_selection_no_results_state")
+                }
             } else {
-                // Section for dishes matching the selected meal type
                 if !dishesForMealType.isEmpty {
-                    Section(header: Text(("Dishes for \(viewModel.mealType)").localized())) {
-                        ForEach(dishesForMealType, id: \.self) { dish in
-                            dishRow(dish: dish)
-                        }
+                    // Custom header for dishes for meal type
+                    Text(String(format: "Dishes for %@".localized(), localizedMealTypeName(viewModel.mealType)))
+                        .font(.headline)
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 20)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color("BackgroundColor"))
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color("BackgroundColor"))
+                        .listRowSeparator(.hidden)
+                    ForEach(dishesForMealType, id: \.self) { dish in
+                        DishSelectionCardView(
+                            dish: dish,
+                            isSelected: viewModel.selectedDishes.contains(dish),
+                            onSelect: {
+                                if !viewModel.selectedDishes.contains(dish) {
+                                    viewModel.selectedDishes.append(dish)
+                                } else {
+                                    viewModel.selectedDishes.removeAll { $0 == dish }
+                                }
+                                viewModel.onDishesSelected(viewModel.selectedDishes)
+                            }
+                        )
+                        .padding(.vertical, 6)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .accessibilityIdentifier("dish_selection_item_\(dish.name ?? "unnamed")")
                     }
                 }
-                
-                // Section for other dishes
                 if !otherDishes.isEmpty {
-                    Section(header: Text("Other Dishes")) {
-                        ForEach(otherDishes, id: \.self) { dish in
-                            dishRow(dish: dish)
-                        }
+                    // Custom header for other dishes
+                    Text("Other Dishes".localized())
+                        .font(.headline)
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 20)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color("BackgroundColor"))
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color("BackgroundColor"))
+                        .listRowSeparator(.hidden)
+                    ForEach(otherDishes, id: \.self) { dish in
+                        DishSelectionCardView(
+                            dish: dish,
+                            isSelected: viewModel.selectedDishes.contains(dish),
+                            onSelect: {
+                                if !viewModel.selectedDishes.contains(dish) {
+                                    viewModel.selectedDishes.append(dish)
+                                } else {
+                                    viewModel.selectedDishes.removeAll { $0 == dish }
+                                }
+                                viewModel.onDishesSelected(viewModel.selectedDishes)
+                            }
+                        )
+                        .padding(.vertical, 6)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .accessibilityIdentifier("dish_selection_item_\(dish.name ?? "unnamed")")
                     }
                 }
             }
+            Color.clear
+                .frame(height: 20)
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
         }
-        .navigationTitle("Select Dish")
-        .searchable(text: $viewModel.searchText, prompt: "Search dishes...")
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") {
-                    viewModel.rollback()
-                    dismiss()
-                }
-                .foregroundColor(Color("AccentColor"))
-            }
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Save") {
-                    dismiss()
-                }
-                .foregroundColor(Color("AccentColor"))
-            }
-        }
+        .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(Color("BackgroundColor"))
+        .navigationTitle("Select Dish".localized())
+        .searchable(text: $viewModel.searchText, prompt: "Search dishes...".localized())
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Done".localized()) {
+                    dismiss()
+                }
+                .foregroundColor(Color("AccentColor"))
+                .accessibilityIdentifier("dish_selection_done_button")
+            }
+        }
     }
     
     private func dishRow(dish: Dish) -> some View {
@@ -116,5 +171,138 @@ struct DishSelectionView: View {
         default:
             return Color.gray
         }
+    }
+}
+
+// Add this helper function inside DishSelectionView
+private func localizedMealTypeName(_ mealType: String) -> String {
+    // Try to localize the meal type name using the keys in Localizable.strings
+    switch mealType {
+    case "Breakfast":
+        return "Breakfast".localized()
+    case "Lunch":
+        return "Lunch".localized()
+    case "Dinner":
+        return "Dinner".localized()
+    default:
+        return mealType.localized()
+    }
+}
+
+// MARK: - Card-Based Dish Selection Component
+struct DishSelectionCardView: View {
+    let dish: Dish
+    let isSelected: Bool
+    let onSelect: () -> Void
+
+    var body: some View {
+        Button(action: onSelect) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "fork.knife")
+                        .foregroundColor(Color("AccentColor"))
+                        .font(.title2)
+                        .frame(width: 24, height: 24)
+                    Text(dish.name ?? "Unnamed Dish".localized())
+                        .font(.body.weight(.medium))
+                        .foregroundColor(.primary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    Spacer()
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(Color("AccentColor"))
+                    } else {
+                        Image(systemName: "circle")
+                            .font(.title2)
+                            .foregroundColor(.secondary.opacity(0.3))
+                    }
+                }
+                // Category chip
+                if let categoryName = dish.category?.name {
+                    DishListCategoryChip(
+                        title: categoryName.localized(),
+                        color: categoryColor(for: categoryName)
+                    )
+                }
+                // Meal type chips
+                if let mealTypes = dish.mealTypes?.allObjects as? [MealType], !mealTypes.isEmpty {
+                    HStack(spacing: 8) {
+                        ForEach(mealTypes, id: \.self) { mealType in
+                            DishListMealTypeChip(mealType: mealType)
+                        }
+                    }
+                }
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isSelected ? Color("AccentColor").opacity(0.05) : Color("SecondaryBackgroundColor"))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(
+                                isSelected ? Color("AccentColor") : Color.gray.opacity(0.2),
+                                lineWidth: isSelected ? 2 : 1
+                            )
+                    )
+            )
+        }
+        .buttonStyle(ScaleButtonStyle())
+        .accessibilityIdentifier("dish_selection_card_\(dish.name ?? "unnamed")")
+        .accessibilityLabel("\(dish.name ?? "Unnamed Dish".localized())")
+        .accessibilityHint(isSelected ? "Currently selected".localized() : "Tap to select this dish".localized())
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+    }
+    // Helper function to get color for different categories
+    private func categoryColor(for categoryName: String) -> Color {
+        switch categoryName {
+        case "Main Course":
+            return Color.blue
+        case "Garnish":
+            return Color.green
+        case "Dessert":
+            return Color.orange
+        case "Appetizer":
+            return Color.purple
+        case "Sauce":
+            return Color.red
+        default:
+            return Color.gray
+        }
+    }
+}
+// MARK: - Empty State Component
+struct EmptyDishSelectionView: View {
+    var body: some View {
+        VStack(spacing: 24) {
+            // Illustration
+            RoundedRectangle(cornerRadius: 20)
+                .fill(
+                    LinearGradient(
+                        colors: [Color("AccentColor").opacity(0.1), Color("AccentColor").opacity(0.05)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 120, height: 120)
+                .overlay(
+                    Image(systemName: "fork.knife")
+                        .font(.system(size: 60, weight: .light))
+                        .foregroundColor(Color("AccentColor").opacity(0.6))
+                )
+            VStack(spacing: 12) {
+                Text("No Dishes Available".localized())
+                    .font(.title2.weight(.semibold))
+                    .foregroundColor(.primary)
+                Text("Create dishes first to select them for your menu".localized())
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+            }
+        }
+        .padding(40)
+        .frame(maxWidth: .infinity)
     }
 }

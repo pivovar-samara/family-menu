@@ -313,10 +313,10 @@ final class MenuManagementUITests: XCTestCase {
             }
         }
         
-        // Save the selection
-        let saveButton = app.navigationBars.buttons["Save"]
-        XCTAssertTrue(saveButton.exists, "Save button should exist in dish selection")
-        saveButton.tap()
+        // Done the selection
+        let doneButton = app.navigationBars.buttons.matching(identifier: "dish_selection_done_button").firstMatch
+        XCTAssertTrue(doneButton.exists, "Done button should exist in dish selection")
+        doneButton.tap()
         
         // Verify return to menu
         let menuTitle = app.navigationBars["Menu"]
@@ -448,10 +448,10 @@ final class MenuManagementUITests: XCTestCase {
             }
         }
         
-        // Save the selection
-        let saveButton = app.navigationBars.buttons["Save"]
-        XCTAssertTrue(saveButton.exists, "Save button should exist in dish selection")
-        saveButton.tap()
+        // Done the selection
+        let doneButton = app.navigationBars.buttons.matching(identifier: "dish_selection_done_button").firstMatch
+        XCTAssertTrue(doneButton.exists, "Done button should exist in dish selection")
+        doneButton.tap()
         
         // Verify return to menu
         let menuTitle = app.navigationBars["Menu"]
