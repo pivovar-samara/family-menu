@@ -463,11 +463,11 @@ class DishSelectionIntegrationTests: BaseIntegrationTest {
     
     func testCardBasedSelectionUI() {
         // Create test dishes with categories and meal types
-        let breakfast = createOrFetchMealType(name: "Breakfast")
-        let lunch = createOrFetchMealType(name: "Lunch")
+        _ = createOrFetchMealType(name: "Breakfast")
+        _ = createOrFetchMealType(name: "Lunch")
         
         let dish1 = createDishWithMealTypes(name: "Omelette", mealTypeNames: ["Breakfast"])
-        let dish2 = createDishWithMealTypes(name: "Sandwich", mealTypeNames: ["Lunch"])
+        _ = createDishWithMealTypes(name: "Sandwich", mealTypeNames: ["Lunch"])
         
         var selectedDishes: [Dish] = []
         viewModel = DishSelectionViewModel(
