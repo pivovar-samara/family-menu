@@ -124,6 +124,7 @@ struct MenuView: View {
                     DailyMenuCardView(
                         dailyMenu: dailyMenu,
                         weekDate: viewModel.selectedWeekIndex >= 0 && viewModel.selectedWeekIndex < viewModel.weekOptions.count ? viewModel.weekOptions[viewModel.selectedWeekIndex] : Date(),
+                        weekdays: viewModel.weekdays,
                         onMealTap: { day, mealType, dishes in
                             viewModel.selectedDay = day
                             viewModel.editingDishes = dishes
@@ -153,11 +154,9 @@ struct MenuView: View {
     }
     
     private func formattedWeek(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
         let startOfWeek = startOfWeek(for: date)
         let endOfWeek = Calendar.current.date(byAdding: .day, value: 6, to: startOfWeek) ?? startOfWeek
-        return "\(formatter.string(from: startOfWeek)) - \(formatter.string(from: endOfWeek))"
+        return "\(MenuView.weekDateFormatter.string(from: startOfWeek)) - \(MenuView.weekDateFormatter.string(from: endOfWeek))"
     }
     
     private func startOfWeek(for date: Date) -> Date {
@@ -166,10 +165,19 @@ struct MenuView: View {
     }
 }
 
+extension MenuView {
+    static let weekDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter
+    }()
+}
+
 // MARK: - Daily Menu Card Component
 struct DailyMenuCardView: View {
     let dailyMenu: DailyMenu
     let weekDate: Date
+    let weekdays: [String]
     let onMealTap: (String, String, [Dish]) -> Void
     let onClearMeal: (String, String) -> Void
     let onClearDay: (String) -> Void
@@ -255,18 +263,16 @@ struct DailyMenuCardView: View {
     }
     
     private func formattedDate(for day: String) -> String {
-        guard let index = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].firstIndex(of: day) else {
+        guard let index = weekdays.firstIndex(of: day) else {
             return ""
         }
         let startOfWeek = startOfWeek(for: weekDate)
         let date = Calendar.current.date(byAdding: .day, value: index, to: startOfWeek) ?? Date()
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMM d"
-        return formatter.string(from: date)
+        return DailyMenuCardView.dateFormatter.string(from: date)
     }
     
     private func dateForDay(_ day: String) -> Date {
-        guard let index = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].firstIndex(of: day) else {
+        guard let index = weekdays.firstIndex(of: day) else {
             return Date()
         }
         let startOfWeek = startOfWeek(for: weekDate)
@@ -279,6 +285,14 @@ struct DailyMenuCardView: View {
     }
 }
 
+extension DailyMenuCardView {
+    static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, MMM d"
+        return formatter
+    }()
+}
+
 // MARK: - Meal Type Row Component
 struct MealTypeRowView: View {
     let mealType: String
@@ -287,42 +301,42 @@ struct MealTypeRowView: View {
     let onClear: () -> Void
     
     var body: some View {
-        HStack(spacing: 12) {
-            // Meal type icon and name
-            HStack(spacing: 8) {
-                Image(systemName: mealTypeIcon)
-                    .font(.title3)
-                    .foregroundColor(mealTypeColor)
-                    .frame(width: 24, height: 24)
-                
-                Text(mealType.localized())
-                    .font(.headline)
-                    .foregroundColor(.primary)
-            }
-            
-            Spacer()
-            
-            // Dishes or placeholder
-            VStack(alignment: .trailing, spacing: 4) {
-                if !dishes.isEmpty {
-                    ForEach(dishes, id: \.self) { dish in
-                        Text(dish.name ?? "Unnamed Dish".localized())
-                            .font(.subheadline)
-                            .foregroundColor(.primary)
-                            .lineLimit(2)
-                            .truncationMode(.tail)
-                            .multilineTextAlignment(.trailing)
-                    }
-                } else {
-                    Text("Choose a dish".localized())
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .italic()
+        Button(action: onTap) {
+            HStack(spacing: 12) {
+                // Meal type icon and name
+                HStack(spacing: 8) {
+                    Image(systemName: mealTypeIcon)
+                        .font(.title3)
+                        .foregroundColor(mealTypeColor)
+                        .frame(width: 24, height: 24)
+                    
+                    Text(mealType.localized())
+                        .font(.headline)
+                        .foregroundColor(.primary)
                 }
-            }
-            
-            // Only show edit icon
-            Button(action: onTap) {
+                
+                Spacer()
+                
+                // Dishes or placeholder
+                VStack(alignment: .trailing, spacing: 4) {
+                    if !dishes.isEmpty {
+                        ForEach(dishes, id: \.self) { dish in
+                            Text(dish.name ?? "Unnamed Dish".localized())
+                                .font(.subheadline)
+                                .foregroundColor(.primary)
+                                .lineLimit(2)
+                                .truncationMode(.tail)
+                                .multilineTextAlignment(.trailing)
+                        }
+                    } else {
+                        Text("Choose a dish".localized())
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .italic()
+                    }
+                }
+                
+                // Edit icon
                 Image(systemName: "pencil")
                     .font(.caption)
                     .foregroundColor(Color("AccentColor"))
@@ -330,17 +344,24 @@ struct MealTypeRowView: View {
                     .background(Color("AccentColor").opacity(0.1))
                     .cornerRadius(6)
             }
-            .buttonStyle(ScaleButtonStyle())
+            .padding(16)
+            .background(Color("BackgroundColor"))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.gray.opacity(0.08), lineWidth: 1)
+            )
         }
-        .padding(16)
-        .background(Color("BackgroundColor"))
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.gray.opacity(0.08), lineWidth: 1)
-        )
-        .onTapGesture {
-            onTap()
+        .buttonStyle(ScaleButtonStyle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(mealType.localized()))
+        .accessibilityAddTraits(.isButton)
+        .contextMenu {
+            Button(role: .destructive) {
+                onClear()
+            } label: {
+                Label("Clear \(mealType.localized())", systemImage: "trash")
+            }
         }
     }
     
