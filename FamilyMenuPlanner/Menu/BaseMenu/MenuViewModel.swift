@@ -41,6 +41,12 @@ class MenuViewModel: ObservableObject {
         return (0...2).compactMap { calendar.date(byAdding: .weekOfYear, value: $0, to: startOfCurrentWeek) }
     }
 
+    var selectedWeekDate: Date {
+        (selectedWeekIndex >= 0 && selectedWeekIndex < weekOptions.count)
+            ? weekOptions[selectedWeekIndex]
+            : Date()
+    }
+
     private let menuService: MenuServiceProtocol
 
     init(menuService: MenuServiceProtocol) {

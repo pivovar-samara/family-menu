@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Foundation
 
 struct MenuView: View {
     @StateObject private var viewModel: MenuViewModel
@@ -123,7 +124,7 @@ struct MenuView: View {
                 ForEach(viewModel.weeklyMenu, id: \.self) { dailyMenu in
                     DailyMenuCardView(
                         dailyMenu: dailyMenu,
-                        weekDate: viewModel.selectedWeekIndex >= 0 && viewModel.selectedWeekIndex < viewModel.weekOptions.count ? viewModel.weekOptions[viewModel.selectedWeekIndex] : Date(),
+                        weekDate: viewModel.selectedWeekDate,
                         weekdays: viewModel.weekdays,
                         onMealTap: { day, mealType, dishes in
                             viewModel.selectedDay = day
@@ -181,7 +182,6 @@ struct DailyMenuCardView: View {
     let onMealTap: (String, String, [Dish]) -> Void
     let onClearMeal: (String, String) -> Void
     let onClearDay: (String) -> Void
-    @State private var showDayContextMenu = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -262,8 +262,8 @@ struct DailyMenuCardView: View {
         guard let index = weekdays.firstIndex(of: day) else {
             return ""
         }
-        let startOfWeek = startOfWeek(for: weekDate)
-        let date = Calendar.current.date(byAdding: .day, value: index, to: startOfWeek) ?? Date()
+        let startOfWeekDate = startOfWeek(for: weekDate)
+        let date = Calendar.current.date(byAdding: .day, value: index, to: startOfWeekDate) ?? Date()
         return DailyMenuCardView.dateFormatter.string(from: date)
     }
     
@@ -271,8 +271,8 @@ struct DailyMenuCardView: View {
         guard let index = weekdays.firstIndex(of: day) else {
             return Date()
         }
-        let startOfWeek = startOfWeek(for: weekDate)
-        return Calendar.current.date(byAdding: .day, value: index, to: startOfWeek) ?? Date()
+        let startOfWeekDate = startOfWeek(for: weekDate)
+        return Calendar.current.date(byAdding: .day, value: index, to: startOfWeekDate) ?? Date()
     }
     
     private func startOfWeek(for date: Date) -> Date {
