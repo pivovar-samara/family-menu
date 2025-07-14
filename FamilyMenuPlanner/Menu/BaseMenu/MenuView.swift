@@ -242,18 +242,14 @@ struct DailyMenuCardView: View {
         )
         .contextMenu {
             Button(role: .destructive) {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    onClearDay(dailyMenu.day)
-                }
+                onClearDay(dailyMenu.day)
             } label: {
                 Label("Clear All Day".localized(), systemImage: "trash")
             }
             ForEach(dailyMenu.dailyMeals, id: \.self) { dailyMeal in
                 if !dailyMeal.dishes.isEmpty {
                     Button(role: .destructive) {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            onClearMeal(dailyMenu.day, dailyMeal.meal)
-                        }
+                        onClearMeal(dailyMenu.day, dailyMeal.meal)
                     } label: {
                         Label("Clear \(dailyMeal.meal.localized())", systemImage: "trash")
                     }
