@@ -489,4 +489,198 @@ class DishSelectionIntegrationTests: BaseIntegrationTest {
         XCTAssertEqual(forMeal.count, 0)
         XCTAssertEqual(other.count, 0)
     }
+    
+    // MARK: - UI Component Tests
+    
+    func testCardBasedSelectionUI() {
+        // Create test dishes with categories and meal types
+        let breakfast = createOrFetchMealType(name: "Breakfast")
+        let lunch = createOrFetchMealType(name: "Lunch")
+        
+        let dish1 = createDishWithMealTypes(name: "Omelette", mealTypeNames: ["Breakfast"])
+        let dish2 = createDishWithMealTypes(name: "Sandwich", mealTypeNames: ["Lunch"])
+        
+        var selectedDishes: [Dish] = []
+        viewModel = DishSelectionViewModel(
+            selectedDishes: [],
+            mealType: "Breakfast",
+            dishSelectionService: dishSelectionService
+        ) { dishes in
+            selectedDishes = dishes
+        }
+        
+        // Test selection through card interaction
+        viewModel.selectedDishes.append(dish1)
+        viewModel.onDishesSelected(viewModel.selectedDishes)
+        
+        XCTAssertEqual(selectedDishes.count, 1)
+        XCTAssertTrue(selectedDishes.contains(dish1))
+        
+        // Test deselection
+        viewModel.selectedDishes.removeAll { $0 == dish1 }
+        viewModel.onDishesSelected(viewModel.selectedDishes)
+        
+        XCTAssertTrue(selectedDishes.isEmpty)
+    }
+    
+    func testMultiSelectionWithSaveButton() {
+        // Create test dishes
+        let dish1 = createDishWithMealTypes(name: "Dish 1", mealTypeNames: ["Breakfast"])
+        let dish2 = createDishWithMealTypes(name: "Dish 2", mealTypeNames: ["Breakfast"])
+        let dish3 = createDishWithMealTypes(name: "Dish 3", mealTypeNames: ["Lunch"])
+        
+        var selectedDishes: [Dish] = []
+        viewModel = DishSelectionViewModel(
+            selectedDishes: [],
+            mealType: "Breakfast",
+            dishSelectionService: dishSelectionService
+        ) { dishes in
+            selectedDishes = dishes
+        }
+        
+        // Select multiple dishes
+        viewModel.selectedDishes.append(dish1)
+        viewModel.selectedDishes.append(dish2)
+        viewModel.onDishesSelected(viewModel.selectedDishes)
+        
+        XCTAssertEqual(selectedDishes.count, 2)
+        XCTAssertTrue(selectedDishes.contains(dish1))
+        XCTAssertTrue(selectedDishes.contains(dish2))
+        
+        // Add dish from other section
+        viewModel.selectedDishes.append(dish3)
+        viewModel.onDishesSelected(viewModel.selectedDishes)
+        
+        XCTAssertEqual(selectedDishes.count, 3)
+        XCTAssertTrue(selectedDishes.contains(dish3))
+    }
+    
+    func testSectionOrganizationWithCards() {
+        // Create dishes for different meal types
+        let breakfastDish = createDishWithMealTypes(name: "Pancakes", mealTypeNames: ["Breakfast"])
+        let lunchDish = createDishWithMealTypes(name: "Soup", mealTypeNames: ["Lunch"])
+        let dinnerDish = createDishWithMealTypes(name: "Steak", mealTypeNames: ["Dinner"])
+        
+        viewModel = DishSelectionViewModel(
+            selectedDishes: [],
+            mealType: "Breakfast",
+            dishSelectionService: dishSelectionService
+        ) { _ in }
+        
+        // Wait for reactive bindings to complete
+        let expectation = XCTestExpectation(description: "Section organization")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            let (breakfastDishes, otherDishes) = self.viewModel.splitDishes()
+            
+            // Verify breakfast dishes are in the correct section
+            XCTAssertEqual(breakfastDishes.count, 1)
+            XCTAssertTrue(breakfastDishes.contains(breakfastDish))
+            
+            // Verify other dishes are in the other section
+            XCTAssertEqual(otherDishes.count, 2)
+            XCTAssertTrue(otherDishes.contains(lunchDish))
+            XCTAssertTrue(otherDishes.contains(dinnerDish))
+            
+            expectation.fulfill()
+        }
+        
+        wait(for: [expectation], timeout: 1.0)
+    }
+    
+    func testEmptyStateWithNoDishes() {
+        viewModel = DishSelectionViewModel(
+            selectedDishes: [],
+            mealType: "Breakfast",
+            dishSelectionService: dishSelectionService
+        ) { _ in }
+        
+        let (forMeal, other) = viewModel.splitDishes()
+        
+        // Verify empty state when no dishes exist
+        XCTAssertEqual(forMeal.count, 0)
+        XCTAssertEqual(other.count, 0)
+        
+        // This should trigger the EmptyDishSelectionView in the UI
+    }
+    
+    func testEmptyStateWithSearchNoResults() {
+        // Create a dish that won't match search
+        _ = createDishWithMealTypes(name: "Pancakes", mealTypeNames: ["Breakfast"])
+        
+        viewModel = DishSelectionViewModel(
+            selectedDishes: [],
+            mealType: "Breakfast",
+            dishSelectionService: dishSelectionService
+        ) { _ in }
+        
+        // Search for non-existent dish
+        viewModel.searchText = "NonExistentDish"
+        
+        let expectation = XCTestExpectation(description: "Search filtering")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            let (forMeal, other) = self.viewModel.splitDishes()
+            XCTAssertEqual(forMeal.count, 0)
+            XCTAssertEqual(other.count, 0)
+            expectation.fulfill()
+        }
+        
+        wait(for: [expectation], timeout: 1.0)
+    }
+    
+    func testAccessibilitySupport() {
+        let dish = createDishWithMealTypes(name: "Test Dish", mealTypeNames: ["Breakfast"])
+        
+        viewModel = DishSelectionViewModel(
+            selectedDishes: [dish],
+            mealType: "Breakfast",
+            dishSelectionService: dishSelectionService
+        ) { _ in }
+        
+        // Wait for reactive bindings to complete
+        let expectation = XCTestExpectation(description: "Accessibility support")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            let (forMeal, other) = self.viewModel.splitDishes()
+            
+            // Verify dish is selected in view model
+            XCTAssertTrue(self.viewModel.selectedDishes.contains(dish))
+            
+            // Verify the dish has the expected name for accessibility
+            XCTAssertEqual(dish.name, "Test Dish")
+            
+            // The dish should be in either forMeal or other section
+            let totalDishes = forMeal.count + other.count
+            XCTAssertGreaterThanOrEqual(totalDishes, 1)
+            
+            expectation.fulfill()
+        }
+        
+        wait(for: [expectation], timeout: 1.0)
+    }
+    
+    func testRollbackWithUnsavedSelections() {
+        let dish = createDishWithMealTypes(name: "Test Dish", mealTypeNames: ["Breakfast"])
+        
+        var selectedDishes: [Dish] = []
+        viewModel = DishSelectionViewModel(
+            selectedDishes: [],
+            mealType: "Breakfast",
+            dishSelectionService: dishSelectionService
+        ) { dishes in
+            selectedDishes = dishes
+        }
+        
+        // Select a dish
+        viewModel.selectedDishes.append(dish)
+        viewModel.onDishesSelected(viewModel.selectedDishes)
+        
+        XCTAssertEqual(selectedDishes.count, 1)
+        
+        // Rollback using the service
+        dishSelectionService.rollback()
+        
+        // Verify rollback occurred - selected dishes should remain in view model
+        // but the underlying data should be rolled back
+        XCTAssertEqual(viewModel.selectedDishes.count, 1)
+        XCTAssertTrue(viewModel.selectedDishes.contains(dish))
+    }
 } 

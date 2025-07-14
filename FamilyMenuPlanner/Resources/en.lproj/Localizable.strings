@@ -17,6 +17,7 @@
 "Error" = "Error";
 "OK" = "OK";
 "Cancel" = "Cancel";
+"Done" = "Done";
 "Save" = "Save";
 "Close" = "Close";
 "Add Ingredient" = "Add Ingredient";
@@ -215,3 +216,8 @@
 "Tap to select this item" = "Tap to select this item";
 "Tap to select this product" = "Tap to select this product";
 "InvalidWeekSelectionMessage" = "Invalid week selection. Please try again.";
+
+// Dish Selection UI
+"No Dishes Available" = "No Dishes Available";
+"Create dishes first to select them for your menu" = "Create dishes first to select them for your menu";
+"Tap to select this dish" = "Tap to select this dish";

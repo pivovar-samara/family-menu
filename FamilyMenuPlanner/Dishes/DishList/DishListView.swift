@@ -287,11 +287,11 @@ struct DishCardView: View {
 
 // MARK: - Supporting Components
 
-struct DishListCategoryChip: View {
+public struct DishListCategoryChip: View {
     let title: String
     let color: Color
     
-    var body: some View {
+    public var body: some View {
         Text(title)
             .font(.caption.weight(.medium))
             .foregroundColor(.white)
@@ -309,10 +309,10 @@ struct DishListCategoryChip: View {
     }
 }
 
-struct DishListMealTypeChip: View {
+public struct DishListMealTypeChip: View {
     let mealType: MealType
     
-    var body: some View {
+    public var body: some View {
         HStack(spacing: 4) {
             Image(systemName: ViewHelper.mealTypeIcon(for: mealType))
                 .font(.caption2)
@@ -330,6 +330,14 @@ struct DishListMealTypeChip: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(ViewHelper.mealTypeColor(for: mealType).opacity(0.3), lineWidth: 1)
         )
+    }
+}
+
+public struct ScaleButtonStyle: ButtonStyle {
+    public func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
@@ -408,14 +416,6 @@ struct FloatingActionButton: View {
                 .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
         }
         .buttonStyle(ScaleButtonStyle())
-    }
-}
-
-struct ScaleButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
