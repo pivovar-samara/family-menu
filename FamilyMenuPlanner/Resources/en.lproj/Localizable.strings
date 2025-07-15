@@ -230,3 +230,6 @@
 "Friday" = "Friday";
 "Saturday" = "Saturday";
 "Sunday" = "Sunday";
+"App Initialization Error" = "App Initialization Error";
+"Try Again" = "Try Again";
+"Failed to initialize app data. Please restart the app." = "Failed to initialize app data. Please restart the app.";

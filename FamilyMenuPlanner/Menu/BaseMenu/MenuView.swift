@@ -170,7 +170,6 @@ struct DailyMenuCardView: View {
             // Header with day and date
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    // Remove: Text(dailyMenu.day.localized())
                     // Only show the date (without weekday name)
                     Text(formattedDate(for: dailyMenu.day))
                         .font(.title2.weight(.semibold))
