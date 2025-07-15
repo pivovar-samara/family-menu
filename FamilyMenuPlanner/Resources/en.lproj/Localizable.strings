@@ -221,3 +221,12 @@
 "No Dishes Available" = "No Dishes Available";
 "Create dishes first to select them for your menu" = "Create dishes first to select them for your menu";
 "Tap to select this dish" = "Tap to select this dish";
+"Dishes for %@" = "Dishes for %@";
+"Clear %@" = "Clear %@";
+"Monday" = "Monday";
+"Tuesday" = "Tuesday";
+"Wednesday" = "Wednesday";
+"Thursday" = "Thursday";
+"Friday" = "Friday";
+"Saturday" = "Saturday";
+"Sunday" = "Sunday";

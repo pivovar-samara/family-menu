@@ -217,7 +217,22 @@
 "Tap to select this item" = "Нажмите, чтобы выбрать этот товар";
 "InvalidWeekSelectionMessage" = "Некорректный выбор недели. Пожалуйста, попробуйте еще раз.";
 
+// Missing localization keys
+"App Initialization Error" = "Ошибка инициализации приложения";
+"Try Again" = "Попробовать снова";
+"Failed to initialize app data. Please restart the app." = "Не удалось инициализировать данные приложения. Пожалуйста, перезапустите приложение.";
+
 // Dish Selection UI
 "No Dishes Available" = "Блюда недоступны";
 "Create dishes first to select them for your menu" = "Сначала создайте блюда, чтобы выбирать их для вашего меню";
 "Tap to select this dish" = "Нажмите, чтобы выбрать это блюдо";
+
+"Dishes for %@" = "Блюда на %@";
+"Clear %@" = "Очистить %@";
+"Monday" = "Понедельник";
+"Tuesday" = "Вторник";
+"Wednesday" = "Среда";
+"Thursday" = "Четверг";
+"Friday" = "Пятница";
+"Saturday" = "Суббота";
+"Sunday" = "Воскресенье";
