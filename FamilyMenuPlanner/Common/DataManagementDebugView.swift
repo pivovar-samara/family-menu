@@ -94,7 +94,6 @@ struct DataManagementDebugView: View {
         }
         .applyStyle()
         .navigationTitle("Data Management")
-        // .navigationBarTitleDisplayMode(.large)
         .navigationBarTitleDisplayMode(.inline)
         .alert(item: Binding(
             get: { currentAlert },

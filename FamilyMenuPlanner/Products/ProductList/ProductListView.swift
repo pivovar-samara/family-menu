@@ -86,25 +86,6 @@ struct ProductListView: View {
         }
     }
 
-    private func productListSection() -> AnyView {
-        if viewModel.filteredProducts.isEmpty {
-            if viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return AnyView(ProductListEmptyState(onAdd: { viewModel.isAddingNewProduct = true }))
-            } else {
-                return AnyView(ProductListNoResultsState())
-            }
-        } else {
-            return AnyView(ProductListRows(products: viewModel.filteredProducts, onEdit: { product in viewModel.selectedProduct = product }, onDelete: { product in viewModel.deleteProduct(product) }))
-        }
-    }
-
-    private var spacerRow: some View {
-        Color.clear
-            .frame(height: 80)
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
-    }
-
     private struct ProductListRows: View {
         let products: [Product]
         let onEdit: (Product) -> Void
