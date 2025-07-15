@@ -16,126 +16,196 @@ struct DishListView: View {
     }
 
     var body: some View {
-        List {
-            // Empty state
-            if viewModel.filteredDishes.isEmpty {
-                if viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    // No dishes at all – show onboarding empty state
-                    EmptyDishListView {
-                        viewModel.isAddingNewDish = true
-                    }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .accessibilityIdentifier("dish_list_empty_state")
-                } else {
-                    // Search yielded no results
-                    Color.clear
-                        .emptyState(message: "No results found".localized())
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .accessibilityIdentifier("dish_list_no_results_state")
-                }
-            } else {
-                // Dish cards
-                ForEach(viewModel.filteredDishes, id: \.self) { dish in
-                    DishCardView(
-                        dish: dish,
-                        onEdit: {
-                            viewModel.selectedDish = dish
-                        },
-                        onDelete: {
-                            viewModel.deleteDish(dish)
-                        }
-                    )
-                    .padding(.vertical, 8)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .accessibilityIdentifier("dish_list_item_\(dish.name ?? "unnamed")")
-                }
-            }
-
-            // Spacer row to keep content above the floating action button
-            Color.clear
-                .frame(height: 80)
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-        }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden) // Keep custom background
-        .background(Color("BackgroundColor"))
+        DishListBody(
+            filteredDishes: viewModel.filteredDishes,
+            searchText: viewModel.searchText,
+            onAdd: { viewModel.isAddingNewDish = true },
+            onEdit: { dish in viewModel.selectedDish = dish },
+            onDelete: { dish in viewModel.deleteDish(dish) }
+        )
         .searchable(text: $viewModel.searchText, prompt: "Search dishes...".localized())
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: {
-                    showingSortOptions = true
-                }) {
-                    Image(systemName: "arrow.up.arrow.down")
-                        .font(.body)
-                        .foregroundColor(Color("AccentColor"))
-                }
-                .accessibilityIdentifier("sort_dishes_button")
-                .accessibilityLabel("Sort dishes".localized())
-                .confirmationDialog("Sort dishes".localized(), isPresented: $showingSortOptions, titleVisibility: .visible) {
-                    Button("Name A-Z".localized()) {
-                        viewModel.updateSortOption(.nameAscending)
-                    }
-                    Button("Name Z-A".localized()) {
-                        viewModel.updateSortOption(.nameDescending)
-                    }
-                    Button("Category".localized()) {
-                        viewModel.updateSortOption(.category)
-                    }
-                    Button("Cancel", role: .cancel) {}
-                }
-            }
-        }
+        .modifier(dishListToolbar)
+        .modifier(dishListAddSheet)
+        .modifier(dishListEditSheet)
+        .modifier(dishListAlert)
         .overlay(alignment: .bottomTrailing) {
-            FloatingActionButton {
+            FloatingActionButton(icon: "plus") {
                 viewModel.isAddingNewDish = true
             }
             .padding(.trailing, 20)
             .padding(.bottom, 20)
             .accessibilityIdentifier("add_dish_button")
         }
-        .alert(item: Binding(
-            get: { viewModel.currentAlert },
-            set: { _ in viewModel.dismissAlert() }
-        )) { alert in
-            Alert(
-                title: Text(alert.title),
-                message: Text(alert.message),
-                dismissButton: .default(Text("OK".localized())) {
-                    alert.action?()
-                }
-            )
+        .onAppear {
+            viewModel.loadDishes()
         }
-        .sheet(item: $viewModel.selectedDish, onDismiss: {
-            // Reset selection after sheet dismissal
-            viewModel.selectedDish = nil
-        }) { dish in
-            NavigationStack {
-                DishDetailsCoordinator().createDishDetailsView(
-                    dish: dish,
-                    onDismiss: { shouldSave in
-                        if !shouldSave {
-                            // User dismissed without saving - ensure rollback happens
-                            AppLogger.info("Dish editing dismissed without saving", category: AppLogger.viewModel)
+    }
+
+    private var dishListToolbar: some ViewModifier {
+        DishToolbarModifier(showingSortOptions: $showingSortOptions, viewModel: viewModel)
+    }
+    private var dishListAddSheet: some ViewModifier {
+        DishAddSheetModifier(isPresented: $viewModel.isAddingNewDish)
+    }
+    private var dishListEditSheet: some ViewModifier {
+        DishEditSheetModifier(selectedDish: $viewModel.selectedDish, viewModel: viewModel)
+    }
+    private var dishListAlert: some ViewModifier {
+        DishAlertModifier(currentAlert: Binding(get: { viewModel.currentAlert }, set: { _ in viewModel.dismissAlert() }))
+    }
+
+    private struct DishListBody: View {
+        let filteredDishes: [Dish]
+        let searchText: String
+        let onAdd: () -> Void
+        let onEdit: (Dish) -> Void
+        let onDelete: (Dish) -> Void
+        var body: some View {
+            List {
+                if filteredDishes.isEmpty {
+                    if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        DishListEmptyState(onAdd: onAdd)
+                    } else {
+                        DishListNoResultsState()
+                    }
+                } else {
+                    DishListRows(dishes: filteredDishes, onEdit: onEdit, onDelete: onDelete)
+                }
+                Color.clear
+                    .frame(height: 80)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color("BackgroundColor"))
+        }
+    }
+
+    private struct DishListRows: View {
+        let dishes: [Dish]
+        let onEdit: (Dish) -> Void
+        let onDelete: (Dish) -> Void
+        var body: some View {
+            ForEach(dishes, id: \.self) { dish in
+                dishCard(for: dish)
+            }
+        }
+        @ViewBuilder
+        private func dishCard(for dish: Dish) -> some View {
+            DishCardView(
+                dish: dish,
+                onEdit: { onEdit(dish) },
+                onDelete: { onDelete(dish) }
+            )
+            .padding(.vertical, 8)
+            .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .accessibilityIdentifier("dish_list_item_\(dish.name ?? "unnamed")")
+        }
+    }
+
+    private struct DishListEmptyState: View {
+        let onAdd: () -> Void
+        var body: some View {
+            EmptyDishListView(onAddDish: onAdd)
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .accessibilityIdentifier("dish_list_empty_state")
+        }
+    }
+
+    private struct DishListNoResultsState: View {
+        var body: some View {
+            ViewHelper.emptyState(Color.clear, message: "No results found".localized())
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .accessibilityIdentifier("dish_list_no_results_state")
+        }
+    }
+
+    // MARK: - Toolbar Modifier
+    private struct DishToolbarModifier: ViewModifier {
+        @Binding var showingSortOptions: Bool
+        let viewModel: DishListViewModel
+        func body(content: Content) -> some View {
+            content.toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showingSortOptions = true }) {
+                        Image(systemName: "arrow.up.arrow.down")
+                            .font(.body)
+                            .foregroundColor(Color("AccentColor"))
+                    }
+                    .accessibilityIdentifier("sort_dishes_button")
+                    .accessibilityLabel("Sort dishes".localized())
+                    .confirmationDialog("Sort dishes".localized(), isPresented: $showingSortOptions, titleVisibility: .visible) {
+                        Button("Name A-Z".localized()) {
+                            viewModel.updateSortOption(.nameAscending)
                         }
-                        viewModel.selectedDish = nil
+                        Button("Name Z-A".localized()) {
+                            viewModel.updateSortOption(.nameDescending)
+                        }
+                        Button("Category".localized()) {
+                            viewModel.updateSortOption(.category)
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Add Sheet Modifier
+    private struct DishAddSheetModifier: ViewModifier {
+        @Binding var isPresented: Bool
+        func body(content: Content) -> some View {
+            content.sheet(isPresented: $isPresented, onDismiss: {
+                isPresented = false
+            }) {
+                NavigationStack {
+                    DishDetailsCoordinator().createDishDetailsView()
+                }
+            }
+        }
+    }
+
+    // MARK: - Edit Sheet Modifier
+    private struct DishEditSheetModifier: ViewModifier {
+        @Binding var selectedDish: Dish?
+        let viewModel: DishListViewModel
+        func body(content: Content) -> some View {
+            content.sheet(item: $selectedDish, onDismiss: {
+                viewModel.selectedDish = nil
+            }) { dish in
+                NavigationStack {
+                    DishDetailsCoordinator().createDishDetailsView(
+                        dish: dish,
+                        onDismiss: { shouldSave in
+                            if !shouldSave {
+                                AppLogger.info("Dish editing dismissed without saving", category: AppLogger.viewModel)
+                            }
+                            viewModel.selectedDish = nil
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: - Alert Modifier
+    private struct DishAlertModifier: ViewModifier {
+        @Binding var currentAlert: AlertItem?
+        func body(content: Content) -> some View {
+            content.alert(item: $currentAlert) { alert in
+                Alert(
+                    title: Text(alert.title),
+                    message: Text(alert.message),
+                    dismissButton: .default(Text("OK".localized())) {
+                        alert.action?()
                     }
                 )
             }
-        }
-        .sheet(isPresented: $viewModel.isAddingNewDish, onDismiss: {
-            viewModel.isAddingNewDish = false
-        }) {
-            NavigationStack {
-                DishDetailsCoordinator().createDishDetailsView()
-            }
-        }
-        .onAppear() {
-            viewModel.loadDishes()
         }
     }
 }
@@ -153,9 +223,14 @@ struct DishCardView: View {
             HStack {
                 // Category chip
                 if let categoryName = dish.category?.name {
-                    DishListCategoryChip(
-                        title: categoryName.localized(),
-                        color: categoryColor(for: categoryName)
+                    ChipView(
+                        text: categoryName.localized(),
+                        backgroundColor: categoryColor(for: categoryName),
+                        foregroundColor: .white,
+                        font: .caption.weight(.medium),
+                        horizontalPadding: UIConstants.chipHorizontalPadding,
+                        verticalPadding: UIConstants.chipVerticalPadding,
+                        cornerRadius: UIConstants.chipCornerRadius
                     )
                 }
                 
@@ -232,7 +307,17 @@ struct DishCardView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
                             ForEach(mealTypes, id: \.self) { mealType in
-                                DishListMealTypeChip(mealType: mealType)
+                                ChipView(
+                                    text: mealType.name?.localized() ?? "",
+                                    icon: ViewHelper.mealTypeIcon(for: mealType),
+                                    backgroundColor: Color("BackgroundColor"),
+                                    foregroundColor: .secondary,
+                                    borderColor: ViewHelper.mealTypeColor(for: mealType).opacity(0.3),
+                                    font: .caption,
+                                    horizontalPadding: 8,
+                                    verticalPadding: 4,
+                                    cornerRadius: 8
+                                )
                             }
                         }
                         .padding(.horizontal, 1) // Prevent clipping
@@ -240,13 +325,14 @@ struct DishCardView: View {
                 }
             }
         }
-        .padding(20)
-        .background(Color("SecondaryBackgroundColor"))
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.gray.opacity(0.1), lineWidth: 1)
+        .cardStyle(
+            cornerRadius: UIConstants.cardCornerRadius,
+            backgroundColor: Color("SecondaryBackgroundColor"),
+            shadowColor: .black.opacity(0.06),
+            shadowRadius: UIConstants.cardShadowRadius,
+            borderColor: Color.gray.opacity(0.1),
+            borderWidth: UIConstants.cardBorderWidth,
+            padding: UIConstants.cardPadding
         )
         .onTapGesture {
             onEdit()
@@ -333,14 +419,6 @@ public struct DishListMealTypeChip: View {
     }
 }
 
-public struct ScaleButtonStyle: ButtonStyle {
-    public func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
-    }
-}
-
 struct EmptyDishListView: View {
     let onAddDish: () -> Void
     
@@ -391,31 +469,6 @@ struct EmptyDishListView: View {
         }
         .padding(40)
         .frame(maxWidth: .infinity)
-    }
-}
-
-struct FloatingActionButton: View {
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: "plus")
-                .font(.title2.weight(.semibold))
-                .foregroundColor(.white)
-                .frame(width: 56, height: 56)
-                .background(
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color("AccentColor"), Color("AccentColor").opacity(0.8)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                )
-                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
-        }
-        .buttonStyle(ScaleButtonStyle())
     }
 }
 

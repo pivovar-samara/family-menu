@@ -53,8 +53,7 @@ struct ShoppingListView: View {
                     .listRowBackground(Color.clear)
                     .accessibilityIdentifier("shopping_list_empty_state")
             } else {
-                Color.clear
-                    .emptyState(message: "No results found".localized())
+                ViewHelper.emptyState(Color.clear, message: "No results found".localized())
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
                     .accessibilityIdentifier("shopping_list_no_results_state")
@@ -74,7 +73,7 @@ struct ShoppingListView: View {
                 .accessibilityIdentifier("shopping_list_item_\(item.productName)")
             }
         }
-        Color.clear
+        ViewHelper.applyStyle(Color.clear)
             .frame(height: 20)
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)

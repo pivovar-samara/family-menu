@@ -41,7 +41,7 @@ class MenuService {
             let menuEntries = try context.fetch(fetchRequest)
 
             var initializedMenu: [DailyMenu] = []
-            let weekdays = localizedWeekdayNamesStartingFromMonday()
+            let weekdays = CalendarHelper.localizedWeekdayNamesStartingFromMonday()
             
             let mealTypeFetchRequest = MealType.fetchRequest()
             mealTypeFetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \MealType.sortOrder, ascending: true)]
@@ -82,7 +82,7 @@ class MenuService {
                 return
             }
             
-            let weekdays = localizedWeekdayNamesStartingFromMonday()
+            let weekdays = CalendarHelper.localizedWeekdayNamesStartingFromMonday()
             
             let mealTypesFetchRequest = MealType.fetchRequest()
             mealTypesFetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \MealType.sortOrder, ascending: true)]

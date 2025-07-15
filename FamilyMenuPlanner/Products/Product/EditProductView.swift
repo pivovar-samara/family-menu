@@ -138,22 +138,35 @@ struct UnitSelectionCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                     ForEach(viewModel.units, id: \.self) { unit in
-                        UnitChip(
-                            title: (unit.name ?? "").localized(),
+                        ChipView(
+                            text: (unit.name ?? "").localized(),
                             isSelected: viewModel.selectedUnit == unit,
+                            backgroundColor: viewModel.selectedUnit == unit ? Color("AccentColor") : Color("BackgroundColor"),
+                            foregroundColor: viewModel.selectedUnit == unit ? .white : .primary,
+                            font: .body.weight(viewModel.selectedUnit == unit ? .semibold : .medium),
+                            horizontalPadding: 16,
+                            verticalPadding: 12,
+                            cornerRadius: 12,
                             onTap: {
                                 viewModel.selectedUnit = unit
                                 viewModel.updateProductUnit(unit)
                             }
                         )
+                        .frame(maxWidth: .infinity)
+                        .accessibilityIdentifier("unit_chip_\(unit.name ?? "")")
                     }
                 }
             }
         }
-        .padding(20)
-        .background(Color("SecondaryBackgroundColor"))
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+        .cardStyle(
+            cornerRadius: 16,
+            backgroundColor: Color("SecondaryBackgroundColor"),
+            shadowColor: .black.opacity(0.06),
+            shadowRadius: 8,
+            borderColor: Color.clear,
+            borderWidth: 0,
+            padding: 20
+        )
     }
 }
 

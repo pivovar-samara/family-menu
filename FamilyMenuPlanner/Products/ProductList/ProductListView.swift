@@ -18,131 +18,133 @@ struct ProductListView: View {
     }
 
     var body: some View {
-        List {
-            // Empty state handling
-            if viewModel.filteredProducts.isEmpty {
-                if viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    // On-boarding style empty state when there are no products at all
-                    EmptyProductListView {
-                        viewModel.isAddingNewProduct = true
-                    }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .accessibilityIdentifier("product_list_empty_state")
-                } else {
-                    // No search results
-                    Color.clear
-                        .emptyState(message: "No results found".localized())
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .accessibilityIdentifier("product_list_no_results_state")
-                }
-            } else {
-                // Card-style product rows
-                ForEach(viewModel.filteredProducts, id: \.self) { product in
-                    ProductCardView(
-                        product: product,
-                        onEdit: {
-                            viewModel.selectedProduct = product
-                        },
-                        onDelete: {
-                            viewModel.deleteProduct(product)
-                        }
-                    )
-                    .padding(.vertical, 8)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .accessibilityIdentifier("product_list_item_\(product.name ?? "unnamed")")
-                }
-            }
-
-            // Spacer to keep content above the floating action button
-            Color.clear
-                .frame(height: 80)
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-        }
-        .accessibilityIdentifier("ProductList")
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .background(Color("BackgroundColor"))
+        ProductListBody(
+            filteredProducts: viewModel.filteredProducts,
+            searchText: viewModel.searchText,
+            onAdd: { viewModel.isAddingNewProduct = true },
+            onEdit: { product in viewModel.selectedProduct = product },
+            onDelete: { product in viewModel.deleteProduct(product) }
+        )
         .searchable(text: $viewModel.searchText, prompt: "Search products...".localized())
         .navigationTitle("Products".localized())
         .overlay(alignment: .bottomTrailing) {
-            FloatingActionButton {
+            FloatingActionButton(icon: "plus") {
                 viewModel.isAddingNewProduct = true
             }
             .padding(.trailing, 20)
             .padding(.bottom, 20)
             .accessibilityIdentifier("add_product_button")
         }
-        // Toolbar with sort button
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { showingSortOptions = true }) {
-                    Image(systemName: "arrow.up.arrow.down")
-                        .font(.body)
-                        .foregroundColor(Color("AccentColor"))
-                }
-                .accessibilityIdentifier("sort_products_button")
-                .accessibilityLabel("Sort products".localized())
-                .confirmationDialog("Sort products".localized(), isPresented: $showingSortOptions, titleVisibility: .visible) {
-                    Button("Name A-Z".localized()) {
-                        viewModel.updateSortOption(.nameAscending)
-                    }
-                    Button("Name Z-A".localized()) {
-                        viewModel.updateSortOption(.nameDescending)
-                    }
-                    Button("Unit".localized()) {
-                        viewModel.updateSortOption(.unit)
-                    }
-                    Button("Cancel".localized(), role: .cancel) {}
-                }
-            }
-        }
-        // Sheet for adding new product
-        .sheet(isPresented: $viewModel.isAddingNewProduct, onDismiss: {
-            viewModel.isAddingNewProduct = false
-        }) {
-            NavigationStack {
-                EditProductCoordinator().createEditProductView()
-            }
-        }
-        // Sheet for editing selected product
-        .sheet(item: $viewModel.selectedProduct, onDismiss: {
-            // Reset selection after sheet dismissal
-            viewModel.selectedProduct = nil
-        }) { product in
-            NavigationStack {
-                EditProductCoordinator().createEditProductView(
-                    product: product,
-                    onDismiss: { shouldSave in
-                        if !shouldSave {
-                            // User dismissed without saving - ensure rollback happens
-                            // The EditProductViewModel's deinit will handle rollback as fallback
-                            AppLogger.info("Product editing dismissed without saving", category: AppLogger.viewModel)
-                        }
-                        viewModel.selectedProduct = nil
-                    }
-                )
-            }
-        }
-        // Alerts queue support
-        .alert(item: Binding(
-            get: { viewModel.currentAlert },
-            set: { _ in viewModel.dismissAlert() }
-        )) { alert in
-            Alert(
-                title: Text(alert.title),
-                message: Text(alert.message),
-                dismissButton: .default(Text("OK".localized())) {
-                    alert.action?()
-                }
-            )
-        }
+        .modifier(productListToolbar)
+        .modifier(productListAddSheet)
+        .modifier(productListEditSheet)
+        .modifier(productListAlert)
         .onAppear {
             viewModel.loadProducts()
+        }
+    }
+
+    private var productListToolbar: some ViewModifier {
+        ToolbarModifier(showingSortOptions: $showingSortOptions, viewModel: viewModel)
+    }
+    private var productListAddSheet: some ViewModifier {
+        AddSheetModifier(isPresented: $viewModel.isAddingNewProduct)
+    }
+    private var productListEditSheet: some ViewModifier {
+        EditSheetModifier(selectedProduct: $viewModel.selectedProduct, viewModel: viewModel)
+    }
+    private var productListAlert: some ViewModifier {
+        AlertModifier(currentAlert: Binding(get: { viewModel.currentAlert }, set: { _ in viewModel.dismissAlert() }))
+    }
+
+    private struct ProductListBody: View {
+        let filteredProducts: [Product]
+        let searchText: String
+        let onAdd: () -> Void
+        let onEdit: (Product) -> Void
+        let onDelete: (Product) -> Void
+        var body: some View {
+            List {
+                if filteredProducts.isEmpty {
+                    if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        ProductListEmptyState(onAdd: onAdd)
+                    } else {
+                        ProductListNoResultsState()
+                    }
+                } else {
+                    ProductListRows(products: filteredProducts, onEdit: onEdit, onDelete: onDelete)
+                }
+                Color.clear
+                    .frame(height: 80)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+            }
+            .accessibilityIdentifier("ProductList")
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color("BackgroundColor"))
+        }
+    }
+
+    private func productListSection() -> AnyView {
+        if viewModel.filteredProducts.isEmpty {
+            if viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return AnyView(ProductListEmptyState(onAdd: { viewModel.isAddingNewProduct = true }))
+            } else {
+                return AnyView(ProductListNoResultsState())
+            }
+        } else {
+            return AnyView(ProductListRows(products: viewModel.filteredProducts, onEdit: { product in viewModel.selectedProduct = product }, onDelete: { product in viewModel.deleteProduct(product) }))
+        }
+    }
+
+    private var spacerRow: some View {
+        Color.clear
+            .frame(height: 80)
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+    }
+
+    private struct ProductListRows: View {
+        let products: [Product]
+        let onEdit: (Product) -> Void
+        let onDelete: (Product) -> Void
+        var body: some View {
+            ForEach(products, id: \.self) { product in
+                productCard(for: product)
+            }
+        }
+        @ViewBuilder
+        private func productCard(for product: Product) -> some View {
+            ProductCardView(
+                product: product,
+                onEdit: { onEdit(product) },
+                onDelete: { onDelete(product) }
+            )
+            .padding(.vertical, 8)
+            .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .accessibilityIdentifier("product_list_item_\(product.name ?? "unnamed")")
+        }
+    }
+
+    private struct ProductListEmptyState: View {
+        let onAdd: () -> Void
+        var body: some View {
+            EmptyProductListView(onAddProduct: onAdd)
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .accessibilityIdentifier("product_list_empty_state")
+        }
+    }
+
+    private struct ProductListNoResultsState: View {
+        var body: some View {
+            ViewHelper.emptyState(Color.clear, message: "No results found".localized())
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .accessibilityIdentifier("product_list_no_results_state")
         }
     }
 }
@@ -159,7 +161,15 @@ struct ProductCardView: View {
             // Header with unit chip and actions
             HStack {
                 if let unitName = product.unit?.name?.localized(), !unitName.isEmpty {
-                    ProductListUnitChip(title: unitName)
+                    ChipView(
+                        text: unitName,
+                        backgroundColor: Color("AccentColor"),
+                        foregroundColor: .white,
+                        font: .caption.weight(.medium),
+                        horizontalPadding: UIConstants.chipHorizontalPadding,
+                        verticalPadding: UIConstants.chipVerticalPadding,
+                        cornerRadius: UIConstants.chipCornerRadius
+                    )
                 }
 
                 Spacer()
@@ -199,13 +209,14 @@ struct ProductCardView: View {
                 .multilineTextAlignment(.leading)
                 .accessibilityIdentifier("ProductNameLabel")
         }
-        .padding(20)
-        .background(Color("SecondaryBackgroundColor"))
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.gray.opacity(0.1), lineWidth: 1)
+        .cardStyle(
+            cornerRadius: UIConstants.cardCornerRadius,
+            backgroundColor: Color("SecondaryBackgroundColor"),
+            shadowColor: .black.opacity(0.06),
+            shadowRadius: UIConstants.cardShadowRadius,
+            borderColor: Color.gray.opacity(0.1),
+            borderWidth: UIConstants.cardBorderWidth,
+            padding: UIConstants.cardPadding
         )
         .onTapGesture {
             onEdit()
@@ -227,27 +238,7 @@ struct ProductCardView: View {
 }
 
 // MARK: - Supporting Components
-struct ProductListUnitChip: View {
-    let title: String
-
-    var body: some View {
-        Text(title)
-            .font(.caption.weight(.medium))
-            .foregroundColor(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                LinearGradient(
-                    colors: [Color("AccentColor"), Color("AccentColor").opacity(0.8)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .cornerRadius(12)
-            .shadow(color: Color("AccentColor").opacity(0.3), radius: 2)
-    }
-}
-
+// ProductListUnitChip is now replaced by ChipView in ProductCardView
 struct EmptyProductListView: View {
     let onAddProduct: () -> Void
 
@@ -298,6 +289,92 @@ struct EmptyProductListView: View {
         }
         .padding(40)
         .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Toolbar Modifier
+private struct ToolbarModifier: ViewModifier {
+    @Binding var showingSortOptions: Bool
+    let viewModel: ProductListViewModel
+    func body(content: Content) -> some View {
+        content.toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: { showingSortOptions = true }) {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.body)
+                        .foregroundColor(Color("AccentColor"))
+                }
+                .accessibilityIdentifier("sort_products_button")
+                .accessibilityLabel("Sort products".localized())
+                .confirmationDialog("Sort products".localized(), isPresented: $showingSortOptions, titleVisibility: .visible) {
+                    Button("Name A-Z".localized()) {
+                        viewModel.updateSortOption(.nameAscending)
+                    }
+                    Button("Name Z-A".localized()) {
+                        viewModel.updateSortOption(.nameDescending)
+                    }
+                    Button("Unit".localized()) {
+                        viewModel.updateSortOption(.unit)
+                    }
+                    Button("Cancel".localized(), role: .cancel) {}
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Add Sheet Modifier
+private struct AddSheetModifier: ViewModifier {
+    @Binding var isPresented: Bool
+    func body(content: Content) -> some View {
+        content.sheet(isPresented: $isPresented, onDismiss: {
+            isPresented = false
+        }) {
+            NavigationStack {
+                EditProductCoordinator().createEditProductView()
+            }
+        }
+    }
+}
+
+// MARK: - Edit Sheet Modifier
+private struct EditSheetModifier: ViewModifier {
+    @Binding var selectedProduct: Product?
+    let viewModel: ProductListViewModel
+    func body(content: Content) -> some View {
+        content.sheet(item: $selectedProduct, onDismiss: {
+            viewModel.selectedProduct = nil
+        }) { product in
+            NavigationStack {
+                EditProductCoordinator().createEditProductView(
+                    product: product,
+                    onDismiss: { shouldSave in
+                        if !shouldSave {
+                            // User dismissed without saving - ensure rollback happens
+                            // The EditProductViewModel's deinit will handle rollback as fallback
+                            AppLogger.info("Product editing dismissed without saving", category: AppLogger.viewModel)
+                        }
+                        viewModel.selectedProduct = nil
+                    }
+                )
+            }
+        }
+    }
+}
+
+// MARK: - Alert Modifier
+private struct AlertModifier: ViewModifier {
+    @Binding var currentAlert: AlertItem?
+    func body(content: Content) -> some View {
+        content.alert(item: $currentAlert) { alert in
+            Alert(
+                title: Text(alert.title),
+                message: Text(alert.message),
+                dismissButton: .default(Text("OK".localized())) {
+                    alert.action?()
+                }
+            )
+        }
     }
 }
 

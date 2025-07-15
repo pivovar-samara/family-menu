@@ -28,8 +28,7 @@ struct ProductSelectionView: View {
                         .accessibilityIdentifier("product_selection_empty_state")
                 } else {
                     // Search yielded no results
-                    Color.clear
-                        .emptyState(message: "No results found".localized())
+                    ViewHelper.emptyState(Color.clear, message: "No results found".localized())
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                         .accessibilityIdentifier("product_selection_no_results_state")

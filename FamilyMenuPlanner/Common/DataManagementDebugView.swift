@@ -92,9 +92,11 @@ struct DataManagementDebugView: View {
                 Text("Cache Management")
             }
         }
-        .applyStyle()
+        // .applyStyle()
+        ViewHelper.applyStyle(self)
         .navigationTitle("Data Management")
-        .navigationBarTitleDisplayMode(.large)
+        // .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .alert(item: Binding(
             get: { currentAlert },
             set: { _ in dismissAlert() }

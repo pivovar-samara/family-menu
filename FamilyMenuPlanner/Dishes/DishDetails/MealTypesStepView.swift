@@ -62,10 +62,15 @@ struct HeaderCard: View {
                     .multilineTextAlignment(.center)
             }
         }
-        .padding(24)
-        .background(Color("SecondaryBackgroundColor"))
-        .cornerRadius(20)
-        .shadow(color: .black.opacity(0.04), radius: 8)
+        .cardStyle(
+            cornerRadius: 20,
+            backgroundColor: Color("SecondaryBackgroundColor"),
+            shadowColor: .black.opacity(0.04),
+            shadowRadius: 8,
+            borderColor: Color.clear,
+            borderWidth: 0,
+            padding: 24
+        )
     }
 }
 
@@ -93,14 +98,14 @@ struct MealTypesGridCard: View {
                 
                 Spacer()
                 
-                // Selection Counter
-                Text(String.localizedStringWithFormat("%d selected".localized(), selectedMealTypes.count))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color("AccentColor").opacity(0.1))
-                    .cornerRadius(8)
+                ChipView(
+                    text: String.localizedStringWithFormat("%d selected".localized(), selectedMealTypes.count),
+                    backgroundColor: Color("AccentColor").opacity(0.1),
+                    font: .caption,
+                    horizontalPadding: 8,
+                    verticalPadding: 4,
+                    cornerRadius: 8
+                )
             }
             
             LazyVGrid(columns: columns, spacing: 16) {
@@ -113,10 +118,15 @@ struct MealTypesGridCard: View {
                 }
             }
         }
-        .padding(20)
-        .background(Color("SecondaryBackgroundColor"))
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.04), radius: 8)
+        .cardStyle(
+            cornerRadius: 16,
+            backgroundColor: Color("SecondaryBackgroundColor"),
+            shadowColor: .black.opacity(0.04),
+            shadowRadius: 8,
+            borderColor: Color.clear,
+            borderWidth: 0,
+            padding: 20
+        )
     }
 }
 
@@ -167,6 +177,7 @@ struct MealTypeCard: View {
                     .font(.body.weight(isSelected ? .semibold : .medium))
                     .foregroundColor(isSelected ? .primary : .secondary)
                     .multilineTextAlignment(.center)
+                    .frame(minWidth: 100)
                 
                 // Selection Indicator
                 if isSelected {
@@ -175,31 +186,50 @@ struct MealTypeCard: View {
                         .foregroundColor(Color("AccentColor"))
                 }
             }
-            .padding(16)
-            .frame(maxWidth: .infinity, minHeight: 120)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(isSelected ? Color("AccentColor").opacity(0.05) : Color("BackgroundColor"))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(
-                                isSelected ? Color("AccentColor") : Color.gray.opacity(0.3),
-                                lineWidth: isSelected ? 2 : 1
-                            )
-                    )
+            .cardStyle(
+                cornerRadius: 16,
+                backgroundColor: isSelected ? Color("AccentColor").opacity(0.05) : Color("BackgroundColor"),
+                shadowColor: Color.clear,
+                shadowRadius: 0,
+                borderColor: isSelected ? Color("AccentColor") : Color.gray.opacity(0.3),
+                borderWidth: isSelected ? 2 : 1,
+                padding: 16
             )
         }
-        .buttonStyle(MealTypesScaleButtonStyle())
+        .buttonStyle(ScaleButtonStyle())
         .accessibilityIdentifier("mealType" + (mealType.name?.replacingOccurrences(of: " ", with: "") ?? ""))
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
     }
+} 
+
+// MARK: - Preview
+
+#if DEBUG
+struct MealTypesGridCard_Previews: PreviewProvider {
+    static var previews: some View {
+        NavigationStack {
+            MealTypesGridCard(mealTypes: generatePreviewMealTypes(), selectedMealTypes: Set()) { MealType in
+                
+            }
+        }
+    }
 }
 
-// MARK: - Local UI Styles
-struct MealTypesScaleButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
-    }
-} 
+func generatePreviewMealTypes() -> [MealType] {
+    let context = PersistenceController.preview.container.viewContext
+    
+    let breakfast = MealType(context: context)
+    breakfast.name = "Breakfast"
+    breakfast.sortOrder = 1
+    
+    let lunch = MealType(context: context)
+    lunch.name = "Lunch"
+    lunch.sortOrder = 2
+    
+    let dinner = MealType(context: context)
+    dinner.name = "Dinner"
+    dinner.sortOrder = 3
+    
+    return [breakfast, lunch, dinner]
+}
+#endif

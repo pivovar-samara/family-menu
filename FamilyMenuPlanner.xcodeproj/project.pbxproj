@@ -66,7 +66,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Common/DataManagementDebugView.swift,
-				Common/ViewHelper.swift,
 				ContentView.swift,
 				Dishes/DishDetails/BasicInfoStepView.swift,
 				Dishes/DishDetails/DishDetailsCoordinator.swift,
@@ -98,7 +97,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Common/DataManagementDebugView.swift,
-				Common/ViewHelper.swift,
 				ContentView.swift,
 				Dishes/DishDetails/BasicInfoStepView.swift,
 				Dishes/DishDetails/DishDetailsCoordinator.swift,
@@ -130,7 +128,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Common/DataManagementDebugView.swift,
-				Common/ViewHelper.swift,
 				ContentView.swift,
 				Dishes/DishDetails/BasicInfoStepView.swift,
 				Dishes/DishDetails/DishDetailsCoordinator.swift,
