@@ -88,10 +88,15 @@ struct HeroInfoCard: View {
                     .textInputAutocapitalization(.words)
             }
         }
-        .padding(24)
-        .background(Color("SecondaryBackgroundColor"))
-        .cornerRadius(20)
-        .shadow(color: .black.opacity(0.06), radius: 12)
+        .cardStyle(
+            cornerRadius: 20,
+            backgroundColor: Color("SecondaryBackgroundColor"),
+            shadowColor: .black.opacity(0.06),
+            shadowRadius: 12,
+            borderColor: Color.clear,
+            borderWidth: 0,
+            padding: 24
+        )
     }
 }
 
@@ -114,13 +119,14 @@ struct DescriptionCard: View {
                 
                 Spacer()
                 
-                Text("Optional".localized())
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.gray.opacity(0.2))
-                    .cornerRadius(8)
+                ChipView(
+                    text: "Optional".localized(),
+                    backgroundColor: Color.gray.opacity(0.2),
+                    font: .caption,
+                    horizontalPadding: 8,
+                    verticalPadding: 4,
+                    cornerRadius: 8
+                )
             }
             
             ZStack(alignment: .topLeading) {
@@ -138,10 +144,15 @@ struct DescriptionCard: View {
             }
             .frame(minHeight: 100)
         }
-        .padding(20)
-        .background(Color("SecondaryBackgroundColor"))
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.04), radius: 8)
+        .cardStyle(
+            cornerRadius: 16,
+            backgroundColor: Color("SecondaryBackgroundColor"),
+            shadowColor: .black.opacity(0.04),
+            shadowRadius: 8,
+            borderColor: Color.clear,
+            borderWidth: 0,
+            padding: 20
+        )
     }
 }
 
@@ -167,71 +178,46 @@ struct CategorySelectionCard: View {
                 GridItem(.adaptive(minimum: 100), spacing: 12)
             ], spacing: 12) {
                 // No Category Option
-                CategoryChip(
-                    title: "No Category".localized(),
+                ChipView(
+                    text: "No Category".localized(),
                     isSelected: selectedCategory == nil,
+                    backgroundColor: selectedCategory == nil ? Color("AccentColor") : Color("BackgroundColor"),
+                    foregroundColor: selectedCategory == nil ? .white : .primary,
+                    font: .body.weight(selectedCategory == nil ? .semibold : .medium),
+                    horizontalPadding: 16,
+                    verticalPadding: 10,
+                    cornerRadius: 20,
                     onTap: { onCategorySelected(nil) }
                 )
                 
                 ForEach(categories, id: \.self) { category in
-                    CategoryChip(
-                        title: category.name?.localized() ?? "",
+                    ChipView(
+                        text: category.name?.localized() ?? "",
                         isSelected: selectedCategory == category,
+                        backgroundColor: selectedCategory == category ? Color("AccentColor") : Color("BackgroundColor"),
+                        foregroundColor: selectedCategory == category ? .white : .primary,
+                        font: .body.weight(selectedCategory == category ? .semibold : .medium),
+                        horizontalPadding: 16,
+                        verticalPadding: 10,
+                        cornerRadius: 20,
                         onTap: { onCategorySelected(category) }
                     )
                 }
             }
         }
-        .padding(20)
-        .background(Color("SecondaryBackgroundColor"))
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.04), radius: 8)
-    }
-}
-
-// MARK: - Category Chip Component
-struct CategoryChip: View {
-    let title: String
-    let isSelected: Bool
-    let onTap: () -> Void
-    
-    var body: some View {
-        Button(action: onTap) {
-            Text(title)
-                .font(.body.weight(isSelected ? .semibold : .medium))
-                .foregroundColor(isSelected ? .white : .primary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(isSelected ? Color("AccentColor") : Color("BackgroundColor"))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(Color.gray.opacity(0.3), lineWidth: isSelected ? 0 : 1)
-                        )
-                )
-        }
-        .buttonStyle(BasicInfoScaleButtonStyle())
-        .animation(.easeInOut(duration: 0.2), value: isSelected)
+        .cardStyle(
+            cornerRadius: 16,
+            backgroundColor: Color("SecondaryBackgroundColor"),
+            shadowColor: .black.opacity(0.04),
+            shadowRadius: 8,
+            borderColor: Color.clear,
+            borderWidth: 0,
+            padding: 20
+        )
     }
 }
 
 // MARK: - Local UI Styles
-struct ModernTextFieldStyle: TextFieldStyle {
-    func _body(configuration: TextField<Self._Label>) -> some View {
-        configuration
-            .font(.body)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(Color("BackgroundColor"))
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-            )
-    }
-}
-
 struct BasicInfoScaleButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label

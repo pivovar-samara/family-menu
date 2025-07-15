@@ -26,12 +26,12 @@ struct MenuView: View {
         .navigationTitle("Menu".localized())
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                createToolbarButton(title: "Shopping List".localized(), systemImage: "cart") {
+                ViewHelper.createToolbarButton(title: "Shopping List".localized(), systemImage: "cart") {
                     viewModel.isShowingShoppingList = true
                 }
             }
             ToolbarItem(placement: .navigationBarLeading) {
-                createToolbarButton(title: "Generate Menu".localized(), systemImage: "wand.and.stars") {
+                ViewHelper.createToolbarButton(title: "Generate Menu".localized(), systemImage: "wand.and.stars") {
                     viewModel.showGenerateMenuAlert = true
                 }
             }
@@ -94,7 +94,7 @@ struct MenuView: View {
         VStack {
             Picker("Select Week", selection: $viewModel.selectedWeekIndex) {
                 ForEach(0..<viewModel.weekOptions.count, id: \.self) { index in
-                    Text(formattedWeek(viewModel.weekOptions[index])).tag(index)
+                    Text(CalendarHelper.formattedWeek(viewModel.weekOptions[index])).tag(index)
                 }
             }
             .pickerStyle(SegmentedPickerStyle())
@@ -180,18 +180,16 @@ struct DailyMenuCardView: View {
                 
                 // Today indicator
                 if Calendar.current.isDateInToday(dateForDay(dailyMenu.day)) {
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(Color("AccentColor"))
-                            .frame(width: 8, height: 8)
-                        Text("Today".localized())
-                            .font(.caption.weight(.medium))
-                            .foregroundColor(Color("AccentColor"))
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color("AccentColor").opacity(0.1))
-                    .cornerRadius(12)
+                    ChipView(
+                        text: "Today".localized(),
+                        icon: "circle.fill",
+                        backgroundColor: Color("AccentColor").opacity(0.1),
+                        foregroundColor: Color("AccentColor"),
+                        font: .caption.weight(.medium),
+                        horizontalPadding: 12,
+                        verticalPadding: 6,
+                        cornerRadius: 12
+                    )
                 }
             }
             
@@ -211,13 +209,14 @@ struct DailyMenuCardView: View {
                 }
             }
         }
-        .padding(20)
-        .background(Color("SecondaryBackgroundColor"))
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.gray.opacity(0.1), lineWidth: 1)
+        .cardStyle(
+            cornerRadius: UIConstants.cardCornerRadius,
+            backgroundColor: Color("SecondaryBackgroundColor"),
+            shadowColor: .black.opacity(0.06),
+            shadowRadius: UIConstants.cardShadowRadius,
+            borderColor: Color.gray.opacity(0.1),
+            borderWidth: UIConstants.cardBorderWidth,
+            padding: UIConstants.cardPadding
         )
         .contextMenu {
             Button(role: .destructive) {
@@ -391,8 +390,7 @@ struct ShoppingListIncorrectView: View {
     
     var body: some View {
         List {
-            Color.clear
-                .emptyState(message: "InvalidWeekSelectionMessage".localized())
+            ViewHelper.emptyState(Color.clear, message: "InvalidWeekSelectionMessage".localized())
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
                 .accessibilityIdentifier("product_selection_no_results_state")

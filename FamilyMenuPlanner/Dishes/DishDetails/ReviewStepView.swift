@@ -431,31 +431,6 @@ struct ValidationCard: View {
     }
 }
 
-// MARK: - Validation Issue
-struct ValidationIssue {
-    enum IssueType {
-        case error, warning
-        
-        var color: Color {
-            switch self {
-            case .error: return .red
-            case .warning: return .orange
-            }
-        }
-        
-        var icon: String {
-            switch self {
-            case .error: return "xmark.circle.fill"
-            case .warning: return "exclamationmark.circle.fill"
-            }
-        }
-    }
-    
-    let type: IssueType
-    let message: String
-    let suggestion: String
-}
-
 // MARK: - Validation Issue Row
 struct ValidationIssueRow: View {
     let issue: ValidationIssue

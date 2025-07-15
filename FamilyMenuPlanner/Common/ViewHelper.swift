@@ -7,16 +7,208 @@
 
 import SwiftUI
 
-func createToolbarButton(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
-    Button {
-        action()
-    } label: {
-        Label(title, systemImage: systemImage)
-    }
-    .foregroundColor(Color("AccentColor"))
-    .tint(Color("AccentColor"))
+// MARK: - UI Constants
+/// Centralized UI constants for consistent spacing, sizing, and styling across the app
+struct UIConstants {
+    // MARK: - Spacing
+    static let horizontalPadding: CGFloat = 20
+    static let topPadding: CGFloat = 20
+    static let cardPadding: CGFloat = 20
+    static let sectionSpacing: CGFloat = 24
+    static let itemSpacing: CGFloat = 16
+    
+    // MARK: - Corner Radius
+    static let cardCornerRadius: CGFloat = 16
+    static let chipCornerRadius: CGFloat = 12
+    static let buttonCornerRadius: CGFloat = 12
+    
+    // MARK: - Chip Styling
+    static let chipHorizontalPadding: CGFloat = 12
+    static let chipVerticalPadding: CGFloat = 6
+    
+    // MARK: - Shadows & Borders
+    static let cardShadowRadius: CGFloat = 8
+    static let cardBorderWidth: CGFloat = 1
+    static let buttonShadowRadius: CGFloat = 4
+    
+    // MARK: - Button Sizing
+    static let buttonHorizontalPadding: CGFloat = 24
+    static let buttonVerticalPadding: CGFloat = 14
 }
 
+// MARK: - View Extensions
+extension View {
+    /// Prevents CoreGraphics NaN errors by validating frame dimensions
+    /// - Parameters:
+    ///   - width: Optional width constraint
+    ///   - height: Optional height constraint
+    ///   - alignment: Frame alignment (default: .center)
+    /// - Returns: A view with safe frame constraints
+    func safeFrame(width: CGFloat? = nil, height: CGFloat? = nil, alignment: Alignment = .center) -> some View {
+        let safeWidth = width?.isNaN == false && width?.isInfinite == false ? width : nil
+        let safeHeight = height?.isNaN == false && height?.isInfinite == false ? height : nil
+        
+        return self.frame(
+            width: safeWidth,
+            height: safeHeight,
+            alignment: alignment
+        )
+    }
+}
+
+// MARK: - UI Components
+
+/// Modifier for consistent card styling across the app
+struct CardModifier: ViewModifier {
+    var cornerRadius: CGFloat = UIConstants.cardCornerRadius
+    var backgroundColor: Color = Color("SecondaryBackgroundColor")
+    var shadowColor: Color = .black.opacity(0.06)
+    var shadowRadius: CGFloat = UIConstants.cardShadowRadius
+    var borderColor: Color = Color.gray.opacity(0.1)
+    var borderWidth: CGFloat = UIConstants.cardBorderWidth
+    var padding: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .padding(padding)
+            .background(backgroundColor)
+            .cornerRadius(cornerRadius)
+            .shadow(color: shadowColor, radius: shadowRadius, x: 0, y: 2)
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(borderColor, lineWidth: borderWidth)
+            )
+    }
+}
+
+extension View {
+    /// Applies card styling to a view with customizable parameters
+    /// - Parameters:
+    ///   - cornerRadius: Corner radius for the card (default: 16)
+    ///   - backgroundColor: Background color (default: SecondaryBackgroundColor)
+    ///   - shadowColor: Shadow color (default: black with 6% opacity)
+    ///   - shadowRadius: Shadow radius (default: 8)
+    ///   - borderColor: Border color (default: gray with 10% opacity)
+    ///   - borderWidth: Border width (default: 1)
+    ///   - padding: Internal padding (default: 0)
+    /// - Returns: A view with card styling applied
+    func cardStyle(
+        cornerRadius: CGFloat = UIConstants.cardCornerRadius,
+        backgroundColor: Color = Color("SecondaryBackgroundColor"),
+        shadowColor: Color = .black.opacity(0.06),
+        shadowRadius: CGFloat = UIConstants.cardShadowRadius,
+        borderColor: Color = Color.gray.opacity(0.1),
+        borderWidth: CGFloat = UIConstants.cardBorderWidth,
+        padding: CGFloat = 0
+    ) -> some View {
+        self.modifier(CardModifier(
+            cornerRadius: cornerRadius,
+            backgroundColor: backgroundColor,
+            shadowColor: shadowColor,
+            shadowRadius: shadowRadius,
+            borderColor: borderColor,
+            borderWidth: borderWidth,
+            padding: padding
+        ))
+    }
+}
+
+/// Reusable chip/tag component for displaying categories, units, and other metadata
+struct ChipView: View {
+    let text: String
+    var icon: String? = nil
+    var isSelected: Bool = false
+    var backgroundColor: Color? = nil
+    var foregroundColor: Color? = nil
+    var borderColor: Color? = nil
+    var font: Font = .body.weight(.medium)
+    var horizontalPadding: CGFloat = UIConstants.chipHorizontalPadding
+    var verticalPadding: CGFloat = UIConstants.chipVerticalPadding
+    var cornerRadius: CGFloat = UIConstants.chipCornerRadius
+    var onTap: (() -> Void)? = nil
+
+    var body: some View {
+        let bg = backgroundColor ?? (isSelected ? Color("AccentColor") : Color("BackgroundColor"))
+        let fg = foregroundColor ?? (isSelected ? Color.white : .primary)
+        let border = borderColor ?? (isSelected ? Color.clear : Color.gray.opacity(0.3))
+        
+        let content = HStack(spacing: 6) {
+            if let icon = icon {
+                Image(systemName: icon)
+            }
+            Text(text)
+        }
+        .font(font)
+        .foregroundColor(fg)
+        .padding(.horizontal, horizontalPadding)
+        .padding(.vertical, verticalPadding)
+        .background(
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(bg)
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .stroke(border, lineWidth: isSelected ? 0 : 1)
+                )
+        )
+        .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
+
+        if let onTap = onTap {
+            Button(action: onTap) {
+                content
+            }
+            .buttonStyle(ScaleButtonStyle())
+        } else {
+            content
+        }
+    }
+}
+
+// MARK: - Button Styles
+
+/// Primary button style for main actions
+struct PrimaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body.weight(.semibold))
+            .foregroundColor(.white)
+            .padding(.horizontal, UIConstants.buttonHorizontalPadding)
+            .padding(.vertical, UIConstants.buttonVerticalPadding)
+            .background(Color("AccentColor"))
+            .cornerRadius(UIConstants.buttonCornerRadius)
+            .shadow(color: .black.opacity(0.1), radius: UIConstants.buttonShadowRadius)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
+/// Secondary button style for alternative actions
+struct SecondaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body.weight(.semibold))
+            .foregroundColor(Color("AccentColor"))
+            .padding(.horizontal, UIConstants.buttonHorizontalPadding)
+            .padding(.vertical, UIConstants.buttonVerticalPadding)
+            .background(Color("AccentColor").opacity(0.1))
+            .cornerRadius(UIConstants.buttonCornerRadius)
+            .shadow(color: .black.opacity(0.05), radius: 2)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
+/// Scale button style for interactive elements that need press feedback
+struct ScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Utility Components
+
+/// Empty state modifier for consistent empty state styling
 struct EmptyStateModifier: ViewModifier {
     let message: String
 
@@ -34,117 +226,102 @@ struct EmptyStateModifier: ViewModifier {
     }
 }
 
-extension View {
-    func emptyState(message: String) -> some View {
-        self.modifier(EmptyStateModifier(message: message))
-    }
-    
-    /// Prevents CoreGraphics NaN errors by validating frame dimensions
-    func safeFrame(width: CGFloat? = nil, height: CGFloat? = nil, alignment: Alignment = .center) -> some View {
-        let safeWidth = width?.isNaN == false && width?.isInfinite == false ? width : nil
-        let safeHeight = height?.isNaN == false && height?.isInfinite == false ? height : nil
-        
-        return self.frame(
-            width: safeWidth,
-            height: safeHeight,
-            alignment: alignment
-        )
-    }
-}
+// MARK: - ViewHelper Class for Shared Utilities
+/// Static utility class providing shared helper functions
+/// Note: This class cannot be instantiated - use static methods only
+class ViewHelper {
+    private init() {} // Prevent instantiation - use static methods only
 
-extension List {
-    func applyStyle() -> some View {
-        return self
+    /// Creates a toolbar button with consistent styling
+    static func createToolbarButton(title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button {
+            action()
+        } label: {
+            Label(title, systemImage: systemImage)
+        }
+        .foregroundColor(Color("AccentColor"))
+        .tint(Color("AccentColor"))
+    }
+
+    /// Applies empty state styling to a view
+    static func emptyState<V: View>(_ view: V, message: String) -> some View {
+        view.modifier(EmptyStateModifier(message: message))
+    }
+
+    /// Applies consistent list styling across the app
+    static func applyStyle<V: View>(_ list: V) -> some View {
+        list.listStyle(.plain)
             .scrollContentBackground(.hidden)
             .background(Color("BackgroundColor"))
     }
 }
 
-// MARK: - ViewHelper class for shared utilities
-class ViewHelper {
-    private init() {} // Prevent instantiation - use static methods only
-}
-
 // MARK: - Ingredient Validation Helpers
 extension ViewHelper {
     /// Checks if an ingredient quantity seems unusually large based on its unit
+    /// - Parameter ingredient: The ingredient to validate
+    /// - Returns: True if the quantity is unusually large for the given unit
     static func hasUnusualQuantity(_ ingredient: IngredientDetail) -> Bool {
-        guard let unit = ingredient.product?.unit?.name?.lowercased() else { return false }
-        let quantity = ingredient.quantity
-        
-        switch unit {
-        case "kg": return quantity > 5.0
-        case "g": return quantity > 2000
-        case "l": return quantity > 3.0
-        case "ml": return quantity > 2000
-        case "pcs", "pieces", "piece": return quantity > 20
-        default: return false
-        }
+        return DataValidationHelper.hasUnusualQuantity(ingredient)
     }
     
     /// Formats ingredient quantity for display (removes decimal if whole number)
+    /// - Parameter quantity: The quantity to format
+    /// - Returns: A formatted string representation of the quantity
     static func formatQuantity(_ quantity: Double) -> String {
-        // Use NumberFormatter to respect locale for decimal separator display
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 0
-        formatter.maximumFractionDigits = 1
-        
-        if let formattedString = formatter.string(from: NSNumber(value: quantity)) {
-            return formattedString
-        } else {
-            // Fallback to standard formatting
-            if quantity == floor(quantity) {
-                return String(Int(quantity))
-            } else {
-                return String(format: "%.1f", quantity)
-            }
-        }
+        return DataValidationHelper.formatQuantity(quantity)
     }
     
     /// Normalizes decimal separator in string for Double parsing
     /// Converts comma to period so both "1,5" and "1.5" can be parsed correctly
+    /// - Parameter input: The input string to normalize
+    /// - Returns: A normalized string with period as decimal separator
     static func normalizeDecimalString(_ input: String) -> String {
-        return input.replacingOccurrences(of: ",", with: ".")
+        return DataValidationHelper.normalizeDecimalString(input)
     }
 }
 
-// MARK: - Meal Type Styling Helpers
+// MARK: - Meal Type Styling Helpers (Legacy - Use StylingHelper instead)
 extension ViewHelper {
     /// Returns the appropriate icon for a meal type
+    /// - Parameter mealType: The meal type object
+    /// - Returns: SF Symbol name for the meal type icon
+    /// @deprecated Use StylingHelper.mealTypeIcon(for:) instead
     static func mealTypeIcon(for mealType: MealType) -> String {
-        guard let name = mealType.name?.lowercased() else { return "fork.knife" }
-        return mealTypeIcon(for: name)
+        return StylingHelper.mealTypeIcon(for: mealType)
     }
     
     /// Returns the appropriate color for a meal type
+    /// - Parameter mealType: The meal type object
+    /// - Returns: Color for the meal type
+    /// @deprecated Use StylingHelper.mealTypeColor(for:) instead
     static func mealTypeColor(for mealType: MealType) -> Color {
-        guard let name = mealType.name?.lowercased() else { return .orange }
-        return mealTypeColor(for: name)
+        return StylingHelper.mealTypeColor(for: mealType)
     }
     
     /// Returns the appropriate icon for a meal type string
+    /// - Parameter mealTypeName: The meal type name string
+    /// - Returns: SF Symbol name for the meal type icon
+    /// @deprecated Use StylingHelper.mealTypeIcon(for:) instead
     static func mealTypeIcon(for mealTypeName: String) -> String {
-        let name = mealTypeName.lowercased()
-        switch name {
-        case "breakfast": return "sunrise.fill"
-        case "lunch": return "sun.max.fill"
-        case "dinner": return "moon.stars.fill"
-        case "snack": return "heart.fill"
-        default: return "fork.knife"
-        }
+        return StylingHelper.mealTypeIcon(for: mealTypeName)
     }
     
     /// Returns the appropriate color for a meal type string
+    /// - Parameter mealTypeName: The meal type name string
+    /// - Returns: Color for the meal type
+    /// @deprecated Use StylingHelper.mealTypeColor(for:) instead
     static func mealTypeColor(for mealTypeName: String) -> Color {
-        let name = mealTypeName.lowercased()
-        switch name {
-        case "breakfast": return .orange
-        case "lunch": return .yellow
-        case "dinner": return .purple
-        case "snack": return .pink
-        default: return Color("AccentColor")
-        }
+        return StylingHelper.mealTypeColor(for: mealTypeName)
+    }
+}
+
+extension View {
+    /// Applies consistent list styling across the app as a view modifier
+    func applyStyle() -> some View {
+        self.listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color("BackgroundColor"))
     }
 }
 

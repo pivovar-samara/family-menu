@@ -26,8 +26,7 @@ struct DishSelectionView: View {
                         .listRowBackground(Color.clear)
                         .accessibilityIdentifier("dish_selection_empty_state")
                 } else {
-                    Color.clear
-                        .emptyState(message: "No results found".localized())
+                    ViewHelper.emptyState(Color.clear, message: "No results found".localized())
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                         .accessibilityIdentifier("dish_selection_no_results_state")

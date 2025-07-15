@@ -30,7 +30,7 @@ class MenuViewModel: ObservableObject {
     @Published var hasScrolledToToday: Bool = false
     @Published var currentAlert: AlertItem?
     
-    let weekdays: [String] = localizedWeekdayNamesStartingFromMonday()
+    let weekdays: [String] = CalendarHelper.localizedWeekdayNamesStartingFromMonday()
     
     private let alertManager = AlertQueueManager()
 
