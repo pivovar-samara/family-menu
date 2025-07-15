@@ -73,8 +73,6 @@ struct ShoppingListView: View {
                 .accessibilityIdentifier("shopping_list_item_\(item.productName)")
             }
         }
-        Spacer()
-            .frame(height: 20)
     }
 
     @ToolbarContentBuilder
