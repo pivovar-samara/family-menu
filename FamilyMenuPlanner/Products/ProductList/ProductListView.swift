@@ -28,7 +28,7 @@ struct ProductListView: View {
         .searchable(text: $viewModel.searchText, prompt: "Search products...".localized())
         .navigationTitle("Products".localized())
         .overlay(alignment: .bottomTrailing) {
-            FloatingActionButton(icon: "plus") {
+            FloatingActionButton(sfSymbolName: "plus") {
                 viewModel.isAddingNewProduct = true
             }
             .padding(.trailing, 20)

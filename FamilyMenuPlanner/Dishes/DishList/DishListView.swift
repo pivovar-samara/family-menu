@@ -29,7 +29,7 @@ struct DishListView: View {
         .modifier(dishListEditSheet)
         .modifier(dishListAlert)
         .overlay(alignment: .bottomTrailing) {
-            FloatingActionButton(icon: "plus") {
+            FloatingActionButton(sfSymbolName: "plus") {
                 viewModel.isAddingNewDish = true
             }
             .padding(.trailing, 20)

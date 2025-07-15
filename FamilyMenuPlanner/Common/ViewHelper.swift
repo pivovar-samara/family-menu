@@ -316,4 +316,13 @@ extension ViewHelper {
     }
 }
 
+extension View {
+    /// Applies consistent list styling across the app as a view modifier
+    func applyStyle() -> some View {
+        self.listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color("BackgroundColor"))
+    }
+}
+
 

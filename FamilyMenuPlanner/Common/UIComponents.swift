@@ -12,12 +12,12 @@ import Foundation
 
 /// Floating action button component for adding new items
 struct FloatingActionButton: View {
-    let icon: String
+    let sfSymbolName: String
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
-            Image(systemName: icon)
+            Image(systemName: sfSymbolName)
                 .font(.title2.weight(.semibold))
                 .foregroundColor(.white)
                 .frame(width: 56, height: 56)

@@ -73,10 +73,8 @@ struct ShoppingListView: View {
                 .accessibilityIdentifier("shopping_list_item_\(item.productName)")
             }
         }
-        ViewHelper.applyStyle(Color.clear)
+        Spacer()
             .frame(height: 20)
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
     }
 
     @ToolbarContentBuilder

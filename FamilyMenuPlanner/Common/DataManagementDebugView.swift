@@ -92,8 +92,7 @@ struct DataManagementDebugView: View {
                 Text("Cache Management")
             }
         }
-        // .applyStyle()
-        ViewHelper.applyStyle(self)
+        .applyStyle()
         .navigationTitle("Data Management")
         // .navigationBarTitleDisplayMode(.large)
         .navigationBarTitleDisplayMode(.inline)
