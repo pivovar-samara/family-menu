@@ -28,7 +28,7 @@ func startOfWeek(for date: Date, calendar: Calendar = Calendar(identifier: .greg
     return calendar.date(from: components) ?? date
 }
 
-func formattedWeek(_ date: Date, calendar: Calendar = Calendar(identifier: .gregorian), locale: Locale = Locale(identifier: "en_US_POSIX")) -> String {
+func formattedWeek(_ date: Date, calendar: Calendar = Calendar(identifier: .gregorian), locale: Locale = Locale.current) -> String {
     let start = startOfWeek(for: date, calendar: calendar)
     let end = calendar.date(byAdding: .day, value: 6, to: start) ?? start
 

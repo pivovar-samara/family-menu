@@ -73,7 +73,7 @@ struct MenuView: View {
             Alert(
                 title: Text(alert.title),
                 message: Text(alert.message),
-                dismissButton: .default(Text("OK")) {
+                dismissButton: .default(Text("OK".localized())) {
                     alert.action?()
                 }
             )
@@ -91,7 +91,7 @@ struct MenuView: View {
     }
     
     private var weekSegmentControl: some View {
-        VStack(spacing: 16) {
+        VStack {
             Picker("Select Week", selection: $viewModel.selectedWeekIndex) {
                 ForEach(0..<viewModel.weekOptions.count, id: \.self) { index in
                     Text(formattedWeek(viewModel.weekOptions[index])).tag(index)
@@ -102,15 +102,8 @@ struct MenuView: View {
                 viewModel.loadMenu(for: viewModel.selectedWeekIndex) 
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
-        .background(Color("SecondaryBackgroundColor"))
-        .cornerRadius(12)
-        .padding(.horizontal, 20)
-        .padding(.top, 8)
-        .listRowInsets(EdgeInsets())
-        .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
     }
     
     private var menuContent: some View {
@@ -153,17 +146,6 @@ struct MenuView: View {
                 .listRowBackground(Color.clear)
         }
     }
-    
-    private func formattedWeek(_ date: Date) -> String {
-        let startOfWeek = startOfWeek(for: date)
-        let endOfWeek = Calendar.current.date(byAdding: .day, value: 6, to: startOfWeek) ?? startOfWeek
-        return "\(MenuView.weekDateFormatter.string(from: startOfWeek)) - \(MenuView.weekDateFormatter.string(from: endOfWeek))"
-    }
-    
-    private func startOfWeek(for date: Date) -> Date {
-        let calendar = Calendar.current
-        return calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date))!
-    }
 }
 
 extension MenuView {
@@ -188,13 +170,10 @@ struct DailyMenuCardView: View {
             // Header with day and date
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(dailyMenu.day)
+                    // Only show the date (without weekday name)
+                    Text(formattedDate(for: dailyMenu.day))
                         .font(.title2.weight(.semibold))
                         .foregroundColor(.primary)
-                    
-                    Text(formattedDate(for: dailyMenu.day))
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
                 }
                 
                 Spacer()
@@ -251,7 +230,7 @@ struct DailyMenuCardView: View {
                     Button(role: .destructive) {
                         onClearMeal(dailyMenu.day, dailyMeal.meal)
                     } label: {
-                        Label("Clear \(dailyMeal.meal.localized())", systemImage: "trash")
+                        Label(String(format: "Clear %@".localized(), dailyMeal.meal.localized()), systemImage: "trash")
                     }
                 }
             }
@@ -356,7 +335,7 @@ struct MealTypeRowView: View {
             Button(role: .destructive) {
                 onClear()
             } label: {
-                Label("Clear \(mealType.localized())", systemImage: "trash")
+                Label(String(format: "Clear %@".localized(), mealType.localized()), systemImage: "trash")
             }
         }
     }

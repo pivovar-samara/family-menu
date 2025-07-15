@@ -90,7 +90,7 @@ struct ErrorRecoveryView: View {
                     .font(.largeTitle)
                     .foregroundColor(.orange)
                 
-                Text("App Initialization Error")
+                Text("App Initialization Error".localized())
                     .font(.title2)
                     .fontWeight(.semibold)
                 
@@ -101,7 +101,7 @@ struct ErrorRecoveryView: View {
                         .padding(.horizontal)
                 }
                 
-                Button("Try Again") {
+                Button("Try Again".localized()) {
                     appStateManager.retryPersistenceSetup()
                 }
                 .buttonStyle(.borderedProminent)

@@ -136,7 +136,7 @@ struct ProductListView: View {
             Alert(
                 title: Text(alert.title),
                 message: Text(alert.message),
-                dismissButton: .default(Text("OK")) {
+                dismissButton: .default(Text("OK".localized())) {
                     alert.action?()
                 }
             )
