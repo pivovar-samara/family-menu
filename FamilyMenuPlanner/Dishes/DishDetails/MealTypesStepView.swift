@@ -142,7 +142,6 @@ struct MealTypeCard: View {
         case "breakfast": return "sunrise.fill"
         case "lunch": return "sun.max.fill"
         case "dinner": return "moon.stars.fill"
-        case "snack": return "heart.fill"
         default: return "fork.knife"
         }
     }
@@ -153,7 +152,6 @@ struct MealTypeCard: View {
         case "breakfast": return .orange
         case "lunch": return .yellow
         case "dinner": return .purple
-        case "snack": return .pink
         default: return Color("AccentColor")
         }
     }

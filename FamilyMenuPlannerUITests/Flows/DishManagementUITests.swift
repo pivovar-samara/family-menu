@@ -248,7 +248,7 @@ final class DishManagementUITests: XCTestCase {
         // STEP 2: Meal Types - Change meal type if possible
         XCTAssertTrue(waitForStepScreen(stepTitle: "Meal Types"), "Should be in Meal Types step")
         
-        let mealTypeIdentifiers = ["mealTypeBreakfast", "mealTypeLunch", "mealTypeDinner", "mealTypeSnack"]
+        let mealTypeIdentifiers = ["mealTypeBreakfast", "mealTypeLunch", "mealTypeDinner"]
         var mealButtonFound = false
         for identifier in mealTypeIdentifiers {
             let btn = app.buttons[identifier]
@@ -506,7 +506,7 @@ final class DishManagementUITests: XCTestCase {
         }
         
         // Add meal type to proceed
-        let mealTypeIdentifiers = ["mealTypeBreakfast", "mealTypeLunch", "mealTypeDinner", "mealTypeSnack"]
+        let mealTypeIdentifiers = ["mealTypeBreakfast", "mealTypeLunch", "mealTypeDinner"]
         var mealButtonFound = false
         for identifier in mealTypeIdentifiers {
             let btn = app.buttons[identifier]
@@ -820,7 +820,7 @@ final class DishManagementUITests: XCTestCase {
         nextButton.tap()
 
         // Meal Types – select first available meal type button
-        let mealTypeIdentifiers = ["mealTypeBreakfast", "mealTypeLunch", "mealTypeDinner", "mealTypeSnack"]
+        let mealTypeIdentifiers = ["mealTypeBreakfast", "mealTypeLunch", "mealTypeDinner"]
         var mealButtonFound = false
         for identifier in mealTypeIdentifiers {
             let btn = app.buttons[identifier]
