@@ -33,6 +33,9 @@ class MenuViewModel: ObservableObject {
     let weekdays: [String] = CalendarHelper.localizedWeekdayNamesStartingFromMonday()
     
     private let alertManager = AlertQueueManager()
+    
+    // UserDefaults key for storing selected week index
+    private static let selectedWeekIndexKey = "MenuSelectedWeekIndex"
 
     var weekOptions: [Date] {
         let calendar = Calendar.current
@@ -54,10 +57,38 @@ class MenuViewModel: ObservableObject {
         alertManager.$currentAlert
                     .receive(on: RunLoop.main)
                     .assign(to: &$currentAlert)
+        
+        // Load persistent selected week index after all stored properties are initialized
+        loadSelectedWeekIndex()
+    }
+    
+    /// Loads the persistent selected week index from UserDefaults
+    private func loadSelectedWeekIndex() {
+        let savedWeekIndex = UserDefaults.standard.integer(forKey: Self.selectedWeekIndexKey)
+        // Ensure the saved index is valid for current week options
+        if savedWeekIndex >= 0 && savedWeekIndex < weekOptions.count {
+            selectedWeekIndex = savedWeekIndex
+        } else {
+            selectedWeekIndex = 0 // Default to current week if saved index is invalid
+        }
+        AppLogger.info("Loaded menu selected week index: \(selectedWeekIndex)", category: AppLogger.viewModel)
+    }
+    
+    /// Saves the current selected week index to UserDefaults
+    private func saveSelectedWeekIndex() {
+        UserDefaults.standard.set(selectedWeekIndex, forKey: Self.selectedWeekIndexKey)
+        AppLogger.info("Saved menu selected week index: \(selectedWeekIndex)", category: AppLogger.viewModel)
     }
 
     func loadMenu(for weekIndex: Int) {
         weeklyMenu = menuService.fetchMenu(for: weekIndex)
+    }
+    
+    func updateSelectedWeekIndex(_ newWeekIndex: Int) {
+        // Only update if it's actually different to prevent unnecessary operations
+        guard selectedWeekIndex != newWeekIndex else { return }
+        selectedWeekIndex = newWeekIndex
+        saveSelectedWeekIndex()
     }
 
     func generateMenu() {

@@ -205,14 +205,10 @@ enum ProductSortOption: String, CaseIterable, SortOption {
 
     var displayName: String {
         switch self {
-        case .nameAscending: return "Name A-Z"
-        case .nameDescending: return "Name Z-A"
-        case .unit: return "Unit"
+        case .nameAscending: return "Name A-Z".localized()
+        case .nameDescending: return "Name Z-A".localized()
+        case .unit: return "Unit".localized()
         }
-    }
-    
-    var title: String {
-        return displayName.localized()
     }
 
     var sortDescriptors: [NSSortDescriptor] {

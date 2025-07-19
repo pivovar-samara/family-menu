@@ -42,6 +42,20 @@ class MockMenuService: MenuServiceProtocol {
 }
 
 final class MenuUnitTests: XCTestCase {
+    
+    private let selectedWeekIndexKey = "MenuSelectedWeekIndex"
+    
+    override func setUp() {
+        super.setUp()
+        // Clear any existing UserDefaults from previous tests
+        UserDefaults.standard.removeObject(forKey: selectedWeekIndexKey)
+    }
+    
+    override func tearDown() {
+        // Clean up UserDefaults
+        UserDefaults.standard.removeObject(forKey: selectedWeekIndexKey)
+        super.tearDown()
+    }
 
     func testLoadMenuFetchesMenu() {
         let mock = MockMenuService()
@@ -166,5 +180,82 @@ final class MenuUnitTests: XCTestCase {
             exp.fulfill()
         }
         wait(for: [exp], timeout: 1)
+    }
+    
+    // MARK: - UserDefaults Persistence Tests
+    
+    func testLoadSelectedWeekIndexFromUserDefaults() {
+        // Set a saved week index in UserDefaults
+        UserDefaults.standard.set(2, forKey: selectedWeekIndexKey)
+        
+        let mock = MockMenuService()
+        let viewModel = MenuViewModel(menuService: mock)
+        
+        // Should load the saved week index
+        XCTAssertEqual(viewModel.selectedWeekIndex, 2)
+    }
+    
+    func testLoadSelectedWeekIndexWithInvalidValueDefaultsToZero() {
+        // Set an invalid week index in UserDefaults
+        UserDefaults.standard.set(10, forKey: selectedWeekIndexKey)
+        
+        let mock = MockMenuService()
+        let viewModel = MenuViewModel(menuService: mock)
+        
+        // Should default to 0 for invalid index
+        XCTAssertEqual(viewModel.selectedWeekIndex, 0)
+    }
+    
+    func testLoadSelectedWeekIndexWithNegativeValueDefaultsToZero() {
+        // Set a negative week index in UserDefaults
+        UserDefaults.standard.set(-1, forKey: selectedWeekIndexKey)
+        
+        let mock = MockMenuService()
+        let viewModel = MenuViewModel(menuService: mock)
+        
+        // Should default to 0 for negative index
+        XCTAssertEqual(viewModel.selectedWeekIndex, 0)
+    }
+    
+    func testUpdateSelectedWeekIndexSavesToUserDefaults() {
+        let mock = MockMenuService()
+        let viewModel = MenuViewModel(menuService: mock)
+        
+        // Update to a new week index
+        viewModel.updateSelectedWeekIndex(1)
+        
+        // Verify it's saved to UserDefaults
+        let savedValue = UserDefaults.standard.integer(forKey: selectedWeekIndexKey)
+        XCTAssertEqual(savedValue, 1)
+        XCTAssertEqual(viewModel.selectedWeekIndex, 1)
+    }
+    
+    func testUpdateSelectedWeekIndexDoesNotSaveIfSameValue() {
+        let mock = MockMenuService()
+        let viewModel = MenuViewModel(menuService: mock)
+        
+        // Set initial value
+        viewModel.updateSelectedWeekIndex(1)
+        
+        // Clear UserDefaults to verify it gets set again
+        UserDefaults.standard.removeObject(forKey: selectedWeekIndexKey)
+        
+        // Try to update to the same value
+        viewModel.updateSelectedWeekIndex(1)
+        
+        // Should not save the same value again
+        let savedValue = UserDefaults.standard.object(forKey: selectedWeekIndexKey)
+        XCTAssertNil(savedValue, "Should not save the same value again")
+    }
+    
+    func testInitializationWithNoUserDefaultsDefaultsToZero() {
+        // Ensure UserDefaults is clean
+        UserDefaults.standard.removeObject(forKey: selectedWeekIndexKey)
+        
+        let mock = MockMenuService()
+        let viewModel = MenuViewModel(menuService: mock)
+        
+        // Should default to 0 when no value is saved
+        XCTAssertEqual(viewModel.selectedWeekIndex, 0)
     }
 }

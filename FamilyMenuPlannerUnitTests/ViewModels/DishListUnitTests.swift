@@ -223,11 +223,11 @@ class DishListUnitTests: XCTestCase {
         }
     }
     
-    func testSortOptionTitles() {
-        // Verify all sort options have proper titles
-        XCTAssertEqual(DishSortOption.nameAscending.title, "Name A-Z".localized())
-        XCTAssertEqual(DishSortOption.nameDescending.title, "Name Z-A".localized())
-        XCTAssertEqual(DishSortOption.category.title, "Category".localized())
+    func testSortOptionDisplayNames() {
+        // Verify all sort options have proper localized display names
+        XCTAssertEqual(DishSortOption.nameAscending.displayName, "Name A-Z".localized())
+        XCTAssertEqual(DishSortOption.nameDescending.displayName, "Name Z-A".localized())
+        XCTAssertEqual(DishSortOption.category.displayName, "Category".localized())
     }
     
     func testSortDescriptors() {

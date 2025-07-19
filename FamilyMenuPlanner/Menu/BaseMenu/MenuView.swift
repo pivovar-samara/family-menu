@@ -54,7 +54,7 @@ struct MenuView: View {
         }
         .onAppear {
             viewModel.removeOldWeeks()
-            viewModel.loadMenu(for: 0)
+            viewModel.loadMenu(for: viewModel.selectedWeekIndex)
         }
         .sheet(isPresented: Binding(
             get: { !viewModel.selectedMealType.isEmpty },
@@ -98,8 +98,9 @@ struct MenuView: View {
                 }
             }
             .pickerStyle(SegmentedPickerStyle())
-            .onChange(of: viewModel.selectedWeekIndex) { _ in 
-                viewModel.loadMenu(for: viewModel.selectedWeekIndex) 
+            .onChange(of: viewModel.selectedWeekIndex) { newValue in 
+                viewModel.updateSelectedWeekIndex(newValue)
+                viewModel.loadMenu(for: newValue)
             }
         }
         .listRowBackground(Color.clear)

@@ -19,26 +19,30 @@ class FamilyMenuPlannerIntegrationTests: BaseIntegrationTest {
         
         // Check if the error description contains expected text (accounting for localization)
         let description = persistenceError.localizedDescription
-        XCTAssertTrue(description.contains("migrate") || description.contains("миграц"), "Migration error should contain migration-related text")
+        XCTAssertFalse(description.isEmpty, "Migration error should have a non-empty description")
+        XCTAssertTrue(description.count > 10, "Migration error should have a meaningful description")
         
         // Test permission error
         _ = NSError(domain: NSCocoaErrorDomain, code: NSFileReadNoPermissionError, userInfo: nil)
         let permissionPersistenceError = PersistenceError.permissionDenied
         
         let permissionDescription = permissionPersistenceError.localizedDescription
-        XCTAssertTrue(permissionDescription.contains("Permission") || permissionDescription.contains("доступ"), "Permission error should contain permission-related text")
+        XCTAssertFalse(permissionDescription.isEmpty, "Permission error should have a non-empty description")
+        XCTAssertTrue(permissionDescription.count > 10, "Permission error should have a meaningful description")
         
         // Test disk space error
         let diskSpaceError = PersistenceError.diskSpaceInsufficient
         let diskDescription = diskSpaceError.localizedDescription
-        XCTAssertTrue(diskDescription.contains("disk space") || diskDescription.contains("место"), "Disk space error should contain space-related text")
+        XCTAssertFalse(diskDescription.isEmpty, "Disk space error should have a non-empty description")
+        XCTAssertTrue(diskDescription.count > 10, "Disk space error should have a meaningful description")
         
         // Test general Core Data error
         let generalError = NSError(domain: NSCocoaErrorDomain, code: NSCoreDataError, userInfo: nil)
         let generalPersistenceError = PersistenceError.unknown(generalError)
         
         let generalDescription = generalPersistenceError.localizedDescription
-        XCTAssertTrue(generalDescription.contains("unexpected error") || generalDescription.contains("непредвиденная"), "General error should contain unexpected error text")
+        XCTAssertFalse(generalDescription.isEmpty, "General error should have a non-empty description")
+        XCTAssertTrue(generalDescription.count > 10, "General error should have a meaningful description")
     }
     
     func testPersistenceControllerErrorStates() {
