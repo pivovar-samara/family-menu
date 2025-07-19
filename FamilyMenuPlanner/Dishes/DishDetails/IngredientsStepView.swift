@@ -615,7 +615,6 @@ struct EmptyIngredientsCard: View {
             actionTitle: "Add First Ingredient".localized(),
             action: onAddFirst
         )
-        .padding(40)
         .background(Color("SecondaryBackgroundColor"))
         .cornerRadius(20)
         .shadow(color: .black.opacity(0.04), radius: 8)

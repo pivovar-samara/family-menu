@@ -364,7 +364,7 @@ struct SortingToolbarModifier<SortOptionType: SortOption>: ViewModifier {
                 .accessibilityLabel(accessibilityLabel)
                 .confirmationDialog(dialogTitle, isPresented: $showingSortOptions, titleVisibility: .visible) {
                     ForEach(sortOptions, id: \.self) { option in
-                        Button(option.displayName.localized()) {
+                        Button(option.title) {
                             onSortOptionSelected(option)
                         }
                     }
@@ -447,5 +447,6 @@ struct AlertModifier: ViewModifier {
 // MARK: - Sort Option Protocol
 protocol SortOption: CaseIterable, Hashable {
     var displayName: String { get }
+    var title: String { get }
 }
 
