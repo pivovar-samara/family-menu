@@ -351,37 +351,11 @@ struct MealTypeRowView: View {
 // MARK: - Empty Menu View
 struct EmptyMenuView: View {
     var body: some View {
-        VStack(spacing: 24) {
-            // Illustration
-            RoundedRectangle(cornerRadius: 20)
-                .fill(
-                    LinearGradient(
-                        colors: [Color("AccentColor").opacity(0.1), Color("AccentColor").opacity(0.05)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: 120, height: 120)
-                .overlay(
-                    Image(systemName: "calendar.badge.plus")
-                        .font(.system(size: 60, weight: .light))
-                        .foregroundColor(Color("AccentColor").opacity(0.6))
-                )
-            
-            VStack(spacing: 12) {
-                Text("No Menu Planned".localized())
-                    .font(.title2.weight(.semibold))
-                    .foregroundColor(.primary)
-                
-                Text("Generate a menu for this week to start planning your meals".localized())
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(3)
-            }
-        }
-        .padding(40)
-        .frame(maxWidth: .infinity)
+        EmptyStateView(
+            icon: "calendar.badge.plus",
+            title: "No Menu Planned".localized(),
+            description: "Generate a menu for this week to start planning your meals".localized()
+        )
     }
 }
 

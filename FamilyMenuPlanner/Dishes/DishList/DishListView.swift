@@ -42,16 +42,43 @@ struct DishListView: View {
     }
 
     private var dishListToolbar: some ViewModifier {
-        DishToolbarModifier(showingSortOptions: $showingSortOptions, viewModel: viewModel)
+        SortingToolbarModifier(
+            showingSortOptions: $showingSortOptions,
+            sortOptions: Array(DishSortOption.allCases),
+            onSortOptionSelected: { sortOption in
+                viewModel.updateSortOption(sortOption)
+            },
+            accessibilityIdentifier: "sort_dishes_button",
+            accessibilityLabel: "Sort dishes".localized(),
+            dialogTitle: "Sort dishes".localized()
+        )
     }
     private var dishListAddSheet: some ViewModifier {
-        DishAddSheetModifier(isPresented: $viewModel.isAddingNewDish)
+        AddSheetModifier(isPresented: $viewModel.isAddingNewDish) {
+            DishDetailsCoordinator().createDishDetailsView()
+        }
     }
     private var dishListEditSheet: some ViewModifier {
-        DishEditSheetModifier(selectedDish: $viewModel.selectedDish, viewModel: viewModel)
+        EditSheetModifier(
+            selectedItem: $viewModel.selectedDish,
+            onDismiss: { viewModel.selectedDish = nil }
+        ) { dish in
+            DishDetailsCoordinator().createDishDetailsView(
+                dish: dish,
+                onDismiss: { shouldSave in
+                    if !shouldSave {
+                        AppLogger.info("Dish editing dismissed without saving", category: AppLogger.viewModel)
+                    }
+                    viewModel.selectedDish = nil
+                }
+            )
+        }
     }
     private var dishListAlert: some ViewModifier {
-        DishAlertModifier(currentAlert: Binding(get: { viewModel.currentAlert }, set: { _ in viewModel.dismissAlert() }))
+        AlertModifier(
+            currentAlert: Binding(get: { viewModel.currentAlert }, set: { _ in viewModel.dismissAlert() }),
+            onDismiss: { viewModel.dismissAlert() }
+        )
     }
 
     private struct DishListBody: View {
@@ -122,90 +149,6 @@ struct DishListView: View {
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
                 .accessibilityIdentifier("dish_list_no_results_state")
-        }
-    }
-
-    // MARK: - Toolbar Modifier
-    private struct DishToolbarModifier: ViewModifier {
-        @Binding var showingSortOptions: Bool
-        let viewModel: DishListViewModel
-        func body(content: Content) -> some View {
-            content.toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingSortOptions = true }) {
-                        Image(systemName: "arrow.up.arrow.down")
-                            .font(.body)
-                            .foregroundColor(Color("AccentColor"))
-                    }
-                    .accessibilityIdentifier("sort_dishes_button")
-                    .accessibilityLabel("Sort dishes".localized())
-                    .confirmationDialog("Sort dishes".localized(), isPresented: $showingSortOptions, titleVisibility: .visible) {
-                        Button("Name A-Z".localized()) {
-                            viewModel.updateSortOption(.nameAscending)
-                        }
-                        Button("Name Z-A".localized()) {
-                            viewModel.updateSortOption(.nameDescending)
-                        }
-                        Button("Category".localized()) {
-                            viewModel.updateSortOption(.category)
-                        }
-                        Button("Cancel", role: .cancel) {}
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - Add Sheet Modifier
-    private struct DishAddSheetModifier: ViewModifier {
-        @Binding var isPresented: Bool
-        func body(content: Content) -> some View {
-            content.sheet(isPresented: $isPresented, onDismiss: {
-                isPresented = false
-            }) {
-                NavigationStack {
-                    DishDetailsCoordinator().createDishDetailsView()
-                }
-            }
-        }
-    }
-
-    // MARK: - Edit Sheet Modifier
-    private struct DishEditSheetModifier: ViewModifier {
-        @Binding var selectedDish: Dish?
-        let viewModel: DishListViewModel
-        func body(content: Content) -> some View {
-            content.sheet(item: $selectedDish, onDismiss: {
-                viewModel.selectedDish = nil
-            }) { dish in
-                NavigationStack {
-                    DishDetailsCoordinator().createDishDetailsView(
-                        dish: dish,
-                        onDismiss: { shouldSave in
-                            if !shouldSave {
-                                AppLogger.info("Dish editing dismissed without saving", category: AppLogger.viewModel)
-                            }
-                            viewModel.selectedDish = nil
-                        }
-                    )
-                }
-            }
-        }
-    }
-
-    // MARK: - Alert Modifier
-    private struct DishAlertModifier: ViewModifier {
-        @Binding var currentAlert: AlertItem?
-        func body(content: Content) -> some View {
-            content.alert(item: $currentAlert) { alert in
-                Alert(
-                    title: Text(alert.title),
-                    message: Text(alert.message),
-                    dismissButton: .default(Text("OK".localized())) {
-                        alert.action?()
-                    }
-                )
-            }
         }
     }
 }
@@ -354,20 +297,7 @@ struct DishCardView: View {
     
     // Helper function to get color for different categories
     private func categoryColor(for categoryName: String) -> Color {
-        switch categoryName {
-        case "Main Course":
-            return Color.blue
-        case "Garnish":
-            return Color.green
-        case "Dessert":
-            return Color.orange
-        case "Appetizer":
-            return Color.purple
-        case "Sauce":
-            return Color.red
-        default:
-            return Color.gray
-        }
+        return StylingHelper.categoryColor(for: categoryName)
     }
 }
 
@@ -423,52 +353,13 @@ struct EmptyDishListView: View {
     let onAddDish: () -> Void
     
     var body: some View {
-        VStack(spacing: 24) {
-            // Illustration
-            RoundedRectangle(cornerRadius: 20)
-                .fill(
-                    LinearGradient(
-                        colors: [Color("AccentColor").opacity(0.1), Color("AccentColor").opacity(0.05)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: 120, height: 120)
-                .overlay(
-                    Image(systemName: "fork.knife.circle")
-                        .font(.system(size: 60, weight: .light))
-                        .foregroundColor(Color("AccentColor").opacity(0.6))
-                )
-            
-            VStack(spacing: 12) {
-                Text("No Dishes Yet".localized())
-                    .font(.title2.weight(.semibold))
-                    .foregroundColor(.primary)
-                
-                Text("Start building your recipe collection by adding your first dish".localized())
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(3)
-            }
-            
-            Button(action: onAddDish) {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus")
-                    Text("Add Your First Dish".localized())
-                }
-                .font(.body.weight(.semibold))
-                .foregroundColor(.white)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 14)
-                .background(Color("AccentColor"))
-                .cornerRadius(12)
-                .shadow(color: .black.opacity(0.1), radius: 4)
-            }
-            .buttonStyle(ScaleButtonStyle())
-        }
-        .padding(40)
-        .frame(maxWidth: .infinity)
+        EmptyStateView(
+            icon: "fork.knife.circle",
+            title: "No Dishes Yet".localized(),
+            description: "Start building your recipe collection by adding your first dish".localized(),
+            actionTitle: "Add Your First Dish".localized(),
+            action: onAddDish
+        )
     }
 }
 

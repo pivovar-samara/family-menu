@@ -45,16 +45,43 @@ struct ProductListView: View {
     }
 
     private var productListToolbar: some ViewModifier {
-        ToolbarModifier(showingSortOptions: $showingSortOptions, viewModel: viewModel)
+        SortingToolbarModifier(
+            showingSortOptions: $showingSortOptions,
+            sortOptions: Array(ProductSortOption.allCases),
+            onSortOptionSelected: { sortOption in
+                viewModel.updateSortOption(sortOption)
+            },
+            accessibilityIdentifier: "sort_products_button",
+            accessibilityLabel: "Sort products".localized(),
+            dialogTitle: "Sort products".localized()
+        )
     }
     private var productListAddSheet: some ViewModifier {
-        AddSheetModifier(isPresented: $viewModel.isAddingNewProduct)
+        AddSheetModifier(isPresented: $viewModel.isAddingNewProduct) {
+            EditProductCoordinator().createEditProductView()
+        }
     }
     private var productListEditSheet: some ViewModifier {
-        EditSheetModifier(selectedProduct: $viewModel.selectedProduct, viewModel: viewModel)
+        EditSheetModifier(
+            selectedItem: $viewModel.selectedProduct,
+            onDismiss: { viewModel.selectedProduct = nil }
+        ) { product in
+            EditProductCoordinator().createEditProductView(
+                product: product,
+                onDismiss: { shouldSave in
+                    if !shouldSave {
+                        AppLogger.info("Product editing dismissed without saving", category: AppLogger.viewModel)
+                    }
+                    viewModel.selectedProduct = nil
+                }
+            )
+        }
     }
     private var productListAlert: some ViewModifier {
-        AlertModifier(currentAlert: Binding(get: { viewModel.currentAlert }, set: { _ in viewModel.dismissAlert() }))
+        AlertModifier(
+            currentAlert: Binding(get: { viewModel.currentAlert }, set: { _ in viewModel.dismissAlert() }),
+            onDismiss: { viewModel.dismissAlert() }
+        )
     }
 
     private struct ProductListBody: View {
@@ -224,138 +251,13 @@ struct EmptyProductListView: View {
     let onAddProduct: () -> Void
 
     var body: some View {
-        VStack(spacing: 24) {
-            // Illustration
-            RoundedRectangle(cornerRadius: 20)
-                .fill(
-                    LinearGradient(
-                        colors: [Color("AccentColor").opacity(0.1), Color("AccentColor").opacity(0.05)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: 120, height: 120)
-                .overlay(
-                    Image(systemName: "cart")
-                        .font(.system(size: 60, weight: .light))
-                        .foregroundColor(Color("AccentColor").opacity(0.6))
-                )
-
-            VStack(spacing: 12) {
-                Text("No Products Yet".localized())
-                    .font(.title2.weight(.semibold))
-                    .foregroundColor(.primary)
-
-                Text("Start building your pantry by adding your first product".localized())
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(3)
-            }
-
-            Button(action: onAddProduct) {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus")
-                    Text("Add Your First Product".localized())
-                }
-                .font(.body.weight(.semibold))
-                .foregroundColor(.white)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 14)
-                .background(Color("AccentColor"))
-                .cornerRadius(12)
-                .shadow(color: .black.opacity(0.1), radius: 4)
-            }
-            .buttonStyle(ScaleButtonStyle())
-        }
-        .padding(40)
-        .frame(maxWidth: .infinity)
-    }
-}
-
-// MARK: - Toolbar Modifier
-private struct ToolbarModifier: ViewModifier {
-    @Binding var showingSortOptions: Bool
-    let viewModel: ProductListViewModel
-    func body(content: Content) -> some View {
-        content.toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { showingSortOptions = true }) {
-                    Image(systemName: "arrow.up.arrow.down")
-                        .font(.body)
-                        .foregroundColor(Color("AccentColor"))
-                }
-                .accessibilityIdentifier("sort_products_button")
-                .accessibilityLabel("Sort products".localized())
-                .confirmationDialog("Sort products".localized(), isPresented: $showingSortOptions, titleVisibility: .visible) {
-                    Button("Name A-Z".localized()) {
-                        viewModel.updateSortOption(.nameAscending)
-                    }
-                    Button("Name Z-A".localized()) {
-                        viewModel.updateSortOption(.nameDescending)
-                    }
-                    Button("Unit".localized()) {
-                        viewModel.updateSortOption(.unit)
-                    }
-                    Button("Cancel".localized(), role: .cancel) {}
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Add Sheet Modifier
-private struct AddSheetModifier: ViewModifier {
-    @Binding var isPresented: Bool
-    func body(content: Content) -> some View {
-        content.sheet(isPresented: $isPresented, onDismiss: {
-            isPresented = false
-        }) {
-            NavigationStack {
-                EditProductCoordinator().createEditProductView()
-            }
-        }
-    }
-}
-
-// MARK: - Edit Sheet Modifier
-private struct EditSheetModifier: ViewModifier {
-    @Binding var selectedProduct: Product?
-    let viewModel: ProductListViewModel
-    func body(content: Content) -> some View {
-        content.sheet(item: $selectedProduct, onDismiss: {
-            viewModel.selectedProduct = nil
-        }) { product in
-            NavigationStack {
-                EditProductCoordinator().createEditProductView(
-                    product: product,
-                    onDismiss: { shouldSave in
-                        if !shouldSave {
-                            // User dismissed without saving - ensure rollback happens
-                            // The EditProductViewModel's deinit will handle rollback as fallback
-                            AppLogger.info("Product editing dismissed without saving", category: AppLogger.viewModel)
-                        }
-                        viewModel.selectedProduct = nil
-                    }
-                )
-            }
-        }
-    }
-}
-
-// MARK: - Alert Modifier
-private struct AlertModifier: ViewModifier {
-    @Binding var currentAlert: AlertItem?
-    func body(content: Content) -> some View {
-        content.alert(item: $currentAlert) { alert in
-            Alert(
-                title: Text(alert.title),
-                message: Text(alert.message),
-                dismissButton: .default(Text("OK".localized())) {
-                    alert.action?()
-                }
-            )
-        }
+        EmptyStateView(
+            icon: "cart",
+            title: "No Products Yet".localized(),
+            description: "Start building your pantry by adding your first product".localized(),
+            actionTitle: "Add Your First Product".localized(),
+            action: onAddProduct
+        )
     }
 }
 

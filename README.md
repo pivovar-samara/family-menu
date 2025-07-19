@@ -85,8 +85,8 @@ An iOS application for families to plan their weekly menu, built with SwiftUI us
 
 ## Requirements
 
-- iOS 15.0+
-- Xcode 15.0+
+- iOS 16.0+
+- Xcode 16.3+
 - Swift 5.9+
 
 ## Building and Running
@@ -105,3 +105,26 @@ Run tests in Xcode:
 - **UI Tests**: Run `FamilyMenuPlannerUITests` scheme
 
 All tests are designed to run efficiently with proper context management and realistic performance characteristics.
+
+## Error Handling & Recovery
+
+- **Persistence Errors**: Comprehensive error categorization and user-friendly recovery UI
+- **CloudKit Sync**: Automatic conflict resolution and duplicate data cleanup
+- **Background Operations**: Graceful failure handling with user notifications
+- **Data Validation**: Input validation with localized error messages
+- **App State Management**: Centralized error handling through `AppStateManager` and `AlertQueueManager`
+
+## Performance Features
+
+- **Search Optimization**: `SearchOptimizationHelper` with debouncing and result caching
+- **Static Data Caching**: `StaticDataCacheManager` for Units, MealTypes, and DishCategories
+- **Batch Operations**: Optimized Core Data operations with configurable batch sizes
+- **Background Processing**: Heavy operations moved to background contexts
+- **Memory Management**: Proper faulting and context management for large datasets
+
+## Environment Support
+
+- **Production**: Full CloudKit sync with persistent storage
+- **Simulator**: Configurable CloudKit support (disabled by default for performance)
+- **Testing**: In-memory stores for unit/integration tests, persistent stores for UI tests
+- **CI/CD**: Automated test execution with environment-specific configurations

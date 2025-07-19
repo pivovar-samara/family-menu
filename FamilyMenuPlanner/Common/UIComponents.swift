@@ -229,6 +229,80 @@ struct ErrorView: View {
     }
 }
 
+/// Reusable empty state view for consistent empty state styling across the app
+struct EmptyStateView: View {
+    let icon: String
+    let title: String
+    let description: String
+    let actionTitle: String?
+    let action: (() -> Void)?
+    
+    init(
+        icon: String,
+        title: String,
+        description: String,
+        actionTitle: String? = nil,
+        action: (() -> Void)? = nil
+    ) {
+        self.icon = icon
+        self.title = title
+        self.description = description
+        self.actionTitle = actionTitle
+        self.action = action
+    }
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            // Illustration
+            RoundedRectangle(cornerRadius: 20)
+                .fill(
+                    LinearGradient(
+                        colors: [Color("AccentColor").opacity(0.1), Color("AccentColor").opacity(0.05)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 120, height: 120)
+                .overlay(
+                    Image(systemName: icon)
+                        .font(.system(size: 60, weight: .light))
+                        .foregroundColor(Color("AccentColor").opacity(0.6))
+                )
+            
+            VStack(spacing: 12) {
+                Text(title)
+                    .font(.title2.weight(.semibold))
+                    .foregroundColor(.primary)
+                
+                Text(description)
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+            }
+            
+            if let actionTitle = actionTitle, let action = action {
+                Button(action: action) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "plus")
+                        Text(actionTitle)
+                    }
+                    .font(.body.weight(.semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 14)
+                    .background(Color("AccentColor"))
+                    .cornerRadius(12)
+                    .shadow(color: .black.opacity(0.1), radius: 4)
+                }
+                .buttonStyle(ScaleButtonStyle())
+            }
+        }
+        .padding(40)
+        .frame(maxWidth: .infinity)
+    }
+}
+
 // MARK: - Multi-Step Form Step Enum
 
 enum DishFormStep: Int, CaseIterable, Hashable {

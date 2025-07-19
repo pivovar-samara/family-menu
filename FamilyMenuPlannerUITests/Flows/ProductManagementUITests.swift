@@ -153,44 +153,67 @@ final class ProductManagementUITests: XCTestCase {
         let productNameField = app.textFields["product_name_field"]
         XCTAssertTrue(productNameField.waitForHittable(timeout: 4), "Product Name field should be hittable in the add form")
 
-        // Test validation with empty name
+        // Test validation with empty name - use simpler and more reliable text clearing
         productNameField.tap()
-        productNameField.clearAndEnterText("")
+        
+        // Wait for keyboard to appear
+        let keyboard = app.keyboards.firstMatch
+        XCTAssertTrue(keyboard.waitForExistence(timeout: 3), "Keyboard should appear")
+        
+        // Clear the text field using the simpler clearText() method
+        if let currentValue = productNameField.value as? String, !currentValue.isEmpty {
+            // Use the simpler clearText() method from UITestExtensions
+            productNameField.clearText()
+            
+            // Wait for text to be cleared using predicate expectation
+            let emptyPredicate = NSPredicate(format: "value == %@ OR value == %@ OR value == %@", "", "Enter product name", "Введите название продукта")
+            let emptyExpectation = expectation(for: emptyPredicate, evaluatedWith: productNameField, handler: nil)
+            let emptyResult = XCTWaiter().wait(for: [emptyExpectation], timeout: 3)
+            XCTAssertEqual(emptyResult, .completed, "Text field did not clear in time")
+        }
 
         // Try to save without entering a name
         let saveButton = app.navigationBars["Add Product"].buttons["Save"]
         XCTAssertTrue(saveButton.waitForHittable(timeout: 3), "Save button should be hittable in the navigation bar")
         saveButton.tap()
 
-        // Wait for either an alert or for the add product sheet to remain
+        // Wait for validation response - use a more robust approach
         let alert = app.alerts.firstMatch
         let alertAppeared = alert.waitForExistence(timeout: 3)
-        var validationErrorFound = false
+        
         if alertAppeared {
-            // Look for common validation error texts in the alert
+            // Look for validation error texts in the alert
             let errorTexts = [
                 "Error",
                 "Product name cannot be empty",
                 "cannot be empty",
-                "Name is required"
+                "Name is required",
+                "Название продукта не может быть пустым" // Russian localization
             ]
+            
+            var validationErrorFound = false
             for errorText in errorTexts {
                 let errorElement = app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] %@", errorText)).firstMatch
                 if errorElement.exists {
                     validationErrorFound = true
                     XCTAssertTrue(true, "Validation error found in alert: \(errorText)")
-                    // Dismiss the alert
-                    let okButton = app.buttons["OK"]
-                    if okButton.exists && okButton.isHittable {
-                        okButton.tap()
-                    }
                     break
                 }
             }
+            
             XCTAssertTrue(validationErrorFound, "Validation error should appear for empty product name")
+            
+            // Dismiss the alert
+            let okButton = app.buttons["OK"]
+            if okButton.exists && okButton.isHittable {
+                okButton.tap()
+            }
         } else {
             // If no alert appeared, verify we're still on the Add Product screen (validation prevented submission)
             XCTAssertTrue(addProductNavBar.exists, "Should still be on Add Product screen after validation failure")
+            
+            // Additional check: verify the save button is still enabled and we can try again
+            XCTAssertTrue(saveButton.isHittable, "Save button should still be hittable after validation failure")
         }
     }
     

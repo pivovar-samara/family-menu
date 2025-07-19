@@ -153,7 +153,7 @@ struct ProductSelectionCardView: View {
                     )
             )
         }
-        .buttonStyle(ProductSelectionScaleButtonStyle())
+        .buttonStyle(ScaleButtonStyle())
         .accessibilityIdentifier("product_selection_card_\(product.name ?? "unnamed")")
         .accessibilityLabel("\(product.name ?? "Unnamed Product".localized()), \(product.unit?.name?.localized() ?? "no unit".localized())")
         .accessibilityHint(isSelected ? "Currently selected".localized() : "Tap to select this product".localized())
@@ -164,46 +164,10 @@ struct ProductSelectionCardView: View {
 // MARK: - Empty State Component
 struct EmptyProductSelectionView: View {
     var body: some View {
-        VStack(spacing: 24) {
-            // Illustration
-            RoundedRectangle(cornerRadius: 20)
-                .fill(
-                    LinearGradient(
-                        colors: [Color("AccentColor").opacity(0.1), Color("AccentColor").opacity(0.05)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: 120, height: 120)
-                .overlay(
-                    Image(systemName: "cube.box")
-                        .font(.system(size: 60, weight: .light))
-                        .foregroundColor(Color("AccentColor").opacity(0.6))
-                )
-
-            VStack(spacing: 12) {
-                Text("No Products Available".localized())
-                    .font(.title2.weight(.semibold))
-                    .foregroundColor(.primary)
-
-                Text("Create products first to select them for your dishes".localized())
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(3)
-            }
-        }
-        .padding(40)
-        .frame(maxWidth: .infinity)
+        EmptyStateView(
+            icon: "cube.box",
+            title: "No Products Available".localized(),
+            description: "Create products first to select them for your dishes".localized()
+        )
     }
 }
-
-// MARK: - Scale Button Style
-struct ProductSelectionScaleButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
-    }
-}
-

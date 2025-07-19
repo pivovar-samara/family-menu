@@ -196,7 +196,7 @@ struct ShoppingListCardView: View {
                     )
             )
         }
-        .buttonStyle(ShoppingListScaleButtonStyle())
+        .buttonStyle(ScaleButtonStyle())
         .accessibilityIdentifier("shopping_list_card_\(item.productName)")
         .accessibilityLabel("\(item.productName), \(formattedDoubleForUnits(item.quantity)) \(item.unitName.localized())")
         .accessibilityHint(item.isSelected ? "Selected".localized() : "Tap to select this item".localized())
@@ -207,45 +207,10 @@ struct ShoppingListCardView: View {
 // MARK: - Empty State Component
 struct EmptyShoppingListView: View {
     var body: some View {
-        VStack(spacing: 24) {
-            // Illustration
-            RoundedRectangle(cornerRadius: 20)
-                .fill(
-                    LinearGradient(
-                        colors: [Color("AccentColor").opacity(0.1), Color("AccentColor").opacity(0.05)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: 120, height: 120)
-                .overlay(
-                    Image(systemName: "cart")
-                        .font(.system(size: 60, weight: .light))
-                        .foregroundColor(Color("AccentColor").opacity(0.6))
-                )
-
-            VStack(spacing: 12) {
-                Text("No Shopping Items".localized())
-                    .font(.title2.weight(.semibold))
-                    .foregroundColor(.primary)
-
-                Text("Generate a menu first to see your shopping list".localized())
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(3)
-            }
-        }
-        .padding(40)
-        .frame(maxWidth: .infinity)
-    }
-}
-
-// MARK: - Scale Button Style
-struct ShoppingListScaleButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+        EmptyStateView(
+            icon: "cart",
+            title: "No Shopping Items".localized(),
+            description: "Generate a menu first to see your shopping list".localized()
+        )
     }
 }
