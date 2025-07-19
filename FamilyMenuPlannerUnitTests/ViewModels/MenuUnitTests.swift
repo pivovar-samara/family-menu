@@ -230,7 +230,7 @@ final class MenuUnitTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedWeekIndex, 1)
     }
     
-    func testUpdateSelectedWeekIndexDoesNotSaveIfSameValue() {
+    func testUpdateSelectedWeekIndexAlwaysSavesToUserDefaults() {
         let mock = MockMenuService()
         let viewModel = MenuViewModel(menuService: mock)
         
@@ -243,9 +243,9 @@ final class MenuUnitTests: XCTestCase {
         // Try to update to the same value
         viewModel.updateSelectedWeekIndex(1)
         
-        // Should not save the same value again
-        let savedValue = UserDefaults.standard.object(forKey: selectedWeekIndexKey)
-        XCTAssertNil(savedValue, "Should not save the same value again")
+        // Should always save the value (guard clause removed to fix persistence bug)
+        let savedValue = UserDefaults.standard.integer(forKey: selectedWeekIndexKey)
+        XCTAssertEqual(savedValue, 1, "Should always save the value to ensure persistence works")
     }
     
     func testInitializationWithNoUserDefaultsDefaultsToZero() {

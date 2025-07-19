@@ -85,8 +85,8 @@ class MenuViewModel: ObservableObject {
     }
     
     func updateSelectedWeekIndex(_ newWeekIndex: Int) {
-        // Only update if it's actually different to prevent unnecessary operations
-        guard selectedWeekIndex != newWeekIndex else { return }
+        // Always update and save to ensure persistence works correctly
+        // The guard clause was preventing persistence when called from onChange
         selectedWeekIndex = newWeekIndex
         saveSelectedWeekIndex()
     }
