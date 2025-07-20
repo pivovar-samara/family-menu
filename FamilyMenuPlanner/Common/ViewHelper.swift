@@ -367,7 +367,7 @@ struct SortingToolbarModifier<SortOptionType: SortOption>: ViewModifier {
                         Button(option.displayName) {
                             onSortOptionSelected(option)
                         }
-                        .accessibilityIdentifier("sort_option_\(option.displayName.lowercased().replacingOccurrences(of: " ", with: "_"))")
+                        .accessibilityIdentifier(option.accessibilityIdentifier)
                     }
                     Button("Cancel".localized(), role: .cancel) {}
                         .accessibilityIdentifier("sort_cancel_button")
@@ -440,7 +440,6 @@ struct AlertModifier: ViewModifier {
                 message: Text(alert.message),
                 dismissButton: .default(Text("OK".localized())) {
                     alert.action?()
-                    onDismiss()
                 }
             )
         }
@@ -450,5 +449,14 @@ struct AlertModifier: ViewModifier {
 // MARK: - Sort Option Protocol
 protocol SortOption: CaseIterable, Hashable {
     var displayName: String { get }
+    var accessibilityIdentifier: String { get }
+}
+
+// MARK: - Sort Option Extensions
+extension SortOption {
+    /// Default implementation for accessibility identifier
+    var accessibilityIdentifier: String {
+        return "sort_option_\(displayName.lowercased().replacingOccurrences(of: " ", with: "_"))"
+    }
 }
 

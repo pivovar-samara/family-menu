@@ -103,7 +103,7 @@ extension XCUIElement {
         // Verify the field is either empty or showing placeholder text
         let placeholderValue = self.placeholderValue ?? ""
         let finalCheck = XCTWaiter.wait(for: [
-            XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == '' OR value == %@ OR value == nil", placeholderValue), object: self)
+            XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == '' OR value == %@", placeholderValue, NSNull()), object: self)
         ], timeout: 2.0) == .completed
         
         if !finalCheck {

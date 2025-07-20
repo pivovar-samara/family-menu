@@ -34,8 +34,11 @@ struct AlertItem: Identifiable, Equatable {
     let message: String
     let action: (() -> Void)?
     
+    // Note: The `action` closure is intentionally excluded from the equality check
+    // because closures are reference types and do not conform to `Equatable`.
+    // Equality is determined based on `title` and `message` to detect duplicate alerts.
     static func == (lhs: AlertItem, rhs: AlertItem) -> Bool {
-        return lhs.id == rhs.id && lhs.title == rhs.title && lhs.message == rhs.message
+        return lhs.title == rhs.title && lhs.message == rhs.message
     }
 }
 

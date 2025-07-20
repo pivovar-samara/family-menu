@@ -23,7 +23,13 @@ class FamilyMenuPlannerIntegrationTests: BaseIntegrationTest {
         XCTAssertTrue(description.count > 10, "Migration error should have a meaningful description")
         
         // Test for specific migration-related keywords in the error message
-        let migrationKeywords = ["migrate", "migration", "migrated", "миграция", "мигрировать"]
+        let localizedKeywords: [String: [String]] = [
+            "migration": ["migrate", "migration", "migrated", "миграция", "мигрировать"],
+            "permission": ["permission", "denied", "access", "разрешение", "доступ"],
+            "diskSpace": ["disk", "space", "insufficient", "storage", "диск", "место", "память"],
+            "error": ["error", "unexpected", "произошла", "ошибка"]
+        ]
+        let migrationKeywords = localizedKeywords["migration"] ?? []
         let hasMigrationKeyword = migrationKeywords.contains { keyword in
             description.localizedCaseInsensitiveContains(keyword)
         }
@@ -38,7 +44,7 @@ class FamilyMenuPlannerIntegrationTests: BaseIntegrationTest {
         XCTAssertTrue(permissionDescription.count > 10, "Permission error should have a meaningful description")
         
         // Test for specific permission-related keywords
-        let permissionKeywords = ["permission", "denied", "access", "разрешение", "доступ"]
+        let permissionKeywords = localizedKeywords["permission"] ?? []
         let hasPermissionKeyword = permissionKeywords.contains { keyword in
             permissionDescription.localizedCaseInsensitiveContains(keyword)
         }
@@ -51,7 +57,7 @@ class FamilyMenuPlannerIntegrationTests: BaseIntegrationTest {
         XCTAssertTrue(diskDescription.count > 10, "Disk space error should have a meaningful description")
         
         // Test for specific disk space-related keywords
-        let diskSpaceKeywords = ["disk", "space", "insufficient", "storage", "диск", "место", "память"]
+        let diskSpaceKeywords = localizedKeywords["diskSpace"] ?? []
         let hasDiskSpaceKeyword = diskSpaceKeywords.contains { keyword in
             diskDescription.localizedCaseInsensitiveContains(keyword)
         }
@@ -66,7 +72,7 @@ class FamilyMenuPlannerIntegrationTests: BaseIntegrationTest {
         XCTAssertTrue(generalDescription.count > 10, "General error should have a meaningful description")
         
         // Test for specific error-related keywords
-        let errorKeywords = ["error", "unexpected", "произошла", "ошибка"]
+        let errorKeywords = localizedKeywords["error"] ?? []
         let hasErrorKeyword = errorKeywords.contains { keyword in
             generalDescription.localizedCaseInsensitiveContains(keyword)
         }
