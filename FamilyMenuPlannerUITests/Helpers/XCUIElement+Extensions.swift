@@ -17,19 +17,100 @@ extension XCUIElement {
             return
         }
         
+        // Ensure the element is focused first
         self.tap()
         
-        // Select all text
+        // Wait for keyboard to appear and element to be ready for input
+        let keyboard = XCUIApplication().keyboards.firstMatch
+        if keyboard.waitForExistence(timeout: 3) {
+            // Wait a moment for the UI to stabilize
+            XCUIApplication().waitForUIUpdate(timeout: 0.5)
+        }
+        
+        // Select all text using long press
         self.press(forDuration: 1.1)
         
-        // Delete selected text
+        // Delete selected text using delete keys
         if let existingText = self.value as? String, !existingText.isEmpty {
             let deleteString = String(repeating: XCUIKeyboardKey.delete.rawValue, count: existingText.count)
             self.typeText(deleteString)
         }
         
         // Enter new text
-        self.typeText(text)
+        if !text.isEmpty {
+            self.typeText(text)
+        }
+    }
+    
+    /// Clears text field content using multiple fallback strategies
+    func clearTextWithFallback() {
+        guard self.elementType == .textField || self.elementType == .secureTextField || self.elementType == .textView else {
+            XCTFail("Trying to clear text on a non-text input element (elementType: \(self.elementType))")
+            return
+        }
+        
+        // First, ensure the element is focused
+        self.tap()
+        
+        // Wait for keyboard to appear and element to be ready for input
+        let keyboard = XCUIApplication().keyboards.firstMatch
+        if keyboard.waitForExistence(timeout: 3) {
+            // Wait a moment for the UI to stabilize
+            XCUIApplication().waitForUIUpdate(timeout: 0.5)
+        }
+        
+        // Check if there's any actual user-entered text to clear
+        // Note: placeholder text (like "Enter product name") is not user-entered text
+        if let currentValue = self.value as? String, !currentValue.isEmpty {
+            // Check if this is placeholder text by comparing with placeholderValue
+            let placeholderValue = self.placeholderValue ?? ""
+            if currentValue == placeholderValue {
+                // This is placeholder text, not user-entered text, so we don't need to clear it
+                // Just ensure the field is focused and ready for input
+                return
+            }
+            
+            // This is actual user-entered text, so clear it
+            // Try the built-in clearText method first
+            self.clearText()
+            
+            // Wait for the text field to become empty
+            let isFieldEmpty = XCTWaiter.wait(for: [
+                XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == '' OR value == %@", placeholderValue), object: self)
+            ], timeout: 1.0) == .completed
+            
+            // If clearing didn't work, try alternative approaches
+            if !isFieldEmpty {
+                // Try double-tap to select all text
+                self.doubleTap()
+                
+                // Wait for selection to complete
+                let selectionWait = XCTWaiter.wait(for: [
+                    XCTNSPredicateExpectation(predicate: NSPredicate(format: "isHittable == true"), object: self)
+                ], timeout: 2.0)
+                
+                if selectionWait == .completed {
+                    // Use delete key to remove selected text
+                    let deleteString = String(repeating: XCUIKeyboardKey.delete.rawValue, count: currentValue.count)
+                    self.typeText(deleteString)
+                } else {
+                    // If double-tap failed, try long press to select all
+                    self.press(forDuration: 1.1)
+                    let deleteString = String(repeating: XCUIKeyboardKey.delete.rawValue, count: currentValue.count)
+                    self.typeText(deleteString)
+                }
+            }
+        }
+        
+        // Verify the field is either empty or showing placeholder text
+        let placeholderValue = self.placeholderValue ?? ""
+        let finalCheck = XCTWaiter.wait(for: [
+            XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == '' OR value == %@ OR value == nil", placeholderValue), object: self)
+        ], timeout: 2.0) == .completed
+        
+        if !finalCheck {
+            XCTFail("Failed to clear text field after multiple attempts")
+        }
     }
     
     /// Waits for element to become hittable with specified timeout

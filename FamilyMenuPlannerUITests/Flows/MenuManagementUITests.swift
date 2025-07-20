@@ -730,40 +730,14 @@ final class MenuManagementUITests: XCTestCase {
                 clearButton.tap()
             }
         } else {
-            // Alternative: select all text and delete
-            searchField.tap()
-            searchField.typeText("")
+            // Alternative: use the reusable helper method
+            searchField.clearTextWithFallback()
         }
         
-        // Wait for search to clear with multiple fallback strategies
-        var clearResult = XCTWaiter.Result.timedOut
-        
-        // First try: wait for empty value
-        let clearExpectation = expectation(for: NSPredicate(format: "value == ''"), evaluatedWith: searchField, handler: nil)
-        clearResult = XCTWaiter().wait(for: [clearExpectation], timeout: 3.0)
-        
-        // If that failed, try alternative approach
-        if clearResult != .completed {
-            // Try double-tap to select all and then type empty string
-            searchField.doubleTap()
-            searchField.typeText("")
-            
-            // Wait again for clearing
-            let retryExpectation = expectation(for: NSPredicate(format: "value == ''"), evaluatedWith: searchField, handler: nil)
-            clearResult = XCTWaiter().wait(for: [retryExpectation], timeout: 2.0)
-        }
-        
-        // If still not cleared, try one more approach
-        if clearResult != .completed {
-            // Try tapping and using delete key multiple times
-            searchField.tap()
-            for _ in 0..<10 { // Try deleting up to 10 characters
-                searchField.typeText("\u{8}") // Backspace character
-            }
-            
-            let finalExpectation = expectation(for: NSPredicate(format: "value == ''"), evaluatedWith: searchField, handler: nil)
-            clearResult = XCTWaiter().wait(for: [finalExpectation], timeout: 2.0)
-        }
+        // Wait for search to clear using the helper method's built-in waiting
+        let clearResult = XCTWaiter.wait(for: [
+            XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == ''"), object: searchField)
+        ], timeout: 3.0)
         
         // Verify the search field is cleared, but don't fail if it's not
         // The important part is that the search functionality works, not necessarily that it clears perfectly

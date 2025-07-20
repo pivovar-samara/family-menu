@@ -155,51 +155,8 @@ final class ProductManagementUITests: XCTestCase {
         let productNameField = app.textFields["product_name_field"]
         XCTAssertTrue(productNameField.waitForHittable(timeout: 4), "Product Name field should be hittable in the add form")
 
-        // Test validation with empty name - use simpler and more reliable text clearing
-        productNameField.tap()
-        
-        // Wait for keyboard to appear
-        let keyboard = app.keyboards.firstMatch
-        XCTAssertTrue(keyboard.waitForExistence(timeout: 3), "Keyboard should appear")
-        
-        // Ensure the text field is empty for validation testing
-        // First, check if there's any text to clear
-        if let currentValue = productNameField.value as? String, !currentValue.isEmpty {
-            // Try to clear the text field using multiple approaches
-            productNameField.clearText()
-            
-            // Wait for the text field to become empty
-            let isFieldEmpty = XCTWaiter.wait(for: [
-                XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == ''"), object: productNameField)
-            ], timeout: 1.0) == .completed
-            
-            // If clearing didn't work, try a different approach
-            if !isFieldEmpty {
-                // Try double-tap to select all text, but handle potential failure gracefully
-                productNameField.doubleTap()
-                
-                // Wait a moment for the selection to complete
-                let selectionWait = XCTWaiter.wait(for: [
-                    XCTNSPredicateExpectation(predicate: NSPredicate(format: "isHittable == true"), object: productNameField)
-                ], timeout: 2.0)
-                
-                if selectionWait == .completed {
-                    // If double-tap worked, type empty string to replace selection
-                    productNameField.typeText("")
-                } else {
-                    // If double-tap failed, try tapping and using delete key
-                    productNameField.tap()
-                    // Type some text first to ensure we have something to delete
-                    productNameField.typeText("test")
-                    // Then select all and delete
-                    productNameField.doubleTap()
-                    productNameField.typeText("")
-                }
-            }
-        } else {
-            // If field is already empty, just tap to ensure it's focused
-            productNameField.tap()
-        }
+        // Test validation with empty name - use the reusable helper method
+        productNameField.clearTextWithFallback()
 
         // Try to save without entering a name
         let saveButton = app.navigationBars["Add Product"].buttons["Save"]

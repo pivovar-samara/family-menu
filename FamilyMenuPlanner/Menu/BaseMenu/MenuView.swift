@@ -92,16 +92,18 @@ struct MenuView: View {
     
     private var weekSegmentControl: some View {
         VStack {
-            Picker("Select Week", selection: $viewModel.selectedWeekIndex) {
+            Picker("Select Week", selection: Binding(
+                get: { viewModel.selectedWeekIndex },
+                set: { newValue in
+                    viewModel.updateSelectedWeekIndex(newValue)
+                    viewModel.loadMenu(for: newValue)
+                }
+            )) {
                 ForEach(0..<viewModel.weekOptions.count, id: \.self) { index in
                     Text(CalendarHelper.formattedWeek(viewModel.weekOptions[index])).tag(index)
                 }
             }
             .pickerStyle(SegmentedPickerStyle())
-            .onChange(of: viewModel.selectedWeekIndex) { newValue in 
-                viewModel.updateSelectedWeekIndex(newValue)
-                viewModel.loadMenu(for: newValue)
-            }
         }
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden)

@@ -91,8 +91,12 @@ class MenuViewModel: ObservableObject {
             return
         }
         
-        // Always update and save to ensure persistence works correctly
-        // The guard clause was preventing persistence when called from onChange
+        // Only update and save if the new index is different from the current index
+        guard newWeekIndex != selectedWeekIndex else {
+            AppLogger.info("Selected week index is already \(newWeekIndex). No update needed.", category: AppLogger.viewModel)
+            return
+        }
+        
         selectedWeekIndex = newWeekIndex
         saveSelectedWeekIndex()
     }

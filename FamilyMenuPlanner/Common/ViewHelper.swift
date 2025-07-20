@@ -367,8 +367,10 @@ struct SortingToolbarModifier<SortOptionType: SortOption>: ViewModifier {
                         Button(option.displayName) {
                             onSortOptionSelected(option)
                         }
+                        .accessibilityIdentifier("sort_option_\(option.displayName.lowercased().replacingOccurrences(of: " ", with: "_"))")
                     }
                     Button("Cancel".localized(), role: .cancel) {}
+                        .accessibilityIdentifier("sort_cancel_button")
                 }
             }
         }
@@ -438,8 +440,14 @@ struct AlertModifier: ViewModifier {
                 message: Text(alert.message),
                 dismissButton: .default(Text("OK".localized())) {
                     alert.action?()
+                    onDismiss()
                 }
             )
+        }
+        .onChange(of: currentAlert) { newValue in
+            if newValue == nil {
+                onDismiss()
+            }
         }
     }
 }

@@ -231,7 +231,7 @@ final class MenuUnitTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedWeekIndex, 1)
     }
     
-    func testUpdateSelectedWeekIndexAlwaysSavesToUserDefaults() {
+    func testUpdateSelectedWeekIndexOptimizesSavesToUserDefaults() {
         let mock = MockMenuService()
         let viewModel = MenuViewModel(menuService: mock)
         
@@ -241,12 +241,17 @@ final class MenuUnitTests: XCTestCase {
         // Clear UserDefaults to verify it gets set again
         UserDefaults.standard.removeObject(forKey: MenuViewModel.selectedWeekIndexKey)
         
-        // Try to update to the same value
+        // Try to update to the same value - should not save due to optimization
         viewModel.updateSelectedWeekIndex(1)
         
-        // Should always save the value (guard clause removed to fix persistence bug)
+        // Should not save when value hasn't changed (optimization)
         let savedValue = UserDefaults.standard.integer(forKey: MenuViewModel.selectedWeekIndexKey)
-        XCTAssertEqual(savedValue, 1, "Should always save the value to ensure persistence works")
+        XCTAssertEqual(savedValue, 0, "Should not save when value hasn't changed for performance optimization")
+        
+        // Now update to a different value - should save
+        viewModel.updateSelectedWeekIndex(2)
+        let newSavedValue = UserDefaults.standard.integer(forKey: MenuViewModel.selectedWeekIndexKey)
+        XCTAssertEqual(newSavedValue, 2, "Should save when value actually changes")
     }
     
     func testInitializationWithNoUserDefaultsDefaultsToZero() {

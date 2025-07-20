@@ -28,10 +28,14 @@ final class AlertQueueManager: ObservableObject {
     }
 }
 
-struct AlertItem: Identifiable {
+struct AlertItem: Identifiable, Equatable {
     let id = UUID()
     let title: String
     let message: String
     let action: (() -> Void)?
+    
+    static func == (lhs: AlertItem, rhs: AlertItem) -> Bool {
+        return lhs.id == rhs.id && lhs.title == rhs.title && lhs.message == rhs.message
+    }
 }
 
