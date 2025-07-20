@@ -43,9 +43,6 @@ class MockMenuService: MenuServiceProtocol {
 
 final class MenuUnitTests: XCTestCase {
     
-    // Removed the local definition of selectedWeekIndexKey.
-    // Using MenuViewModel.selectedWeekIndexKey instead to avoid duplication.
-    
     override func setUp() {
         super.setUp()
         // Clear any existing UserDefaults from previous tests

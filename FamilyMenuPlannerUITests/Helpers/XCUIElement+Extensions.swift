@@ -36,10 +36,8 @@ extension XCUIElement {
             self.typeText(deleteString)
         }
         
-        // Enter new text
-        if !text.isEmpty {
-            self.typeText(text)
-        }
+        // Enter new text (allow empty text for clearing fields)
+        self.typeText(text)
     }
     
     /// Clears text field content using multiple fallback strategies
