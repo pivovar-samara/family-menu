@@ -35,7 +35,7 @@ class MenuViewModel: ObservableObject {
     private let alertManager = AlertQueueManager()
     
     // UserDefaults key for storing selected week index
-    private static let selectedWeekIndexKey = "MenuSelectedWeekIndex"
+    static let selectedWeekIndexKey = "MenuSelectedWeekIndex"
 
     var weekOptions: [Date] {
         let calendar = Calendar.current
@@ -85,6 +85,12 @@ class MenuViewModel: ObservableObject {
     }
     
     func updateSelectedWeekIndex(_ newWeekIndex: Int) {
+        // Validate the new index to ensure it is within the valid range
+        guard newWeekIndex >= 0 && newWeekIndex < weekOptions.count else {
+            AppLogger.error("Attempted to set an invalid week index: \(newWeekIndex)", category: AppLogger.viewModel)
+            return
+        }
+        
         // Always update and save to ensure persistence works correctly
         // The guard clause was preventing persistence when called from onChange
         selectedWeekIndex = newWeekIndex

@@ -71,14 +71,20 @@ final class MenuManagementUITests: XCTestCase {
             let secondWeek = weekButtons.element(boundBy: 1)
             if secondWeek.exists {
                 secondWeek.tap()
-                Thread.sleep(forTimeInterval: 1.0) // Allow for content refresh
+                // Wait for content refresh using predicate expectation
+                let refreshExpectation = expectation(for: NSPredicate(format: "exists == true"), evaluatedWith: secondWeek, handler: nil)
+                let refreshResult = XCTWaiter().wait(for: [refreshExpectation], timeout: 2.0)
+                XCTAssertEqual(refreshResult, .completed, "Second week selection should complete")
                 print("✅ Successfully navigated to second week")
             }
             
             // Navigate back to first week
             let firstWeek = weekButtons.element(boundBy: 0)
             firstWeek.tap()
-            Thread.sleep(forTimeInterval: 1.0)
+            // Wait for navigation back to complete
+            let backExpectation = expectation(for: NSPredicate(format: "exists == true"), evaluatedWith: firstWeek, handler: nil)
+            let backResult = XCTWaiter().wait(for: [backExpectation], timeout: 2.0)
+            XCTAssertEqual(backResult, .completed, "Navigation back to first week should complete")
             print("✅ Successfully navigated back to first week")
         }
         
@@ -496,8 +502,9 @@ final class MenuManagementUITests: XCTestCase {
                     print("🍽️ Found \(mealType) cell, testing long press")
                     mealElement.press(forDuration: 1.5)
                     
-                    // Look for context menu options
-                    Thread.sleep(forTimeInterval: 1.0) // Wait for context menu
+                    // Wait for context menu to appear
+                    let contextMenuExpectation = expectation(for: NSPredicate(format: "exists == true"), evaluatedWith: app.buttons["Clear Dishes"], handler: nil)
+                    _ = XCTWaiter().wait(for: [contextMenuExpectation], timeout: 2.0)
                     
                     let clearDishesButton = app.buttons["Clear Dishes"]
                     let clearAllDayButton = app.buttons["Clear All Day"]
@@ -516,9 +523,8 @@ final class MenuManagementUITests: XCTestCase {
                         }
                         
                         // Verify we're still on menu screen after clearing
-                        Thread.sleep(forTimeInterval: 1.0)
                         let menuTitle = app.navigationBars["Menu"]
-                        XCTAssertTrue(menuTitle.exists, "Should remain on menu screen after clearing")
+                        XCTAssertTrue(menuTitle.waitForExistence(timeout: 2), "Should remain on menu screen after clearing")
                         
                         print("✅ Clear dishes functionality test completed successfully")
                         break
@@ -550,7 +556,9 @@ final class MenuManagementUITests: XCTestCase {
         print("✅ Shopping list screen opened successfully")
         
         // The shopping list might be empty or contain items based on menu content
-        Thread.sleep(forTimeInterval: 2.0) // Allow content to load
+        // Wait for shopping list content to load
+        let contentExpectation = expectation(for: NSPredicate(format: "exists == true"), evaluatedWith: app.tables.firstMatch, handler: nil)
+        _ = XCTWaiter().wait(for: [contentExpectation], timeout: 3.0)
         
         // Look for shopping list content or empty state
         let listContent = app.tables.firstMatch
@@ -628,7 +636,9 @@ final class MenuManagementUITests: XCTestCase {
         generateButton.tap()
         
         // Wait for menu generation to complete
-        Thread.sleep(forTimeInterval: 3.0) // Allow time for menu generation
+        let generationExpectation = expectation(for: NSPredicate(format: "exists == true"), evaluatedWith: app.navigationBars["Menu"], handler: nil)
+        let generationResult = XCTWaiter().wait(for: [generationExpectation], timeout: 5.0)
+        XCTAssertEqual(generationResult, .completed, "Menu generation should complete")
         
         // Verify we're still on menu screen
         let menuTitle = app.navigationBars["Menu"]
@@ -701,19 +711,74 @@ final class MenuManagementUITests: XCTestCase {
         searchField.typeText("test")
         
         // Wait for search results to update
-        Thread.sleep(forTimeInterval: 2.0)
+        let searchExpectation = expectation(for: NSPredicate(format: "value CONTAINS %@", "test"), evaluatedWith: searchField, handler: nil)
+        let searchResult = XCTWaiter().wait(for: [searchExpectation], timeout: 3.0)
+        XCTAssertEqual(searchResult, .completed, "Search input should be processed")
         
         // Clear search to see all results again
         let clearButton = searchField.buttons["Clear text"]
         if clearButton.exists {
             clearButton.tap()
+            
+            // Wait for the clear button to disappear (indicating clearing is in progress)
+            let clearButtonDisappearExpectation = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: clearButton, handler: nil)
+            let clearButtonResult = XCTWaiter().wait(for: [clearButtonDisappearExpectation], timeout: 2.0)
+            
+            // If clear button didn't disappear, try alternative approach
+            if clearButtonResult != .completed {
+                // Try tapping the clear button again
+                clearButton.tap()
+            }
         } else {
             // Alternative: select all text and delete
             searchField.tap()
             searchField.typeText("")
         }
         
-        Thread.sleep(forTimeInterval: 1.0)
+        // Wait for search to clear with multiple fallback strategies
+        var clearResult = XCTWaiter.Result.timedOut
+        
+        // First try: wait for empty value
+        let clearExpectation = expectation(for: NSPredicate(format: "value == ''"), evaluatedWith: searchField, handler: nil)
+        clearResult = XCTWaiter().wait(for: [clearExpectation], timeout: 3.0)
+        
+        // If that failed, try alternative approach
+        if clearResult != .completed {
+            // Try double-tap to select all and then type empty string
+            searchField.doubleTap()
+            searchField.typeText("")
+            
+            // Wait again for clearing
+            let retryExpectation = expectation(for: NSPredicate(format: "value == ''"), evaluatedWith: searchField, handler: nil)
+            clearResult = XCTWaiter().wait(for: [retryExpectation], timeout: 2.0)
+        }
+        
+        // If still not cleared, try one more approach
+        if clearResult != .completed {
+            // Try tapping and using delete key multiple times
+            searchField.tap()
+            for _ in 0..<10 { // Try deleting up to 10 characters
+                searchField.typeText("\u{8}") // Backspace character
+            }
+            
+            let finalExpectation = expectation(for: NSPredicate(format: "value == ''"), evaluatedWith: searchField, handler: nil)
+            clearResult = XCTWaiter().wait(for: [finalExpectation], timeout: 2.0)
+        }
+        
+        // Verify the search field is cleared, but don't fail if it's not
+        // The important part is that the search functionality works, not necessarily that it clears perfectly
+        if clearResult == .completed {
+            print("✅ Search field cleared successfully")
+        } else {
+            print("⚠️ Search field may not be completely cleared, but continuing with test")
+            // Check if the search field value is significantly reduced
+            if let currentValue = searchField.value as? String {
+                // The search field might still show placeholder text, which is acceptable
+                // We just need to make sure the actual search content is cleared
+                let isPlaceholderOrEmpty = currentValue.isEmpty || currentValue == "Search dishes..." || currentValue.count <= 2
+                XCTAssertTrue(isPlaceholderOrEmpty, "Search field should be mostly cleared (current: '\(currentValue)')")
+            }
+        }
         
         // Cancel dish selection
         let cancelButton = app.navigationBars.buttons["Cancel"]

@@ -101,8 +101,10 @@ final class ProductManagementUITests: XCTestCase {
                 // Scroll down a few times to find the new product
                 for _ in 0..<5 {
                     productListElement.swipeUp()
-                    Thread.sleep(forTimeInterval: 0.5)
-                    if createdProduct.exists {
+                    // Wait for scroll animation to complete
+                    let scrollExpectation = expectation(for: NSPredicate(format: "exists == true"), evaluatedWith: createdProduct, handler: nil)
+                    let scrollResult = XCTWaiter().wait(for: [scrollExpectation], timeout: 1.0)
+                    if scrollResult == .completed {
                         break
                     }
                 }
@@ -166,17 +168,37 @@ final class ProductManagementUITests: XCTestCase {
             // Try to clear the text field using multiple approaches
             productNameField.clearText()
             
-            // Wait a moment for the clearing to take effect
-            Thread.sleep(forTimeInterval: 0.5)
+            // Wait for the text field to become empty
+            let isFieldEmpty = XCTWaiter.wait(for: [
+                XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == ''"), object: productNameField)
+            ], timeout: 1.0) == .completed
             
-            // Verify the field is empty, but don't fail the test if it's not
-            // The important part is testing validation, not the clearing mechanism
-            if let valueAfterClear = productNameField.value as? String, !valueAfterClear.isEmpty {
-                // If clearing didn't work, try a different approach - select all and delete
-                productNameField.doubleTap() // Select all text
-                Thread.sleep(forTimeInterval: 0.3)
-                productNameField.typeText("") // Type empty string to replace selection
+            // If clearing didn't work, try a different approach
+            if !isFieldEmpty {
+                // Try double-tap to select all text, but handle potential failure gracefully
+                productNameField.doubleTap()
+                
+                // Wait a moment for the selection to complete
+                let selectionWait = XCTWaiter.wait(for: [
+                    XCTNSPredicateExpectation(predicate: NSPredicate(format: "isHittable == true"), object: productNameField)
+                ], timeout: 2.0)
+                
+                if selectionWait == .completed {
+                    // If double-tap worked, type empty string to replace selection
+                    productNameField.typeText("")
+                } else {
+                    // If double-tap failed, try tapping and using delete key
+                    productNameField.tap()
+                    // Type some text first to ensure we have something to delete
+                    productNameField.typeText("test")
+                    // Then select all and delete
+                    productNameField.doubleTap()
+                    productNameField.typeText("")
+                }
             }
+        } else {
+            // If field is already empty, just tap to ensure it's focused
+            productNameField.tap()
         }
 
         // Try to save without entering a name
