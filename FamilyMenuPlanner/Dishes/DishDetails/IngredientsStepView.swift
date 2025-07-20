@@ -190,7 +190,7 @@ struct QuickAddIngredientCard: View {
                 .background(Color("AccentColor").opacity(0.1))
                 .cornerRadius(12)
             }
-            .buttonStyle(IngredientsScaleButtonStyle())
+            .buttonStyle(ScaleButtonStyle())
         }
         .padding(20)
         .background(Color("SecondaryBackgroundColor"))
@@ -608,50 +608,16 @@ struct EmptyIngredientsCard: View {
     let onAddFirst: () -> Void
     
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "basket")
-                .font(.system(size: 60, weight: .ultraLight))
-                .foregroundColor(.secondary)
-            
-            VStack(spacing: 8) {
-                Text("No ingredients yet".localized())
-                    .font(.title3.weight(.medium))
-                    .foregroundColor(.primary)
-                
-                Text("Start by adding your first ingredient".localized())
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            
-            Button(action: onAddFirst) {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus")
-                    Text("Add First Ingredient".localized())
-                }
-                .font(.body.weight(.medium))
-                .foregroundColor(.white)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
-                .background(Color("AccentColor"))
-                .cornerRadius(12)
-                .shadow(color: .black.opacity(0.1), radius: 4)
-            }
-            .buttonStyle(IngredientsScaleButtonStyle())
-        }
-        .padding(40)
+        EmptyStateView(
+            icon: "basket",
+            title: "No ingredients yet".localized(),
+            description: "Start by adding your first ingredient".localized(),
+            actionTitle: "Add First Ingredient".localized(),
+            action: onAddFirst
+        )
         .background(Color("SecondaryBackgroundColor"))
         .cornerRadius(20)
         .shadow(color: .black.opacity(0.04), radius: 8)
-    }
-}
-
-// MARK: - Local UI Styles
-struct IngredientsScaleButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 

@@ -101,8 +101,10 @@ final class ProductManagementUITests: XCTestCase {
                 // Scroll down a few times to find the new product
                 for _ in 0..<5 {
                     productListElement.swipeUp()
-                    Thread.sleep(forTimeInterval: 0.5)
-                    if createdProduct.exists {
+                    // Wait for scroll animation to complete
+                    let scrollExpectation = expectation(for: NSPredicate(format: "exists == true"), evaluatedWith: createdProduct, handler: nil)
+                    let scrollResult = XCTWaiter().wait(for: [scrollExpectation], timeout: 1.0)
+                    if scrollResult == .completed {
                         break
                     }
                 }
@@ -153,44 +155,50 @@ final class ProductManagementUITests: XCTestCase {
         let productNameField = app.textFields["product_name_field"]
         XCTAssertTrue(productNameField.waitForHittable(timeout: 4), "Product Name field should be hittable in the add form")
 
-        // Test validation with empty name
-        productNameField.tap()
-        productNameField.clearAndEnterText("")
+        // Test validation with empty name - use the reusable helper method
+        productNameField.clearTextWithFallback()
 
         // Try to save without entering a name
         let saveButton = app.navigationBars["Add Product"].buttons["Save"]
         XCTAssertTrue(saveButton.waitForHittable(timeout: 3), "Save button should be hittable in the navigation bar")
         saveButton.tap()
 
-        // Wait for either an alert or for the add product sheet to remain
+        // Wait for validation response - use a more robust approach
         let alert = app.alerts.firstMatch
         let alertAppeared = alert.waitForExistence(timeout: 3)
-        var validationErrorFound = false
+        
         if alertAppeared {
-            // Look for common validation error texts in the alert
+            // Look for validation error texts in the alert
             let errorTexts = [
                 "Error",
                 "Product name cannot be empty",
                 "cannot be empty",
                 "Name is required"
             ]
+            
+            var validationErrorFound = false
             for errorText in errorTexts {
                 let errorElement = app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] %@", errorText)).firstMatch
                 if errorElement.exists {
                     validationErrorFound = true
                     XCTAssertTrue(true, "Validation error found in alert: \(errorText)")
-                    // Dismiss the alert
-                    let okButton = app.buttons["OK"]
-                    if okButton.exists && okButton.isHittable {
-                        okButton.tap()
-                    }
                     break
                 }
             }
+            
             XCTAssertTrue(validationErrorFound, "Validation error should appear for empty product name")
+            
+            // Dismiss the alert
+            let okButton = app.buttons["OK"]
+            if okButton.exists && okButton.isHittable {
+                okButton.tap()
+            }
         } else {
             // If no alert appeared, verify we're still on the Add Product screen (validation prevented submission)
             XCTAssertTrue(addProductNavBar.exists, "Should still be on Add Product screen after validation failure")
+            
+            // Additional check: verify the save button is still enabled and we can try again
+            XCTAssertTrue(saveButton.isHittable, "Save button should still be hittable after validation failure")
         }
     }
     

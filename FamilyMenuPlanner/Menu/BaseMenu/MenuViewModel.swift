@@ -33,6 +33,9 @@ class MenuViewModel: ObservableObject {
     let weekdays: [String] = CalendarHelper.localizedWeekdayNamesStartingFromMonday()
     
     private let alertManager = AlertQueueManager()
+    
+    // UserDefaults key for storing selected week index
+    static let selectedWeekIndexKey = "MenuSelectedWeekIndex"
 
     var weekOptions: [Date] {
         let calendar = Calendar.current
@@ -54,10 +57,48 @@ class MenuViewModel: ObservableObject {
         alertManager.$currentAlert
                     .receive(on: RunLoop.main)
                     .assign(to: &$currentAlert)
+        
+        // Load persistent selected week index after all stored properties are initialized
+        loadSelectedWeekIndex()
+    }
+    
+    /// Loads the persistent selected week index from UserDefaults
+    private func loadSelectedWeekIndex() {
+        let savedWeekIndex = UserDefaults.standard.integer(forKey: Self.selectedWeekIndexKey)
+        // Ensure the saved index is valid for current week options
+        if savedWeekIndex >= 0 && savedWeekIndex < weekOptions.count {
+            selectedWeekIndex = savedWeekIndex
+        } else {
+            selectedWeekIndex = 0 // Default to current week if saved index is invalid
+        }
+        AppLogger.info("Loaded menu selected week index: \(selectedWeekIndex)", category: AppLogger.viewModel)
+    }
+    
+    /// Saves the current selected week index to UserDefaults
+    private func saveSelectedWeekIndex() {
+        UserDefaults.standard.set(selectedWeekIndex, forKey: Self.selectedWeekIndexKey)
+        AppLogger.info("Saved menu selected week index: \(selectedWeekIndex)", category: AppLogger.viewModel)
     }
 
     func loadMenu(for weekIndex: Int) {
         weeklyMenu = menuService.fetchMenu(for: weekIndex)
+    }
+    
+    func updateSelectedWeekIndex(_ newWeekIndex: Int) {
+        // Validate the new index to ensure it is within the valid range
+        guard newWeekIndex >= 0 && newWeekIndex < weekOptions.count else {
+            AppLogger.error("Attempted to set an invalid week index: \(newWeekIndex)", category: AppLogger.viewModel)
+            return
+        }
+        
+        // Only update and save if the new index is different from the current index
+        guard newWeekIndex != selectedWeekIndex else {
+            AppLogger.info("Selected week index is already \(newWeekIndex). No update needed.", category: AppLogger.viewModel)
+            return
+        }
+        
+        selectedWeekIndex = newWeekIndex
+        saveSelectedWeekIndex()
     }
 
     func generateMenu() {

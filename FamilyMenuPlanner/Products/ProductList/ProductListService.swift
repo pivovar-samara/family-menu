@@ -198,12 +198,12 @@ enum ProductListServiceError: LocalizedError {
 }
 
 // MARK: - Product Sorting Options
-enum ProductSortOption: String, CaseIterable {
+enum ProductSortOption: String, CaseIterable, SortOption {
     case nameAscending = "nameAsc"
     case nameDescending = "nameDesc"
     case unit = "unit"
 
-    var title: String {
+    var displayName: String {
         switch self {
         case .nameAscending: return "Name A-Z".localized()
         case .nameDescending: return "Name Z-A".localized()

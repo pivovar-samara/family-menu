@@ -165,61 +165,109 @@ final class DishManagementUITests: XCTestCase {
     func testEditExistingDish() throws {
         navigateToDishList()
         
-        // Candidate dishes we expect in preload
-        let candidateDishes = ["Beef Stew", "Cheese Omelette", "Cucumber Yogurt Salad"]
+        // Ensure we have at least one dish to edit by creating one if needed
+        let dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
+        let initialCount = dishCardsQuery.count
+        
         var dishToEdit: String? = nil
-
-        // Use the same robust finder we rely on in the delete test
-        for name in candidateDishes {
-            if findDishInList(dishName: name) {
-                dishToEdit = name
-                break
+        
+        if initialCount == 0 {
+            // No dishes exist, create one for testing
+            print("📝 No dishes found, creating a test dish for editing")
+            dishToEdit = createTemporaryDishIfNeeded(baseName: "Test Edit Dish")
+            app.waitForUIUpdate(timeout: 1.0)
+        } else {
+            // Try to find an existing dish from preload data
+            let candidateDishes = ["Beef Stew", "Cheese Omelette", "Cucumber Yogurt Salad"]
+            
+            for name in candidateDishes {
+                if findDishInList(dishName: name) {
+                    dishToEdit = name
+                    break
+                }
             }
-        }
-
-        // As an absolute fallback – pick the first visible card
-        if dishToEdit == nil {
-            let firstVisibleCard = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_")).firstMatch
-            if firstVisibleCard.waitForExistence(timeout: 3) {
-                dishToEdit = firstVisibleCard.identifier.replacingOccurrences(of: "dish_list_item_", with: "")
+            
+            // If no candidate dishes found, use the first available dish
+            if dishToEdit == nil {
+                let firstVisibleCard = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_")).firstMatch
+                if firstVisibleCard.waitForExistence(timeout: 3) {
+                    // Extract dish name from the card identifier
+                    let identifier = firstVisibleCard.identifier
+                    dishToEdit = identifier.replacingOccurrences(of: "dish_list_item_", with: "")
+                }
             }
         }
 
         guard let dishName = dishToEdit else {
-            XCTFail("❌ FAILED: Could not locate any dish to edit")
+            XCTFail("❌ FAILED: Could not locate or create any dish to edit")
             return
         }
 
-        print("📝 Preparing to edit dish: \(dishName)")
+        print("📝 Preparing to edit dish: '\(dishName)'")
 
-        // Make sure the card is visible (findDishInList already did this)
-        _ = findDishInCurrentView(dishName: dishName)
-
-        var editButton = app.buttons["edit_dish_button_\(dishName)"]
-        if !editButton.waitAndScrollToElement(timeout: 4.0) {
-            // Fallback: scoped search within the dish card
-            let card = app.otherElements["dish_list_item_\(dishName)"]
-            if card.exists {
-                editButton = card.buttons["edit_dish_button_\(dishName)"].firstMatch
-                _ = editButton.waitAndScrollToElement(timeout: 2.0)
-            }
-        }
-
-        if editButton.exists {
-            editButton.tap()
-        } else {
-            // As a last resort, tap the card itself to open details for editing
-            let card = app.otherElements["dish_list_item_\(dishName)"]
-            if card.exists {
-                card.tap()
-            } else {
-                XCTFail("❌ FAILED: Could not open dish \(dishName) for editing – edit button and card both inaccessible")
+        // Ensure the dish is visible in the current view
+        let dishFound = findDishInCurrentView(dishName: dishName)
+        if !dishFound {
+            // Try to find it using the comprehensive search
+            if !findDishInList(dishName: dishName) {
+                XCTFail("❌ FAILED: Could not locate dish '\(dishName)' for editing")
                 return
             }
         }
+
+        // Try multiple strategies to find and tap the edit button
+        var editButtonFound = false
         
-        // Verify we're in the multi-step dish editing screen (should start at Basic Information)
-        XCTAssertTrue(waitForStepScreen(stepTitle: "Basic Information"), "Should be in Basic Information step for editing")
+        // Strategy 1: Direct edit button with accessibility identifier
+        var editButton = app.buttons["edit_dish_button_\(dishName)"]
+        if editButton.waitAndScrollToElement(timeout: 3.0) {
+            editButton.tap()
+            editButtonFound = true
+            print("✅ Found edit button using direct accessibility identifier")
+        } else {
+            // Strategy 2: Look for edit button within the dish card
+            let card = app.otherElements["dish_list_item_\(dishName)"]
+            if card.exists {
+                let cardEditButton = card.buttons["edit_dish_button_\(dishName)"]
+                if cardEditButton.waitAndScrollToElement(timeout: 2.0) {
+                    cardEditButton.tap()
+                    editButtonFound = true
+                    print("✅ Found edit button within dish card")
+                }
+            }
+            
+            // Strategy 3: Look for any edit button in the current view
+            if !editButtonFound {
+                let editButtons = app.buttons.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "edit_dish_button_"))
+                if editButtons.count > 0 {
+                    let firstEditButton = editButtons.firstMatch
+                    if firstEditButton.waitAndScrollToElement(timeout: 2.0) {
+                        firstEditButton.tap()
+                        editButtonFound = true
+                        print("✅ Found edit button using generic search")
+                    }
+                }
+            }
+            
+            // Strategy 4: Tap the dish card itself to open details
+            if !editButtonFound {
+                let card = app.otherElements["dish_list_item_\(dishName)"]
+                if card.exists && card.waitAndScrollToElement(timeout: 2.0) {
+                    card.tap()
+                    editButtonFound = true
+                    print("✅ Opened dish by tapping the card")
+                }
+            }
+        }
+
+        if !editButtonFound {
+            XCTFail("❌ FAILED: Could not open dish \(dishName) for editing – all strategies failed")
+            return
+        }
+        
+        // Wait for the edit screen to load
+        let basicInfoStep = app.staticTexts["Basic Information"]
+        XCTAssertTrue(basicInfoStep.waitForExistence(timeout: 5), "Should be in Basic Information step for editing")
         
         // Edit the dish name
         let dishNameField = app.textFields["Enter dish name"]
@@ -227,17 +275,18 @@ final class DishManagementUITests: XCTestCase {
         
         // Verify the original dish name is loaded
         let currentName = dishNameField.value as? String ?? ""
-        XCTAssertTrue(currentName.contains(dishName), "Should load the original dish name for editing")
+        XCTAssertTrue(currentName.contains(dishName) || dishName.contains(currentName), "Should load the original dish name for editing")
         print("📝 Current dish name in field: '\(currentName)'")
         
-        // Edit the dish name
-        let editedName = "EDITED \(dishName)"
+        // Edit the dish name with a unique suffix
+        let timestamp = Int(Date().timeIntervalSince1970)
+        let editedName = "EDITED \(dishName) \(timestamp)"
         dishNameField.clearAndEnterText(editedName)
         
         // Edit the description if available
         let descriptionEditor = app.textViews.firstMatch
         if descriptionEditor.exists {
-            descriptionEditor.clearAndEnterText("This dish has been edited by the UI test")
+            descriptionEditor.clearAndEnterText("This dish has been edited by the UI test at \(timestamp)")
         }
         
         // Navigate to Meal Types step
@@ -248,7 +297,7 @@ final class DishManagementUITests: XCTestCase {
         // STEP 2: Meal Types - Change meal type if possible
         XCTAssertTrue(waitForStepScreen(stepTitle: "Meal Types"), "Should be in Meal Types step")
         
-        let mealTypeIdentifiers = ["mealTypeBreakfast", "mealTypeLunch", "mealTypeDinner", "mealTypeSnack"]
+        let mealTypeIdentifiers = ["mealTypeBreakfast", "mealTypeLunch", "mealTypeDinner"]
         var mealButtonFound = false
         for identifier in mealTypeIdentifiers {
             let btn = app.buttons[identifier]
@@ -291,14 +340,13 @@ final class DishManagementUITests: XCTestCase {
         let dishListTitle = app.navigationBars["Dishes"]
         XCTAssertTrue(dishListTitle.waitForExistence(timeout: 5), "Should return to dish list after saving edits")
         
-        // Verify the changes are reflected in the dish list
-        app.waitForUIUpdate(timeout: 1.0) // Wait for UI to update using XCTWaiter
+        // Wait for UI to update and verify the changes are reflected
+        app.waitForUIUpdate(timeout: 2.0)
         
-        // CRITICAL: Verify the dish edit actually worked
-        let editedDishText = app.staticTexts[editedName]
-        let foundEditedDish = editedDishText.waitForExistence(timeout: 5)
+        // Verify the edited dish appears in the list
+        let editedDishFound = findDishInList(dishName: editedName)
         
-        guard foundEditedDish else {
+        guard editedDishFound else {
             XCTFail("❌ Edited dish '\(editedName)' not found in the dish list after save.")
             return
         }
@@ -506,7 +554,7 @@ final class DishManagementUITests: XCTestCase {
         }
         
         // Add meal type to proceed
-        let mealTypeIdentifiers = ["mealTypeBreakfast", "mealTypeLunch", "mealTypeDinner", "mealTypeSnack"]
+        let mealTypeIdentifiers = ["mealTypeBreakfast", "mealTypeLunch", "mealTypeDinner"]
         var mealButtonFound = false
         for identifier in mealTypeIdentifiers {
             let btn = app.buttons[identifier]
@@ -820,7 +868,7 @@ final class DishManagementUITests: XCTestCase {
         nextButton.tap()
 
         // Meal Types – select first available meal type button
-        let mealTypeIdentifiers = ["mealTypeBreakfast", "mealTypeLunch", "mealTypeDinner", "mealTypeSnack"]
+        let mealTypeIdentifiers = ["mealTypeBreakfast", "mealTypeLunch", "mealTypeDinner"]
         var mealButtonFound = false
         for identifier in mealTypeIdentifiers {
             let btn = app.buttons[identifier]

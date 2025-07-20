@@ -325,4 +325,138 @@ extension View {
     }
 }
 
+// MARK: - Reusable View Modifiers
+
+/// Reusable sorting toolbar modifier for list views
+struct SortingToolbarModifier<SortOptionType: SortOption>: ViewModifier {
+    @Binding var showingSortOptions: Bool
+    let sortOptions: [SortOptionType]
+    let onSortOptionSelected: (SortOptionType) -> Void
+    let accessibilityIdentifier: String
+    let accessibilityLabel: String
+    let dialogTitle: String
+    
+    init(
+        showingSortOptions: Binding<Bool>,
+        sortOptions: [SortOptionType],
+        onSortOptionSelected: @escaping (SortOptionType) -> Void,
+        accessibilityIdentifier: String,
+        accessibilityLabel: String,
+        dialogTitle: String
+    ) {
+        self._showingSortOptions = showingSortOptions
+        self.sortOptions = sortOptions
+        self.onSortOptionSelected = onSortOptionSelected
+        self.accessibilityIdentifier = accessibilityIdentifier
+        self.accessibilityLabel = accessibilityLabel
+        self.dialogTitle = dialogTitle
+    }
+    
+    func body(content: Content) -> some View {
+        content.toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: { showingSortOptions = true }) {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.body)
+                        .foregroundColor(Color("AccentColor"))
+                }
+                .accessibilityIdentifier(accessibilityIdentifier)
+                .accessibilityLabel(accessibilityLabel)
+                .confirmationDialog(dialogTitle, isPresented: $showingSortOptions, titleVisibility: .visible) {
+                    ForEach(sortOptions, id: \.self) { option in
+                        Button(option.displayName) {
+                            onSortOptionSelected(option)
+                        }
+                        .accessibilityIdentifier(option.accessibilityIdentifier)
+                    }
+                    Button("Cancel".localized(), role: .cancel) {}
+                        .accessibilityIdentifier("sort_cancel_button")
+                }
+            }
+        }
+    }
+}
+
+/// Reusable sheet modifier for adding new items
+struct AddSheetModifier: ViewModifier {
+    @Binding var isPresented: Bool
+    let content: () -> AnyView
+    
+    init<Content: View>(isPresented: Binding<Bool>, @ViewBuilder content: @escaping () -> Content) {
+        self._isPresented = isPresented
+        self.content = { AnyView(content()) }
+    }
+    
+    func body(content: Content) -> some View {
+        content.sheet(isPresented: $isPresented, onDismiss: {
+            isPresented = false
+        }) {
+            NavigationStack {
+                self.content()
+            }
+        }
+    }
+}
+
+/// Reusable sheet modifier for editing items
+struct EditSheetModifier<Item: Identifiable>: ViewModifier {
+    @Binding var selectedItem: Item?
+    let onDismiss: () -> Void
+    let content: (Item) -> AnyView
+    
+    init<Content: View>(
+        selectedItem: Binding<Item?>,
+        onDismiss: @escaping () -> Void,
+        @ViewBuilder content: @escaping (Item) -> Content
+    ) {
+        self._selectedItem = selectedItem
+        self.onDismiss = onDismiss
+        self.content = { item in AnyView(content(item)) }
+    }
+    
+    func body(content: Content) -> some View {
+        content.sheet(item: $selectedItem, onDismiss: onDismiss) { item in
+            NavigationStack {
+                self.content(item)
+            }
+        }
+    }
+}
+
+/// Reusable alert modifier
+struct AlertModifier: ViewModifier {
+    @Binding var currentAlert: AlertItem?
+    let onDismiss: () -> Void
+    
+    init(currentAlert: Binding<AlertItem?>, onDismiss: @escaping () -> Void) {
+        self._currentAlert = currentAlert
+        self.onDismiss = onDismiss
+    }
+    
+    func body(content: Content) -> some View {
+        content.alert(item: $currentAlert) { alert in
+            Alert(
+                title: Text(alert.title),
+                message: Text(alert.message),
+                dismissButton: .default(Text("OK".localized())) {
+                    alert.action?()
+                }
+            )
+        }
+    }
+}
+
+// MARK: - Sort Option Protocol
+protocol SortOption: CaseIterable, Hashable {
+    var displayName: String { get }
+    var accessibilityIdentifier: String { get }
+}
+
+// MARK: - Sort Option Extensions
+extension SortOption {
+    /// Default implementation for accessibility identifier
+    var accessibilityIdentifier: String {
+        return "sort_option_\(displayName.lowercased().replacingOccurrences(of: " ", with: "_"))"
+    }
+}
 

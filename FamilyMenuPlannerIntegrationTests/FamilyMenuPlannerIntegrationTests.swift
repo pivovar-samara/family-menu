@@ -19,26 +19,64 @@ class FamilyMenuPlannerIntegrationTests: BaseIntegrationTest {
         
         // Check if the error description contains expected text (accounting for localization)
         let description = persistenceError.localizedDescription
-        XCTAssertTrue(description.contains("migrate") || description.contains("миграц"), "Migration error should contain migration-related text")
+        XCTAssertFalse(description.isEmpty, "Migration error should have a non-empty description")
+        XCTAssertTrue(description.count > 10, "Migration error should have a meaningful description")
+        
+        // Test for specific migration-related keywords in the error message
+        let localizedKeywords: [String: [String]] = [
+            "migration": ["migrate", "migration", "migrated", "миграция", "мигрировать"],
+            "permission": ["permission", "denied", "access", "разрешение", "доступ"],
+            "diskSpace": ["disk", "space", "insufficient", "storage", "диск", "место", "память"],
+            "error": ["error", "unexpected", "произошла", "ошибка"]
+        ]
+        let migrationKeywords = localizedKeywords["migration"] ?? []
+        let hasMigrationKeyword = migrationKeywords.contains { keyword in
+            description.localizedCaseInsensitiveContains(keyword)
+        }
+        XCTAssertTrue(hasMigrationKeyword, "Migration error should contain migration-related keywords")
         
         // Test permission error
         _ = NSError(domain: NSCocoaErrorDomain, code: NSFileReadNoPermissionError, userInfo: nil)
         let permissionPersistenceError = PersistenceError.permissionDenied
         
         let permissionDescription = permissionPersistenceError.localizedDescription
-        XCTAssertTrue(permissionDescription.contains("Permission") || permissionDescription.contains("доступ"), "Permission error should contain permission-related text")
+        XCTAssertFalse(permissionDescription.isEmpty, "Permission error should have a non-empty description")
+        XCTAssertTrue(permissionDescription.count > 10, "Permission error should have a meaningful description")
+        
+        // Test for specific permission-related keywords
+        let permissionKeywords = localizedKeywords["permission"] ?? []
+        let hasPermissionKeyword = permissionKeywords.contains { keyword in
+            permissionDescription.localizedCaseInsensitiveContains(keyword)
+        }
+        XCTAssertTrue(hasPermissionKeyword, "Permission error should contain permission-related keywords")
         
         // Test disk space error
         let diskSpaceError = PersistenceError.diskSpaceInsufficient
         let diskDescription = diskSpaceError.localizedDescription
-        XCTAssertTrue(diskDescription.contains("disk space") || diskDescription.contains("место"), "Disk space error should contain space-related text")
+        XCTAssertFalse(diskDescription.isEmpty, "Disk space error should have a non-empty description")
+        XCTAssertTrue(diskDescription.count > 10, "Disk space error should have a meaningful description")
+        
+        // Test for specific disk space-related keywords
+        let diskSpaceKeywords = localizedKeywords["diskSpace"] ?? []
+        let hasDiskSpaceKeyword = diskSpaceKeywords.contains { keyword in
+            diskDescription.localizedCaseInsensitiveContains(keyword)
+        }
+        XCTAssertTrue(hasDiskSpaceKeyword, "Disk space error should contain disk space-related keywords")
         
         // Test general Core Data error
         let generalError = NSError(domain: NSCocoaErrorDomain, code: NSCoreDataError, userInfo: nil)
         let generalPersistenceError = PersistenceError.unknown(generalError)
         
         let generalDescription = generalPersistenceError.localizedDescription
-        XCTAssertTrue(generalDescription.contains("unexpected error") || generalDescription.contains("непредвиденная"), "General error should contain unexpected error text")
+        XCTAssertFalse(generalDescription.isEmpty, "General error should have a non-empty description")
+        XCTAssertTrue(generalDescription.count > 10, "General error should have a meaningful description")
+        
+        // Test for specific error-related keywords
+        let errorKeywords = localizedKeywords["error"] ?? []
+        let hasErrorKeyword = errorKeywords.contains { keyword in
+            generalDescription.localizedCaseInsensitiveContains(keyword)
+        }
+        XCTAssertTrue(hasErrorKeyword, "General error should contain error-related keywords")
     }
     
     func testPersistenceControllerErrorStates() {

@@ -229,7 +229,6 @@ struct MealTypeChip: View {
         case "breakfast": return .orange
         case "lunch": return .yellow
         case "dinner": return .purple
-        case "snack": return .pink
         default: return Color("AccentColor")
         }
     }

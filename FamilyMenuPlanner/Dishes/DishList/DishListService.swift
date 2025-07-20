@@ -9,12 +9,12 @@ import CoreData
 import Combine
 
 // MARK: - Dish Sorting Options
-enum DishSortOption: String, CaseIterable {
+enum DishSortOption: String, CaseIterable, SortOption {
     case nameAscending = "nameAsc"
     case nameDescending = "nameDesc"
     case category = "category"
     
-    var title: String {
+    var displayName: String {
         switch self {
         case .nameAscending: return "Name A-Z".localized()
         case .nameDescending: return "Name Z-A".localized()

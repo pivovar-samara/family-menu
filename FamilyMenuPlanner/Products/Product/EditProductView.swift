@@ -196,17 +196,8 @@ struct UnitChip: View {
                         )
                 )
         }
-        .buttonStyle(ProductScaleButtonStyle())
+        .buttonStyle(ScaleButtonStyle())
         .animation(.easeInOut(duration: 0.2), value: isSelected)
         .accessibilityIdentifier("unit_chip_\(title)")
-    }
-}
-
-// MARK: - Scale Button Style
-struct ProductScaleButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
