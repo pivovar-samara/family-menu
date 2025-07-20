@@ -444,11 +444,6 @@ struct AlertModifier: ViewModifier {
                 }
             )
         }
-        .onChange(of: currentAlert) { newValue in
-            if newValue == nil {
-                onDismiss()
-            }
-        }
     }
 }
 

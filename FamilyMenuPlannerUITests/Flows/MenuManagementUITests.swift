@@ -749,7 +749,8 @@ final class MenuManagementUITests: XCTestCase {
             if let currentValue = searchField.value as? String {
                 // The search field might still show placeholder text, which is acceptable
                 // We just need to make sure the actual search content is cleared
-                let isPlaceholderOrEmpty = currentValue.isEmpty || currentValue == "Search dishes..." || currentValue.count <= 2
+                let placeholderValue = searchField.placeholderValue as? String ?? ""
+                let isPlaceholderOrEmpty = currentValue.isEmpty || currentValue == placeholderValue || currentValue.count <= 2
                 XCTAssertTrue(isPlaceholderOrEmpty, "Search field should be mostly cleared (current: '\(currentValue)')")
             }
         }

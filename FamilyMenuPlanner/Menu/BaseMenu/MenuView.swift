@@ -95,8 +95,12 @@ struct MenuView: View {
             Picker("Select Week", selection: Binding(
                 get: { viewModel.selectedWeekIndex },
                 set: { newValue in
+                    let oldIndex = viewModel.selectedWeekIndex
                     viewModel.updateSelectedWeekIndex(newValue)
-                    viewModel.loadMenu(for: newValue)
+                    // Only load menu if the index was actually updated
+                    if viewModel.selectedWeekIndex != oldIndex {
+                        viewModel.loadMenu(for: viewModel.selectedWeekIndex)
+                    }
                 }
             )) {
                 ForEach(0..<viewModel.weekOptions.count, id: \.self) { index in
