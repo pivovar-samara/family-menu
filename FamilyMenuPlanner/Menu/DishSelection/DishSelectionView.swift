@@ -156,20 +156,7 @@ struct DishSelectionView: View {
     
     // Helper function to get color for different categories
     private func categoryColor(for categoryName: String) -> Color {
-        switch categoryName {
-        case "Main Course":
-            return Color.blue
-        case "Garnish":
-            return Color.green
-        case "Dessert":
-            return Color.orange
-        case "Appetizer":
-            return Color.purple
-        case "Sauce":
-            return Color.red
-        default:
-            return Color.gray
-        }
+        return StylingHelper.categoryColor(for: categoryName)
     }
 }
 
@@ -255,20 +242,7 @@ struct DishSelectionCardView: View {
     }
     // Helper function to get color for different categories
     private func categoryColor(for categoryName: String) -> Color {
-        switch categoryName {
-        case "Main Course":
-            return Color.blue
-        case "Garnish":
-            return Color.green
-        case "Dessert":
-            return Color.orange
-        case "Appetizer":
-            return Color.purple
-        case "Sauce":
-            return Color.red
-        default:
-            return Color.gray
-        }
+        return StylingHelper.categoryColor(for: categoryName)
     }
 }
 // MARK: - Empty State Component

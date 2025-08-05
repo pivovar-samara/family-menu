@@ -313,7 +313,8 @@ final class DataValidationTests: XCTestCase {
             ("Garnish", 2),
             ("Dessert", 3),
             ("Appetizer", 4),
-            ("Sauce", 5)
+            ("Sauce", 5),
+            ("Soup", 6)
         ]
         
         for (name, sortOrder) in dishCategories {
