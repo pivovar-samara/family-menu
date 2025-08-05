@@ -223,6 +223,7 @@ struct DishCardView: View {
                         .foregroundColor(.primary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
+                        .accessibilityIdentifier("dish_name_\(dish.name ?? "unnamed")")
                 }
                 
                 // Description
