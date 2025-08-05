@@ -527,7 +527,7 @@ class PersistenceController {
     }
     
     private static let preloadDataVersionKey = "PreloadDataVersion"
-    private static let currentPreloadDataVersion = "1.0" // Increment this when preload data changes
+    private static let currentPreloadDataVersion = "1.1" // Increment this when preload data changes
     
     func isDatabaseEmptyOrOutdated(context: NSManagedObjectContext) -> Bool {
         // Thread-safe check for data generation in progress

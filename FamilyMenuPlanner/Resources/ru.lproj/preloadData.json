@@ -41,7 +41,8 @@
         {"name": "Garnish", "sortOrder": 2},
         {"name": "Dessert", "sortOrder": 3},
         {"name": "Appetizer", "sortOrder": 4},
-        {"name": "Sauce", "sortOrder": 5}
+        {"name": "Sauce", "sortOrder": 5},
+        {"name": "Soup", "sortOrder": 6}
     ],
     "dishes": [
         {
@@ -226,7 +227,7 @@
         {
             "name": "Овощной суп",
             "details": "Легкий суп-закуска с овощами. Обжарьте лук и чеснок, добавьте овощи и воду, варите до мягкости.",
-            "category": "Appetizer",
+            "category": "Soup",
             "mealTypes": ["Lunch", "Dinner"],
             "ingredients": [
                 { "product": "Морковь", "quantity": 150 },

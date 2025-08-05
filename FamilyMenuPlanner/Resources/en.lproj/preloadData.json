@@ -41,7 +41,8 @@
         {"name": "Garnish", "sortOrder": 2},
         {"name": "Dessert", "sortOrder": 3},
         {"name": "Appetizer", "sortOrder": 4},
-        {"name": "Sauce", "sortOrder": 5}
+        {"name": "Sauce", "sortOrder": 5},
+        {"name": "Soup", "sortOrder": 6}
     ],
     "dishes": [
         {
@@ -226,7 +227,7 @@
         {
             "name": "Vegetable Soup",
             "details": "Light starter soup with mixed vegetables. Sauté onions and garlic, add vegetables and water, simmer until tender.",
-            "category": "Appetizer",
+            "category": "Soup",
             "mealTypes": ["Lunch", "Dinner"],
             "ingredients": [
                 { "product": "Carrot", "quantity": 150 },

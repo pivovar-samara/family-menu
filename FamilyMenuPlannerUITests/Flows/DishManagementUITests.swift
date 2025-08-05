@@ -1002,14 +1002,22 @@ final class DishManagementUITests: XCTestCase {
             let secondDishCard = updatedDishCardsQuery.element(boundBy: 1)
             
             if firstDishCard.exists && secondDishCard.exists {
-                let firstDishText = firstDishCard.staticTexts.element(boundBy: 0).label
-                let secondDishText = secondDishCard.staticTexts.element(boundBy: 0).label
+                // Get dish names using accessibility identifiers
+                let firstDishNameElement = firstDishCard.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", "dish_name_")).firstMatch
+                let secondDishNameElement = secondDishCard.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", "dish_name_")).firstMatch
                 
-                // Check if first dish name comes before second in alphabetical order
-                let isAlphabetical = firstDishText.localizedCaseInsensitiveCompare(secondDishText) != .orderedDescending
-                XCTAssertTrue(isAlphabetical, "Dishes should be sorted alphabetically A-Z. Found: '\(firstDishText)' before '\(secondDishText)'")
-                
-                print("✅ Dishes sorted alphabetically A-Z: '\(firstDishText)' before '\(secondDishText)'")
+                if firstDishNameElement.exists && secondDishNameElement.exists {
+                    let firstDishText = firstDishNameElement.label
+                    let secondDishText = secondDishNameElement.label
+                    
+                    // Check if first dish name comes before second in alphabetical order
+                    let isAlphabetical = firstDishText.localizedCaseInsensitiveCompare(secondDishText) != .orderedDescending
+                    XCTAssertTrue(isAlphabetical, "Dishes should be sorted alphabetically A-Z. Found: '\(firstDishText)' before '\(secondDishText)'")
+                    
+                    print("✅ Dishes sorted alphabetically A-Z: '\(firstDishText)' before '\(secondDishText)'")
+                } else {
+                    XCTFail("Could not find dish name elements with accessibility identifiers")
+                }
             }
         }
     }
@@ -1047,14 +1055,22 @@ final class DishManagementUITests: XCTestCase {
             let secondDishCard = updatedDishCardsQuery.element(boundBy: 1)
             
             if firstDishCard.exists && secondDishCard.exists {
-                let firstDishText = firstDishCard.staticTexts.element(boundBy: 0).label
-                let secondDishText = secondDishCard.staticTexts.element(boundBy: 0).label
+                // Get dish names using accessibility identifiers
+                let firstDishNameElement = firstDishCard.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", "dish_name_")).firstMatch
+                let secondDishNameElement = secondDishCard.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", "dish_name_")).firstMatch
                 
-                // Check if first dish name comes after second in alphabetical order (reverse)
-                let isReverseAlphabetical = firstDishText.localizedCaseInsensitiveCompare(secondDishText) != .orderedAscending
-                XCTAssertTrue(isReverseAlphabetical, "Dishes should be sorted reverse alphabetically Z-A. Found: '\(firstDishText)' before '\(secondDishText)'")
-                
-                print("✅ Dishes sorted reverse alphabetically Z-A: '\(firstDishText)' before '\(secondDishText)'")
+                if firstDishNameElement.exists && secondDishNameElement.exists {
+                    let firstDishText = firstDishNameElement.label
+                    let secondDishText = secondDishNameElement.label
+                    
+                    // Check if first dish name comes after second in alphabetical order (reverse)
+                    let isReverseAlphabetical = firstDishText.localizedCaseInsensitiveCompare(secondDishText) != .orderedAscending
+                    XCTAssertTrue(isReverseAlphabetical, "Dishes should be sorted reverse alphabetically Z-A. Found: '\(firstDishText)' before '\(secondDishText)'")
+                    
+                    print("✅ Dishes sorted reverse alphabetically Z-A: '\(firstDishText)' before '\(secondDishText)'")
+                } else {
+                    XCTFail("Could not find dish name elements with accessibility identifiers")
+                }
             }
         }
     }
