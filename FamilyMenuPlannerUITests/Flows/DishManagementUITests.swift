@@ -111,6 +111,7 @@ final class DishManagementUITests: XCTestCase {
         
         // Proceed to final step
         if nextButton.isEnabled {
+            _ = nextButton.waitAndScrollToElement(timeout: 5.0)
             nextButton.tap()
         }
         
@@ -314,20 +315,19 @@ final class DishManagementUITests: XCTestCase {
         nextButton.tap() // Go to Ingredients step
         XCTAssertTrue(waitForStepScreen(stepTitle: "Ingredients"), "Should be in Ingredients step")
         
-        // Ingredients Step – tap Select Product and choose first product to satisfy validation
+        // Ingredients Step – open selection and confirm using multi-select flow
         let selectProductButton = app.buttons["Select Product"]
         if selectProductButton.waitForExistence(timeout: 3) {
             selectProductButton.tap()
-            // Wait for list and pick first cell
-            let firstProductCell = app.cells.firstMatch
-            XCTAssertTrue(firstProductCell.waitForExistence(timeout: 3), "Product list should appear")
-            firstProductCell.tap()
+            let selectionSuccess = handleProductSelection()
+            XCTAssertTrue(selectionSuccess, "Should successfully select product(s) and return to Ingredients")
         } else {
             XCTFail("❌ FAILED: Select Product button not found in Ingredients step")
         }
         
         // Proceed to Review step
         XCTAssertTrue(nextButton.isEnabled)
+        _ = nextButton.waitAndScrollToElement(timeout: 5.0)
         nextButton.tap() // Review step
         
         // Save the edited dish
@@ -368,42 +368,53 @@ final class DishManagementUITests: XCTestCase {
         let productScreen = app.navigationBars.matching(NSPredicate(format: "identifier CONTAINS 'Product' OR identifier CONTAINS 'Select'")).firstMatch
         if productScreen.waitForExistence(timeout: 3) {
             print("🔍 Found product selection screen")
-            
-            // Try collection view approach for products
-            let productCollection = app.collectionViews.firstMatch
-            if productCollection.waitForExistence(timeout: 2) {
-                let productCells = productCollection.cells
-                print("🔍 Found \(productCells.count) product cells")
-                
-                if productCells.count > 0 {
-                    // Select first available product
-                    let firstProduct = productCells.element(boundBy: 0)
-                    firstProduct.tap()
-                    print("📱 Tapped first product cell")
-                    
-                    // Wait for potential navigation or look for confirmation buttons
-                    app.waitForUIUpdate(timeout: 1.0)
-                    
-                    // Look for confirmation buttons
-                    let confirmButtons = ["Done", "Add", "Select", "Confirm", "Save"]
-                    for buttonName in confirmButtons {
-                        let button = app.navigationBars.buttons[buttonName]
-                        if button.exists && button.isHittable {
-                            button.tap()
-                            print("✅ Confirmed product selection with '\(buttonName)' button")
-                            return true
-                        }
-                    }
-                    
-                    // If no confirm button, check if we're back on ingredients screen
-                    if waitForStepScreen(stepTitle: "Ingredients", timeout: 2) {
-                        print("✅ Successfully returned to ingredients screen")
-                        return true
+
+            // Prefer table/list cells, fallback to collection view cells
+            var didTapProduct = false
+            let firstCell = app.cells.firstMatch
+            if firstCell.waitForExistence(timeout: 2) {
+                firstCell.tap()
+                didTapProduct = true
+                print("📱 Tapped first product cell (table/list)")
+            } else {
+                let productCollection = app.collectionViews.firstMatch
+                if productCollection.waitForExistence(timeout: 2) {
+                    let productCells = productCollection.cells
+                    print("🔍 Found \(productCells.count) product cells")
+                    if productCells.count > 0 {
+                        productCells.element(boundBy: 0).tap()
+                        didTapProduct = true
+                        print("📱 Tapped first product cell (collection)")
                     }
                 }
             }
+
+            guard didTapProduct else {
+                print("❌ No product cell found to tap")
+                return false
+            }
+
+            // Wait for potential navigation or confirmation
+            app.waitForUIUpdate(timeout: 1.0)
+
+            // Include multi-select confirmation button
+            let confirmButtons = ["Add Selected", "Done", "Add", "Select", "Confirm", "Save"]
+            for buttonName in confirmButtons {
+                let button = app.navigationBars.buttons[buttonName]
+                if button.exists && button.isHittable {
+                    button.tap()
+                    print("✅ Confirmed product selection with '\(buttonName)' button")
+                    return true
+                }
+            }
+
+            // If no explicit confirmation, ensure we're back
+            if waitForStepScreen(stepTitle: "Ingredients", timeout: 2) {
+                print("✅ Successfully returned to ingredients screen")
+                return true
+            }
         }
-        
+
         print("❌ Product selection failed")
         return false
     }

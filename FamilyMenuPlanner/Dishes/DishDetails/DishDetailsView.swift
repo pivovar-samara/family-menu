@@ -71,16 +71,27 @@ struct DishDetailsView: View {
         }
         .sheet(isPresented: $viewModel.showProductSelection) {
             NavigationStack {
-                ProductSelectionCoordinator().createProductSelectionView(
-                    currentProduct: viewModel.selectedIngredient?.product
-                ) { selectedProduct in
-                    if viewModel.isAddingIngredient {
-                        viewModel.addIngredient(product: selectedProduct, quantity: 1.0)
-                    } else {
-                        viewModel.selectedIngredient?.product = selectedProduct
-                        // Refresh ingredients list
-                        viewModel.loadIngredients()
-                    }
+                if viewModel.isAddingIngredient {
+                    ProductSelectionCoordinator().createProductSelectionView(
+                        currentProduct: nil,
+                        selectionMode: .multiple,
+                        preselectedProducts: [],
+                        onProductsSelected: { selectedProducts in
+                            viewModel.addIngredients(products: selectedProducts, defaultQuantity: 1.0)
+                        }
+                    )
+                    .navigationTitle("Select Products".localized())
+                } else {
+                    ProductSelectionCoordinator().createProductSelectionView(
+                        currentProduct: viewModel.selectedIngredient?.product,
+                        selectionMode: .single,
+                        preselectedProducts: [],
+                        onProductSelected: { selectedProduct in
+                            viewModel.selectedIngredient?.product = selectedProduct
+                            viewModel.loadIngredients()
+                        },
+                        onProductsSelected: nil
+                    )
                 }
             }
         }

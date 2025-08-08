@@ -36,20 +36,35 @@ struct ProductSelectionView: View {
             } else {
                 // Product selection cards
                 ForEach(viewModel.filteredProducts, id: \.self) { product in
-                    ProductSelectionCardView(
-                        product: product,
-                        isSelected: product == viewModel.selectedProduct || product == viewModel.currentProduct,
-                        onSelect: {
-                            viewModel.selectedProduct = product
-                            viewModel.onProductSelected(product)
-                            dismiss()
-                        }
-                    )
-                    .padding(.vertical, 6)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .accessibilityIdentifier("product_selection_item_\(product.name ?? "unnamed")")
+                    if viewModel.selectionMode == .single {
+                        ProductSelectionCardView(
+                            product: product,
+                            isSelected: product == viewModel.selectedProduct || product == viewModel.currentProduct,
+                            onSelect: {
+                                viewModel.selectedProduct = product
+                                viewModel.onProductSelected(product)
+                                dismiss()
+                            }
+                        )
+                        .padding(.vertical, 6)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .accessibilityIdentifier("product_selection_item_\(product.name ?? "unnamed")")
+                    } else {
+                        ProductSelectionCardView(
+                            product: product,
+                            isSelected: viewModel.selectedProducts.contains(product),
+                            onSelect: {
+                                viewModel.toggleSelection(for: product)
+                            }
+                        )
+                        .padding(.vertical, 6)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .accessibilityIdentifier("product_selection_item_\(product.name ?? "unnamed")")
+                    }
                 }
             }
 
@@ -70,6 +85,17 @@ struct ProductSelectionView: View {
                     dismiss()
                 }
                 .foregroundColor(Color("AccentColor"))
+            }
+            if viewModel.selectionMode == .multiple {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add Selected".localized()) {
+                        viewModel.onProductsSelected?(Array(viewModel.selectedProducts))
+                        dismiss()
+                    }
+                    .disabled(viewModel.selectedProducts.isEmpty)
+                    .foregroundColor(Color("AccentColor"))
+                    .accessibilityIdentifier("product_selection_done_button")
+                }
             }
         }
         .onAppear {

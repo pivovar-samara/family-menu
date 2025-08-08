@@ -225,6 +225,30 @@ class DishDetailsViewModel: ObservableObject {
         }
     }
 
+    /// Adds multiple ingredients at once. Each product becomes a new ingredient detail with quantity 1.0 by default.
+    func addIngredients(products: [Product], defaultQuantity: Double = 1.0) {
+        guard let dish = ensureValidDish() else {
+            enqueueAlert(title: "Error", message: "Unable to add ingredient. Please try creating the dish again.")
+            return
+        }
+        let validQuantity = validateQuantity(defaultQuantity)
+        do {
+            var nextSortOrder: Int16 = (selectedIngredients.map { $0.sortOrder }.max() ?? -1) + 1
+            for product in products {
+                let ingredientDetail = try dishDetailsService.createIngredient()
+                ingredientDetail.dish = dish
+                ingredientDetail.product = product
+                ingredientDetail.quantity = validQuantity
+                ingredientDetail.sortOrder = nextSortOrder
+                nextSortOrder += 1
+            }
+            try dishDetailsService.saveChanges()
+            loadIngredients()
+        } catch {
+            AppLogger.error("Failed to create ingredients in batch", error: error, category: AppLogger.viewModel)
+        }
+    }
+
     func sortIngredients(by sortOption: IngredientSortOption) {
         // Update the current sort option and save it persistently (UI thread)
         currentSortOption = sortOption
