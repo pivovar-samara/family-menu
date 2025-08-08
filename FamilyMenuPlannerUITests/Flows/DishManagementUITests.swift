@@ -220,7 +220,7 @@ final class DishManagementUITests: XCTestCase {
         var editButtonFound = false
         
         // Strategy 1: Direct edit button with accessibility identifier
-        var editButton = app.buttons["edit_dish_button_\(dishName)"]
+        let editButton = app.buttons["edit_dish_button_\(dishName)"]
         if editButton.waitAndScrollToElement(timeout: 3.0) {
             editButton.tap()
             editButtonFound = true

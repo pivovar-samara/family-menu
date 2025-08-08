@@ -47,7 +47,7 @@ class ProductSelectionViewModel: ObservableObject {
         currentProduct: Product?,
         selectionMode: SelectionMode = .single,
         preselectedProducts: [Product] = [],
-        onProductSelected: @escaping (Product) -> Void = { _ in },
+        onProductSelected: @escaping (Product) -> Void,
         onProductsSelected: (([Product]) -> Void)? = nil
     ) {
         self.productSelectionService = productSelectionService

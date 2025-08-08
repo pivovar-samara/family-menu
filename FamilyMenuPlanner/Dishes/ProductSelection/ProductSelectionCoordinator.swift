@@ -13,7 +13,7 @@ class ProductSelectionCoordinator {
         productSelectionService: ProductSelectionServiceProtocol = ProductSelectionService(context: PersistenceController.shared.container.viewContext),
         selectionMode: ProductSelectionViewModel.SelectionMode = .single,
         preselectedProducts: [Product] = [],
-        onProductSelected: @escaping (Product) -> Void = { _ in },
+        onProductSelected: @escaping (Product) -> Void,
         onProductsSelected: (([Product]) -> Void)? = nil
     ) -> some View {
         let viewModel = ProductSelectionViewModel(

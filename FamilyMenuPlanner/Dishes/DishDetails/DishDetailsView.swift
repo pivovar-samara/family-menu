@@ -76,6 +76,7 @@ struct DishDetailsView: View {
                         currentProduct: nil,
                         selectionMode: .multiple,
                         preselectedProducts: [],
+                        onProductSelected: { _ in },
                         onProductsSelected: { selectedProducts in
                             viewModel.addIngredients(products: selectedProducts, defaultQuantity: 1.0)
                         }

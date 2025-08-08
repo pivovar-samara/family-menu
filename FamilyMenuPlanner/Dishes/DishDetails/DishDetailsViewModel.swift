@@ -233,6 +233,7 @@ class DishDetailsViewModel: ObservableObject {
         }
         let validQuantity = validateQuantity(defaultQuantity)
         do {
+            // Compute max sort order once to avoid repeated scans for each product
             var nextSortOrder: Int16 = (selectedIngredients.map { $0.sortOrder }.max() ?? -1) + 1
             for product in products {
                 let ingredientDetail = try dishDetailsService.createIngredient()
