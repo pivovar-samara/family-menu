@@ -819,4 +819,47 @@ class DishDetailsUnitTests: XCTestCase {
             viewModel.addIngredient(product: product, quantity: 1.0)
         }
     }
+
+    // MARK: - Batch Add Ingredients (Multi-select) Tests
+    func testAddIngredientsBatchAddsAllWithDefaultQuantityAndSortOrder() {
+        viewModel = DishDetailsViewModel(dishDetailsService: mockService)
+        viewModel.loadDish()
+
+        let unit = testDataFactory.createUnit(name: "kg", sortOrder: 1)
+        let p1 = testDataFactory.createProduct(name: "Apples", unit: unit)
+        let p2 = testDataFactory.createProduct(name: "Bananas", unit: unit)
+        let p3 = testDataFactory.createProduct(name: "Carrots", unit: unit)
+
+        viewModel.addIngredients(products: [p1, p2, p3], defaultQuantity: 1.0)
+
+        XCTAssertEqual(viewModel.selectedIngredients.count, 3)
+        let names = Set(viewModel.selectedIngredients.compactMap { $0.product?.name })
+        XCTAssertEqual(names, Set(["Apples", "Bananas", "Carrots"]))
+        XCTAssertTrue(viewModel.selectedIngredients.allSatisfy { $0.quantity == 1.0 })
+
+        // Validate sort order starts at 0 and increases sequentially
+        let sortOrders = viewModel.selectedIngredients.map { Int($0.sortOrder) }.sorted()
+        XCTAssertEqual(sortOrders, [0, 1, 2])
+    }
+
+    func testAddIngredientsBatchAppendsAfterExistingWithCorrectSortOrder() {
+        viewModel = DishDetailsViewModel(dishDetailsService: mockService)
+        viewModel.loadDish()
+
+        let unit = testDataFactory.createUnit(name: "kg", sortOrder: 1)
+        let existing = testDataFactory.createProduct(name: "Existing", unit: unit)
+        viewModel.addIngredient(product: existing, quantity: 2.0)
+
+        let p1 = testDataFactory.createProduct(name: "A", unit: unit)
+        let p2 = testDataFactory.createProduct(name: "B", unit: unit)
+
+        viewModel.addIngredients(products: [p1, p2], defaultQuantity: 1.0)
+
+        XCTAssertEqual(viewModel.selectedIngredients.count, 3)
+        // Extract sort orders mapped by product name
+        let map = Dictionary(uniqueKeysWithValues: viewModel.selectedIngredients.map { ($0.product?.name ?? "", Int($0.sortOrder)) })
+        XCTAssertEqual(map["Existing"], 0)
+        XCTAssertEqual(map["A"], 1)
+        XCTAssertEqual(map["B"], 2)
+    }
 } 

@@ -36,20 +36,7 @@ struct ProductSelectionView: View {
             } else {
                 // Product selection cards
                 ForEach(viewModel.filteredProducts, id: \.self) { product in
-                    ProductSelectionCardView(
-                        product: product,
-                        isSelected: product == viewModel.selectedProduct || product == viewModel.currentProduct,
-                        onSelect: {
-                            viewModel.selectedProduct = product
-                            viewModel.onProductSelected(product)
-                            dismiss()
-                        }
-                    )
-                    .padding(.vertical, 6)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .accessibilityIdentifier("product_selection_item_\(product.name ?? "unnamed")")
+                    productRow(for: product)
                 }
             }
 
@@ -70,6 +57,17 @@ struct ProductSelectionView: View {
                     dismiss()
                 }
                 .foregroundColor(Color("AccentColor"))
+            }
+            if viewModel.selectionMode == .multiple {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add Selected".localized()) {
+                        viewModel.onProductsSelected?(Array(viewModel.selectedProducts))
+                        dismiss()
+                    }
+                    .disabled(viewModel.selectedProducts.isEmpty)
+                    .foregroundColor(Color("AccentColor"))
+                    .accessibilityIdentifier("product_selection_done_button")
+                }
             }
         }
         .onAppear {
@@ -158,6 +156,35 @@ struct ProductSelectionCardView: View {
         .accessibilityLabel("\(product.name ?? "Unnamed Product".localized()), \(product.unit?.name?.localized() ?? "no unit".localized())")
         .accessibilityHint(isSelected ? "Currently selected".localized() : "Tap to select this product".localized())
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+    }
+}
+
+// MARK: - Private Helpers
+private extension ProductSelectionView {
+    @ViewBuilder
+    func productRow(for product: Product) -> some View {
+        let isSelectedSingle = product == viewModel.selectedProduct || product == viewModel.currentProduct
+        let isSelectedMulti = viewModel.selectedProducts.contains(product)
+
+        ProductSelectionCardView(
+            product: product,
+            isSelected: viewModel.selectionMode == .single ? isSelectedSingle : isSelectedMulti,
+            onSelect: {
+                switch viewModel.selectionMode {
+                case .single:
+                    viewModel.selectedProduct = product
+                    viewModel.onProductSelected(product)
+                    dismiss()
+                case .multiple:
+                    viewModel.toggleSelection(for: product)
+                }
+            }
+        )
+        .padding(.vertical, 6)
+        .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+        .accessibilityIdentifier("product_selection_item_\(product.name ?? "unnamed")")
     }
 }
 
