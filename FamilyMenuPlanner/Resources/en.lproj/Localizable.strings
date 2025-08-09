@@ -63,7 +63,6 @@
 "Dish name cannot be empty." = "Dish name cannot be empty.";
 "Dish must have at least one ingredient." = "Dish must have at least one ingredient.";
 "Dish must have at least one meal type." = "Dish must have at least one meal type.";
-"Add Product" = "Add Product";
 "Add New Product" = "Add New Product";
 "Product Name" = "Product Name";
 "Product Details" = "Product Details";
@@ -236,3 +235,4 @@
 "Failed to initialize app data. Please restart the app." = "Failed to initialize app data. Please restart the app.";
 "Add Selected" = "Add Selected";
 "Select Products" = "Select Products";
+"Add Product" = "Add Product";
