@@ -22,7 +22,7 @@ struct ProductSelectionView: View {
             if viewModel.filteredProducts.isEmpty {
                 if viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     // No products at all – show onboarding empty state
-                    EmptyProductSelectionView()
+                    EmptyProductSelectionView(onAdd: { viewModel.isAddingNewProduct = true })
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                         .accessibilityIdentifier("product_selection_empty_state")
@@ -51,6 +51,14 @@ struct ProductSelectionView: View {
         .background(Color("BackgroundColor"))
         .navigationTitle("Select Product".localized())
         .searchable(text: $viewModel.searchText, prompt: "Search products...".localized())
+        .overlay(alignment: .bottomTrailing) {
+            FloatingActionButton(sfSymbolName: "plus") {
+                viewModel.isAddingNewProduct = true
+            }
+            .padding(.trailing, 20)
+            .padding(.bottom, 20)
+            .accessibilityIdentifier("add_product_button")
+        }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel".localized()) {
@@ -73,6 +81,18 @@ struct ProductSelectionView: View {
         .onAppear {
             viewModel.loadProducts()
         }
+        .modifier(
+            AddSheetModifier(isPresented: $viewModel.isAddingNewProduct) {
+                EditProductCoordinator().createEditProductView { saved, product in
+                    if saved {
+                        viewModel.handleNewProductSaved(product)
+                        if viewModel.selectionMode == .single {
+                            dismiss()
+                        }
+                    }
+                }
+            }
+        )
     }
 }
 
@@ -190,11 +210,14 @@ private extension ProductSelectionView {
 
 // MARK: - Empty State Component
 struct EmptyProductSelectionView: View {
+    let onAdd: () -> Void
     var body: some View {
         EmptyStateView(
             icon: "cube.box",
             title: "No Products Available".localized(),
-            description: "Create products first to select them for your dishes".localized()
+            description: "Create products first to select them for your dishes".localized(),
+            actionTitle: "Add Product".localized(),
+            action: onAdd
         )
     }
 }

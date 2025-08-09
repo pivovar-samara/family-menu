@@ -6,7 +6,6 @@
 //
 
 import XCTest
-import CoreData
 @testable import FamilyMenuPlanner
 
 // Mock implementations for protocol and models

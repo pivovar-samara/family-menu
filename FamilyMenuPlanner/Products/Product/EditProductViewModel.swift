@@ -20,11 +20,11 @@ class EditProductViewModel: ObservableObject {
     private let editProductService: EditProductServiceProtocol
     private let alertManager = AlertQueueManager()
     private var cancellables = Set<AnyCancellable>()
-    private let onDismiss: ((Bool) -> Void)?
+    private let onDismiss: ((Bool, Product?) -> Void)?
     private var shouldPreventAutoDismiss = false
     private var hasSavedChanges = false
     
-    init(product: Product? = nil, editProductService: EditProductServiceProtocol, onDismiss: ((Bool) -> Void)? = nil) {
+    init(product: Product? = nil, editProductService: EditProductServiceProtocol, onDismiss: ((Bool, Product?) -> Void)? = nil) {
         self.product = product
         self.isCreatingNewProduct = product == nil
         self.editProductService = editProductService
@@ -123,7 +123,7 @@ class EditProductViewModel: ObservableObject {
     
     func rollback() {
         editProductService.rollback()
-        onDismiss?(false) // Indicate user dismissed without saving
+        onDismiss?(false, product) // Indicate user dismissed without saving
     }
     
     func saveChanges(onSuccess: ()->Void) {
@@ -138,7 +138,7 @@ class EditProductViewModel: ObservableObject {
             
             try editProductService.saveChanges()
             hasSavedChanges = true
-            onDismiss?(true) // Indicate user saved successfully
+            onDismiss?(true, product) // Indicate user saved successfully
             onSuccess()
         } catch let error as NSError {
             enqueueAlert(title: "Error", message: error.localizedDescription)

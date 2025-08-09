@@ -68,7 +68,7 @@ struct ProductListView: View {
         ) { product in
             EditProductCoordinator().createEditProductView(
                 product: product,
-                onDismiss: { shouldSave in
+                onDismiss: { shouldSave, _ in
                     if !shouldSave {
                         AppLogger.info("Product editing dismissed without saving", category: AppLogger.viewModel)
                     }

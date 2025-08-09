@@ -11,7 +11,7 @@ class EditProductCoordinator {
     func createEditProductView(
         product: Product? = nil, 
         editProductService: EditProductServiceProtocol = EditProductService(context: PersistenceController.shared.container.viewContext),
-        onDismiss: ((Bool) -> Void)? = nil
+        onDismiss: ((Bool, Product?) -> Void)? = nil
     ) -> some View {
         let viewModel = EditProductViewModel(
             product: product,

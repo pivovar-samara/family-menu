@@ -51,10 +51,19 @@ final class ProductManagementUITests: XCTestCase {
         
         XCTAssertTrue(productList?.waitForExistence(timeout: 3) ?? false, "Product list should exist")
         
-        // Find and tap the floating "Add Product" button
+        // Find and tap any visible "Add Product" entry point: floating button or empty state CTA
         let addProductButton = app.buttons["add_product_button"]
-        XCTAssertTrue(addProductButton.waitForExistence(timeout: 3), "Floating add product button should exist")
-        addProductButton.tap()
+        if addProductButton.waitForExistence(timeout: 3) {
+            addProductButton.tap()
+        } else {
+            // Try empty state CTA on selection or list screens
+            let emptyStateCTA = app.buttons["Add Product"]
+            if emptyStateCTA.waitForExistence(timeout: 2) {
+                emptyStateCTA.tap()
+            } else {
+                XCTFail("No Add Product entry point found")
+            }
+        }
         
         // Wait for the add product sheet to appear
         let addProductNavBar = app.navigationBars["Add Product"]

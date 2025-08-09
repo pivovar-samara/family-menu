@@ -63,7 +63,6 @@
 "Dish name cannot be empty." = "Название блюда не может быть пустым.";
 "Dish must have at least one ingredient." = "В блюде должен быть хотя бы один ингредиент.";
 "Dish must have at least one meal type." = "Блюдо должно быть доступно хотя бы для одного типа приёма пищи.";
-"Add Product" = "Добавить продукт";
 "Add New Product" = "Добавить новый продукт";
 "Product Name" = "Название продукта";
 "Product Details" = "Параметры продукта";
@@ -239,3 +238,4 @@
 "Sunday" = "Воскресенье";
 "Add Selected" = "Добавить выбранные";
 "Select Products" = "Выберите продукты";
+"Add Product" = "Добавить продукт";

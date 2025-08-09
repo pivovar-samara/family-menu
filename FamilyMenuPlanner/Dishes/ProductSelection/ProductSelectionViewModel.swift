@@ -22,6 +22,7 @@ class ProductSelectionViewModel: ObservableObject {
     @Published var selectedProducts: Set<Product> = []
 
     @Published var filteredProducts: [Product] = []
+    @Published var isAddingNewProduct: Bool = false
     @Published private(set) var allProducts: [Product] = [] {
         didSet {
             searchHelper.updateItems(allProducts)
@@ -87,6 +88,19 @@ class ProductSelectionViewModel: ObservableObject {
     
     func loadProducts() {
         allProducts = productSelectionService.fetchAllProducts()
+    }
+    
+    func handleNewProductSaved(_ product: Product?) {
+        guard let product = product else { return }
+        // Reload list so the new product appears (service filters out drafts; saved products are non-draft)
+        loadProducts()
+        switch selectionMode {
+        case .single:
+            selectedProduct = product
+            onProductSelected(product)
+        case .multiple:
+            selectedProducts.insert(product)
+        }
     }
     
     // MARK: - Selection Handling

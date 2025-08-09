@@ -7,6 +7,7 @@ class ProductSelectionIntegrationTests: BaseIntegrationTest {
     var viewModel: ProductSelectionViewModel!
     var productSelectedCallback: ((Product) -> Void)!
     var selectedProduct: Product?
+    var onProductsSelected: (([Product]) -> Void)?
     
     override func setUp() {
         super.setUp()
@@ -287,6 +288,71 @@ class ProductSelectionIntegrationTests: BaseIntegrationTest {
         }
         
         wait(for: [exp], timeout: 2)
+    }
+
+    func testAddNewProductFromSelectionFlow() {
+        // Ensure there is at least one unit to assign
+        _ = createUnit(name: "pcs")
+        context.refreshAllObjects()
+        
+        // 1. Start with empty products
+        viewModel.loadProducts()
+        XCTAssertTrue(viewModel.allProducts.isEmpty)
+        
+        // 2. Open add sheet via view model flag
+        viewModel.isAddingNewProduct = true
+        
+        // 3. Simulate creating a product via EditProduct flow
+        let editService = EditProductService(context: context)
+        let editVM = EditProductViewModel(product: nil, editProductService: editService)
+        editVM.loadProduct()
+        editVM.product?.name = "Selection Created"
+        var saved = false
+        editVM.saveChanges { saved = true }
+        XCTAssertTrue(saved)
+        
+        // 4. Notify selection VM about the saved product
+        viewModel.handleNewProductSaved(editVM.product)
+        
+        // 5. Verify list updated and callback received
+        XCTAssertEqual(viewModel.allProducts.count, 1)
+        XCTAssertEqual(selectedProduct?.name, "Selection Created")
+    }
+
+    func testAddNewProductFromSelectionFlowMultipleSelection() {
+        // Ensure units exist
+        _ = createUnit(name: "pcs")
+        context.refreshAllObjects()
+
+        // Create view model in multiple selection mode
+        viewModel = ProductSelectionViewModel(
+            productSelectionService: productSelectionService,
+            currentProduct: nil,
+            selectionMode: .multiple,
+            preselectedProducts: [],
+            onProductSelected: { _ in },
+            onProductsSelected: { _ in }
+        )
+
+        // Start with empty products
+        viewModel.loadProducts()
+        XCTAssertTrue(viewModel.allProducts.isEmpty)
+
+        // Create a product via EditProduct flow
+        let editService = EditProductService(context: context)
+        let editVM = EditProductViewModel(product: nil, editProductService: editService)
+        editVM.loadProduct()
+        editVM.product?.name = "Multi Mode Product"
+        var saved = false
+        editVM.saveChanges { saved = true }
+        XCTAssertTrue(saved)
+
+        // Notify selection VM
+        viewModel.handleNewProductSaved(editVM.product)
+
+        // Verify list updated and product pre-selected
+        XCTAssertEqual(viewModel.allProducts.count, 1)
+        XCTAssertTrue(viewModel.selectedProducts.contains(where: { $0.name == "Multi Mode Product" }))
     }
     
     func testProductSelectionWithCurrentProduct() {
