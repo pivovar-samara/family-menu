@@ -49,6 +49,21 @@ final class MenuManagementUITests: XCTestCase {
         print("✅ Successfully navigated to Menu screen")
     }
     
+    // Handles optional past-date confirmation alert introduced in Menu flow
+    private func handlePastEditAlertIfPresent() {
+        let warningAlert = app.alerts["Warning"]
+        if warningAlert.waitForExistence(timeout: 1.0) {
+            let continueButton = warningAlert.buttons["Continue"]
+            if continueButton.exists {
+                continueButton.tap()
+                print("ℹ️ Accepted past-date warning alert")
+            } else {
+                // Fallback: tap the first button if localization differs
+                warningAlert.buttons.firstMatch.tap()
+            }
+        }
+    }
+    
     // MARK: - Test Menu Display and Navigation
     
     func testMenuDisplayAndWeekNavigation() throws {
@@ -264,6 +279,7 @@ final class MenuManagementUITests: XCTestCase {
                     if tappedSuccessfully {
                         foundMealSlot = true
                         print("✅ Successfully tapped \(mealType) section")
+                        handlePastEditAlertIfPresent()
                         break
                     }
                 }
@@ -399,6 +415,7 @@ final class MenuManagementUITests: XCTestCase {
                         foundMealSlot = true
                         addedToMealType = mealType
                         print("✅ Successfully tapped \(mealType) section")
+                        handlePastEditAlertIfPresent()
                         break
                     }
                 }
@@ -749,7 +766,7 @@ final class MenuManagementUITests: XCTestCase {
             if let currentValue = searchField.value as? String {
                 // The search field might still show placeholder text, which is acceptable
                 // We just need to make sure the actual search content is cleared
-                let placeholderValue = searchField.placeholderValue as? String ?? ""
+                let placeholderValue = searchField.placeholderValue ?? ""
                 let isPlaceholderOrEmpty = currentValue.isEmpty || currentValue == placeholderValue || currentValue.count <= 2
                 XCTAssertTrue(isPlaceholderOrEmpty, "Search field should be mostly cleared (current: '\(currentValue)')")
             }

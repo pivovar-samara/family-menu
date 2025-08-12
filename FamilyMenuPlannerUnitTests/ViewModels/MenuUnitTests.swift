@@ -260,4 +260,52 @@ final class MenuUnitTests: XCTestCase {
         // Should default to 0 when no value is saved
         XCTAssertEqual(viewModel.selectedWeekIndex, 0)
     }
+
+    // MARK: - Banner Logic
+    func testWeekPositionMapping() {
+        let vm = MenuViewModel(menuService: MockMenuService())
+        vm.updateSelectedWeekIndex(0)
+        XCTAssertEqual(vm.editingWeekBannerTitle, "Editing current week".localized())
+        vm.updateSelectedWeekIndex(1)
+        XCTAssertEqual(vm.editingWeekBannerTitle, "Editing next week".localized())
+        vm.updateSelectedWeekIndex(2)
+        XCTAssertEqual(vm.editingWeekBannerTitle, "Editing week after next".localized())
+    }
+
+    @MainActor
+    func testPrepareEditForPastDayTriggersWarningAndConfirms() {
+        let vm = MenuViewModel(menuService: MockMenuService())
+        vm.updateSelectedWeekIndex(0)
+        let calendar = Calendar.current
+        let todayIndex = calendar.component(.weekday, from: Date())
+        let mondayFirstTodayIndex = ((todayIndex + 5) % 7)
+        if mondayFirstTodayIndex > 0 {
+            let pastDayName = vm.weekdays[mondayFirstTodayIndex - 1]
+            vm.prepareEditFor(day: pastDayName, mealType: "Lunch", dishes: [])
+            XCTAssertTrue(vm.showPastEditWarning)
+            XCTAssertEqual(vm.selectedMealType, "")
+            vm.confirmPendingEdit()
+            XCTAssertEqual(vm.selectedMealType, "Lunch")
+            XCTAssertFalse(vm.showPastEditWarning)
+        } else {
+            // If today is Monday, there is no past day within the current week. Validate no warning for today.
+            let todayName = vm.weekdays[mondayFirstTodayIndex]
+            vm.prepareEditFor(day: todayName, mealType: "Lunch", dishes: [])
+            XCTAssertFalse(vm.showPastEditWarning)
+            XCTAssertEqual(vm.selectedMealType, "Lunch")
+        }
+    }
+
+    @MainActor
+    func testPrepareEditForTodayOpensImmediately() {
+        let vm = MenuViewModel(menuService: MockMenuService())
+        vm.updateSelectedWeekIndex(0)
+        let calendar = Calendar.current
+        let todayIndex = calendar.component(.weekday, from: Date())
+        let mondayFirstTodayIndex = ((todayIndex + 5) % 7)
+        let todayName = vm.weekdays[mondayFirstTodayIndex]
+        vm.prepareEditFor(day: todayName, mealType: "Breakfast", dishes: [])
+        XCTAssertFalse(vm.showPastEditWarning)
+        XCTAssertEqual(vm.selectedMealType, "Breakfast")
+    }
 }

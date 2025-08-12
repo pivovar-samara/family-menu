@@ -29,6 +29,10 @@ class MenuViewModel: ObservableObject {
     @Published var selectedWeekIndex: Int = 0
     @Published var hasScrolledToToday: Bool = false
     @Published var currentAlert: AlertItem?
+    @Published var showPastEditWarning: Bool = false
+    private var pendingDay: String = ""
+    private var pendingMealType: String = ""
+    private var pendingDishes: [Dish] = []
     
     let weekdays: [String] = CalendarHelper.localizedWeekdayNamesStartingFromMonday()
     
@@ -78,6 +82,44 @@ class MenuViewModel: ObservableObject {
     private func saveSelectedWeekIndex() {
         UserDefaults.standard.set(selectedWeekIndex, forKey: Self.selectedWeekIndexKey)
         AppLogger.info("Saved menu selected week index: \(selectedWeekIndex)", category: AppLogger.viewModel)
+    }
+
+    // MARK: - Week Context Banner
+    enum WeekPosition {
+        case current
+        case next
+        case afterNext
+    }
+
+    var weekPosition: WeekPosition {
+        switch selectedWeekIndex {
+        case 0: return .current
+        case 1: return .next
+        default: return .afterNext
+        }
+    }
+
+    /// Localized title for the banner describing which week is being edited
+    var editingWeekBannerTitle: String {
+        switch weekPosition {
+        case .current:
+            return "Editing current week".localized()
+        case .next:
+            return "Editing next week".localized()
+        case .afterNext:
+            return "Editing week after next".localized()
+        }
+    }
+
+    /// Localized subtitle with today's date
+    var todayBannerSubtitle: String {
+        let formatter = DateFormatter()
+        formatter.locale = .current
+        formatter.calendar = .current
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        let dateString = formatter.string(from: Date())
+        return String(format: "Today is %@".localized(), dateString)
     }
 
     func loadMenu(for weekIndex: Int) {
@@ -176,6 +218,58 @@ class MenuViewModel: ObservableObject {
     
     func dismissAlert() {
         alertManager.dismissCurrentAlert()
+    }
+
+    // MARK: - Editing Notice
+    // MARK: - Edit Preparation / Confirmation
+    @MainActor
+    func prepareEditFor(day: String, mealType: String, dishes: [Dish]) {
+        if isDateInPast(day: day) {
+            pendingDay = day
+            pendingMealType = mealType
+            pendingDishes = dishes
+            showPastEditWarning = true
+        } else {
+            openEditor(day: day, mealType: mealType, dishes: dishes)
+        }
+    }
+
+    @MainActor
+    func confirmPendingEdit() {
+        openEditor(day: pendingDay, mealType: pendingMealType, dishes: pendingDishes)
+        clearPendingEdit()
+    }
+
+    @MainActor
+    func cancelPendingEdit() {
+        clearPendingEdit()
+    }
+
+    @MainActor
+    private func openEditor(day: String, mealType: String, dishes: [Dish]) {
+        selectedDay = day
+        editingDishes = dishes
+        selectedMealType = mealType
+    }
+
+    private func clearPendingEdit() {
+        showPastEditWarning = false
+        pendingDay = ""
+        pendingMealType = ""
+        pendingDishes = []
+    }
+    
+    private func isDateInPast(day: String) -> Bool {
+        guard let date = dateFor(day: day) else { return false }
+        let startOfToday = Calendar.current.startOfDay(for: Date())
+        return date < startOfToday
+    }
+    
+    private func dateFor(day: String) -> Date? {
+        guard let dayIndex = weekdays.firstIndex(of: day) else { return nil }
+        let calendar = Calendar.current
+        let startOfWeek = CalendarHelper.startOfWeek(for: selectedWeekDate, calendar: calendar)
+        return calendar.date(byAdding: .day, value: dayIndex, to: startOfWeek)
     }
 }
 
