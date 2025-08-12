@@ -18,4 +18,4 @@ extension XCUIElement {
         let deleteString = String(repeating: XCUIKeyboardKey.delete.rawValue, count: stringValue.count)
         typeText(deleteString)
     }
-} 
+}
