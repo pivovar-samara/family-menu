@@ -249,7 +249,14 @@ final class DishManagementUITests: XCTestCase {
         // Verify
         XCTAssertTrue(app.navigationBars["Dishes"].waitForExistence(timeout: 5))
         app.waitForUIUpdate(timeout: 1.0)
-        XCTAssertTrue(findDishInList(dishName: editedName))
+        ciLog("Post-save before search")
+        logDishListState(prefix: "Post-save before search")
+        let foundEdited = findDishInList(dishName: editedName)
+        if !foundEdited {
+            ciLog("Post-save after search FAILED")
+            logDishListState(prefix: "Post-save after search FAILED")
+        }
+        XCTAssertTrue(foundEdited)
     }
     
     // MARK: - Helper Methods
@@ -598,23 +605,32 @@ final class DishManagementUITests: XCTestCase {
     
     /// Comprehensive dish finder that uses multiple strategies to locate a dish in the list
     private func findDishInList(dishName: String) -> Bool {
-        print("🔍 Searching for dish: '\(dishName)'")
+        ciLog("Searching for dish: '" + dishName + "'")
+        logDishListState(prefix: "Initial state")
         
         // Strategy 1: Quick check of currently visible items
         if findDishInCurrentView(dishName: dishName) {
-            print("✅ Found dish in current view")
+            ciLog("Found dish in current view")
             return true
         }
         
         // Strategy 2: Try search functionality if available
         let searchField = app.searchFields.firstMatch
         if searchField.exists {
-            print("🔍 Using search functionality to find dish")
+            ciLog("Using search functionality to find dish; clearing previous text if needed")
+            // Clear existing text first for determinism
+            if let currentVal = searchField.value as? String, !currentVal.isEmpty, currentVal != (searchField.placeholderValue ?? "") {
+                ciLog("Clearing existing search text: '" + currentVal + "'")
+                if searchField.buttons["Clear text"].exists { searchField.buttons["Clear text"].tap() } else { searchField.clearTextWithFallback() }
+                XCUIApplication().waitForUIUpdate(timeout: 0.5)
+            }
             searchField.tap()
             searchField.typeText(dishName)
             
             var foundViaSearch = false
-            for _ in 0..<6 { // Up to ~3 seconds total wait (6*0.5)
+            for i in 0..<8 { // Up to ~4 seconds total wait (8*0.5)
+                let countNow = XCUIApplication().otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_")).count
+                ciLog("Search poll #\(i+1): visible dish card count=\(countNow)")
                 if findDishInCurrentView(dishName: dishName) {
                     foundViaSearch = true
                     break
@@ -623,12 +639,12 @@ final class DishManagementUITests: XCTestCase {
             }
 
             if foundViaSearch {
-                print("✅ Found dish using search functionality")
+                ciLog("Found dish using search functionality")
                 // Keep the search filter active so the dish card remains visible for further actions (e.g., delete)
                 // The caller can decide when to clear the search later.
                 return true
             } else {
-                print("⚠️ Dish not found via search after waiting, clearing search and falling back to scrolling")
+                ciLog("Dish not found via search after waiting, clearing search and falling back to scrolling")
                 // Clear search
                 let clearButton = searchField.buttons["Clear text"]
                 if clearButton.exists {
@@ -637,26 +653,28 @@ final class DishManagementUITests: XCTestCase {
                     searchField.clearText()
                 }
                 app.waitForUIUpdate(timeout: 0.5)
+                logDishListState(prefix: "After clearing search fallback")
             }
         } else {
-            print("⚠️ No search field found, trying scrolling method")
+            ciLog("No search field found, trying scrolling method")
         }
         
         // Prefer scroll view with dish cards
         let scrollView = app.scrollViews.firstMatch
         if scrollView.exists {
-            print("🔍 Scrolling through scroll view to find dish")
+            ciLog("Scrolling through scroll view to find dish")
             return findDishByScrolling(dishName: dishName, in: scrollView)
         }
         
         // Legacy collection view fallback
         let collectionView = app.collectionViews.firstMatch
         if collectionView.exists {
-            print("🔍 Scrolling through collection view to find dish (legacy)")
+            ciLog("Scrolling through collection view to find dish (legacy)")
             return findDishByScrollingLegacy(dishName: dishName, in: collectionView)
         }
         
-        print("❌ Exhausted all search strategies - dish not found")
+        ciLog("Exhausted all search strategies - dish not found")
+        logDishListState(prefix: "Final state - not found")
         return false
     }
     
@@ -708,14 +726,37 @@ final class DishManagementUITests: XCTestCase {
         
         return false
     }
+
+    private func logDishListState(prefix: String) {
+        let cards = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
+        let count = cards.count
+        let searchField = app.searchFields.firstMatch
+        let searchExists = searchField.exists
+        let searchValue = (searchField.value as? String) ?? "<nil>"
+        print("📋 [\(prefix)] dish_cards_count=\(count), search_exists=\(searchExists), search_value='\(searchValue)')")
+        // Log up to first 3 visible dish names
+        var names: [String] = []
+        for i in 0..<min(count, 3) {
+            let card = cards.element(boundBy: i)
+            let texts = card.staticTexts
+            for j in 0..<texts.count {
+                let t = texts.element(boundBy: j)
+                if t.exists, !t.label.isEmpty {
+                    names.append(t.label)
+                    break
+                }
+            }
+        }
+        if !names.isEmpty { print("📄 [\(prefix)] first_visible_cards=\(names)") }
+    }
     
     /// Scroll through a scroll view containing dish cards
     private func findDishByScrolling(dishName: String, in scrollView: XCUIElement) -> Bool {
         let maxScrollAttempts = 10
         for attempt in 1...maxScrollAttempts {
-            print("📱 Scroll attempt \(attempt)/\(maxScrollAttempts)")
+            ciLog("Scroll attempt \(attempt)/\(maxScrollAttempts)")
             if findDishInCurrentView(dishName: dishName) {
-                print("✅ Found dish after \(attempt) scroll attempts")
+                ciLog("Found dish after \(attempt) scroll attempts")
                 return true
             }
             scrollView.swipeUp()
