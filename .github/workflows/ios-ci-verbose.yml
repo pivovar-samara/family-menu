@@ -1,0 +1,54 @@
+name: iOS CI (verbose xcodebuild)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    env:
+      SCHEME: FamilyMenuPlanner
+      DESTINATION: platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5
+      NSUnbufferedIO: "YES"               # flush stdout from tests immediately
+      CODE_SIGNING_ALLOWED: "NO"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode and simulators
+        run: |
+          xcodebuild -version
+          xcode-select -p
+          xcrun simctl list devices | head -n 200 || true
+
+      - name: Build and Test (streamed logs)
+        shell: bash
+        run: |
+          set -eo pipefail
+          mkdir -p "$RUNNER_TEMP"
+          echo "CI_LOG: Starting xcodebuild tests"
+          xcodebuild \
+            -scheme "$SCHEME" \
+            -destination "$DESTINATION" \
+            -sdk iphonesimulator \
+            -resultBundlePath "$RUNNER_TEMP/TestResults.xcresult" \
+            test | tee "$RUNNER_TEMP/xcodebuild.log"
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcode-test-artifacts
+          path: |
+            ${{ runner.temp }}/xcodebuild.log
+            ${{ runner.temp }}/TestResults.xcresult
+
+      - name: Tail of xcodebuild.log on failure
+        if: failure()
+        run: |
+          echo "----------- xcodebuild.log (last 200 lines) -----------"
+          tail -n 200 "$RUNNER_TEMP/xcodebuild.log" || true
+
