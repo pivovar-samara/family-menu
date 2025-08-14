@@ -164,25 +164,30 @@ final class DishManagementUITests: XCTestCase {
     // MARK: - Test Dish Editing
     
     func testEditExistingDish() throws {
+        ciLog("BEGIN testEditExistingDish")
         navigateToDishList()
 
         // Always create a deterministic dish to edit to avoid flakiness with preload data
         let baseName = "CI Edit Dish"
         let dishName = createTemporaryDishIfNeeded(baseName: baseName)
+        ciLog("Created/ensured dish: \(dishName)")
         app.waitForUIUpdate(timeout: 1.0)
 
         // Narrow the list via search and open the edit screen reliably
+        ciLog("Searching and opening edit for: \(dishName)")
         XCTAssertTrue(findDishInList(dishName: dishName), "Should locate created dish in list")
         XCTAssertTrue(openDishForEditing(named: dishName), "Should open edit screen for the dish")
 
         // Basic Information step
         XCTAssertTrue(waitForStepScreen(stepTitle: "Basic Information"))
+        ciLog("On Basic Information step")
         let dishNameField = app.textFields["Enter dish name"].firstMatch
         XCTAssertTrue(dishNameField.waitForExistence(timeout: 5))
 
         let timestamp = Int(Date().timeIntervalSince1970)
         let editedName = "EDITED \(dishName) \(timestamp)"
         dishNameField.clearAndEnterText(editedName)
+        ciLog("Entered edited name: \(editedName)")
 
         // Optional description
         let descriptionEditor = app.textViews.firstMatch
@@ -192,6 +197,7 @@ final class DishManagementUITests: XCTestCase {
         let nextButton = app.buttons["Next"]
         XCTAssertTrue(nextButton.waitForExistence(timeout: 3))
         nextButton.tap()
+        ciLog("Advanced to Meal Types")
         XCTAssertTrue(waitForStepScreen(stepTitle: "Meal Types"))
         // Prefer selecting a different meal type to avoid toggling off the only selected one (Breakfast)
         let preferredMealIds = ["mealTypeLunch", "mealTypeDinner", "mealTypeBreakfast"]
@@ -201,6 +207,7 @@ final class DishManagementUITests: XCTestCase {
             if btn.waitForExistence(timeout: 2) {
                 btn.tap()
                 tappedMeal = true
+                ciLog("Tapped meal type button: \(id)")
                 break
             }
         }
@@ -217,16 +224,18 @@ final class DishManagementUITests: XCTestCase {
 
         // Ingredients (add one product if needed)
         nextButton.tap()
+        ciLog("Advanced to Ingredients")
         XCTAssertTrue(waitForStepScreen(stepTitle: "Ingredients"))
         let selectProductButton = app.buttons["Select Product"]
         if selectProductButton.waitForExistence(timeout: 3) {
             selectProductButton.tap()
+            ciLog("Tapped Select Product; handling selection")
             XCTAssertTrue(handleProductSelection())
         }
 
         // Review and Save
         _ = nextButton.waitAndScrollToElement(timeout: 5.0)
-        if nextButton.isEnabled { nextButton.tap() }
+        if nextButton.isEnabled { nextButton.tap(); ciLog("Advanced to Review") }
         // Ensure we are on Review step before searching for Save
         if !waitForStepScreen(stepTitle: "Review", timeout: 5) {
             // Try again if CI lagged
@@ -244,10 +253,12 @@ final class DishManagementUITests: XCTestCase {
             scrollAttempts += 1
         }
         XCTAssertTrue(saveAppeared, "Save button not found on Review step")
+        ciLog("Tapping Save on Review")
         saveButton.tap()
 
         // Verify
         XCTAssertTrue(app.navigationBars["Dishes"].waitForExistence(timeout: 5))
+        ciLog("Returned to Dishes list after save")
         app.waitForUIUpdate(timeout: 1.0)
         ciLog("Post-save before search")
         logDishListState(prefix: "Post-save before search")
