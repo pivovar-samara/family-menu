@@ -28,15 +28,18 @@ extension XCUIElement {
 @inline(__always)
 func ciLog(_ message: String, file: StaticString = #filePath, line: UInt = #line) {
     let formatted = "CI_LOG: " + message
-    if ProcessInfo.processInfo.environment["CI"] == "true" {
-        // Ensure visibility in GitHub Actions logs
-        XCTExpectFailure(formatted, strict: false) {
-            XCTFail(formatted, file: file, line: line)
-        }
-    } else {
-        NSLog("%@", formatted)
-        XCTContext.runActivity(named: formatted) { _ in }
+    // 1) Write to stdout/stderr so it appears even with xcodebuild -quiet
+    if let data = (formatted + "\n").data(using: .utf8) {
+        FileHandle.standardOutput.write(data)
+        FileHandle.standardError.write(data)
     }
+    // 2) Emit GitHub Actions notice command (parsed by runner when possible)
+    if let data = ("::notice::" + formatted + "\n").data(using: .utf8) {
+        FileHandle.standardOutput.write(data)
+    }
+    // 3) Keep activity/NSLog for local debugging and result bundles
+    NSLog("%@", formatted)
+    XCTContext.runActivity(named: formatted) { _ in }
 }
 
 /// Attaches text content to the current test with keepAlways lifetime so it's visible in CI artifacts.
