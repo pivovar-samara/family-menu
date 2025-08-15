@@ -52,6 +52,14 @@ jobs:
           echo "Using $filetype_parameter: $file_to_build"
           
           # Run all test suites including UI tests (self-hosted runner can handle them)
+          # Set unbuffered I/O for immediate log output
+          export NSUnbufferedIO=YES
+          
+          # Create directories for artifacts
+          mkdir -p $RUNNER_TEMP/xcresult
+          mkdir -p $RUNNER_TEMP/logs
+          
+          # Run tests with verbose output and capture logs
           xcodebuild test \
             -scheme "$scheme" \
             -"$filetype_parameter" "$file_to_build" \
@@ -65,4 +73,23 @@ jobs:
             -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 60 \
             -maximum-test-execution-time-allowance 120 \
+            -resultBundlePath "$RUNNER_TEMP/xcresult/test-results.xcresult" \
             CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee "$RUNNER_TEMP/logs/xcodebuild.log"
+            
+          # Upload test results and logs as artifacts
+          - name: Upload Test Results
+            uses: actions/upload-artifact@v4
+            if: always()
+            with:
+              name: test-results
+              path: ${{ runner.temp }}/xcresult/
+              retention-days: 7
+              
+          - name: Upload Build Logs
+            uses: actions/upload-artifact@v4
+            if: always()
+            with:
+              name: build-logs
+              path: ${{ runner.temp }}/logs/
+              retention-days: 7

@@ -51,3 +51,24 @@ func ciAttach(_ name: String, text: String) {
         activity.add(attachment)
     }
 }
+
+/// Captures a screenshot and keeps it in artifacts; also logs a CI notice line
+@inline(__always)
+func ciScreenshot(_ name: String) {
+    let shot = XCUIScreen.main.screenshot()
+    let attachment = XCTAttachment(screenshot: shot)
+    attachment.name = name
+    attachment.lifetime = .keepAlways
+    ciLog("Screenshot: \(name)")
+    XCTContext.runActivity(named: "CI_SCREENSHOT: \(name)") { activity in
+        activity.add(attachment)
+    }
+}
+
+/// Dumps the current UI hierarchy using debugDescription and attaches it
+@inline(__always)
+func ciDumpHierarchy(_ name: String, app: XCUIApplication = XCUIApplication()) {
+    let dump = app.debugDescription
+    ciAttach(name, text: dump)
+    ciLog("Attached UI hierarchy: \(name)")
+}

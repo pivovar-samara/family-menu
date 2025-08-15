@@ -175,8 +175,10 @@ final class DishManagementUITests: XCTestCase {
 
         // Narrow the list via search and open the edit screen reliably
         ciLog("Searching and opening edit for: \(dishName)")
+        ciScreenshot("01_Dishes_List_Before_Search")
         XCTAssertTrue(findDishInList(dishName: dishName), "Should locate created dish in list")
         XCTAssertTrue(openDishForEditing(named: dishName), "Should open edit screen for the dish")
+        ciScreenshot("02_Edit_Screen_Basic_Info")
 
         // Basic Information step
         XCTAssertTrue(waitForStepScreen(stepTitle: "Basic Information"))
@@ -199,6 +201,7 @@ final class DishManagementUITests: XCTestCase {
         nextButton.tap()
         ciLog("Advanced to Meal Types")
         XCTAssertTrue(waitForStepScreen(stepTitle: "Meal Types"))
+        ciScreenshot("03_Meal_Types")
         // Prefer selecting a different meal type to avoid toggling off the only selected one (Breakfast)
         let preferredMealIds = ["mealTypeLunch", "mealTypeDinner", "mealTypeBreakfast"]
         var tappedMeal = false
@@ -222,15 +225,23 @@ final class DishManagementUITests: XCTestCase {
             XCTAssertTrue(nextButton.isEnabled, "Next should be enabled with at least one meal type selected")
         }
 
-        // Ingredients (add one product if needed)
+        // Ingredients – skip product selection if Next is already enabled
         nextButton.tap()
         ciLog("Advanced to Ingredients")
         XCTAssertTrue(waitForStepScreen(stepTitle: "Ingredients"))
-        let selectProductButton = app.buttons["Select Product"]
-        if selectProductButton.waitForExistence(timeout: 3) {
-            selectProductButton.tap()
-            ciLog("Tapped Select Product; handling selection")
-            XCTAssertTrue(handleProductSelection())
+        ciScreenshot("04_Ingredients_Before")
+        if nextButton.isEnabled {
+            ciLog("Ingredients: Next already enabled; skipping product selection")
+        } else {
+            let selectProductButton = app.buttons["Select Product"]
+            if selectProductButton.waitForExistence(timeout: 3) {
+                selectProductButton.tap()
+                ciLog("Ingredients: selecting a product because Next is disabled")
+                XCTAssertTrue(handleProductSelection())
+                ciScreenshot("05_Ingredients_After_Selection")
+            } else {
+                ciLog("Ingredients: Next disabled and 'Select Product' not found; continuing")
+            }
         }
 
         // Review and Save
@@ -253,6 +264,7 @@ final class DishManagementUITests: XCTestCase {
             scrollAttempts += 1
         }
         XCTAssertTrue(saveAppeared, "Save button not found on Review step")
+        ciScreenshot("06_Review")
         ciLog("Tapping Save on Review")
         saveButton.tap()
 
@@ -261,6 +273,8 @@ final class DishManagementUITests: XCTestCase {
         ciLog("Returned to Dishes list after save")
         app.waitForUIUpdate(timeout: 1.0)
         ciLog("Post-save before search")
+        ciScreenshot("07_List_After_Save")
+        ciDumpHierarchy("UIHierarchy_After_Save", app: app)
         logDishListState(prefix: "Post-save before search")
         let foundEdited = findDishInList(dishName: editedName)
         if !foundEdited {
