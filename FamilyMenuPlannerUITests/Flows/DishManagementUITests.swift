@@ -164,124 +164,195 @@ final class DishManagementUITests: XCTestCase {
     // MARK: - Test Dish Editing
     
     func testEditExistingDish() throws {
-        ciLog("BEGIN testEditExistingDish")
         navigateToDishList()
+        
+        // Ensure we have at least one dish to edit by creating one if needed
+        let dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
+        let initialCount = dishCardsQuery.count
+        
+        var dishToEdit: String? = nil
+        
+        if initialCount == 0 {
+            // No dishes exist, create one for testing
+            print("📝 No dishes found, creating a test dish for editing")
+            dishToEdit = createTemporaryDishIfNeeded(baseName: "Test Edit Dish")
+            app.waitForUIUpdate(timeout: 1.0)
+        } else {
+            // Try to find an existing dish from preload data
+            let candidateDishes = ["Beef Stew", "Cheese Omelette", "Cucumber Yogurt Salad"]
+            
+            for name in candidateDishes {
+                if findDishInList(dishName: name) {
+                    dishToEdit = name
+                    break
+                }
+            }
+            
+            // If no candidate dishes found, use the first available dish
+            if dishToEdit == nil {
+                let firstVisibleCard = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_")).firstMatch
+                if firstVisibleCard.waitForExistence(timeout: 3) {
+                    // Extract dish name from the card identifier
+                    let identifier = firstVisibleCard.identifier
+                    dishToEdit = identifier.replacingOccurrences(of: "dish_list_item_", with: "")
+                }
+            }
+        }
 
-        // Always create a deterministic dish to edit to avoid flakiness with preload data
-        let baseName = "CI Edit Dish"
-        let dishName = createTemporaryDishIfNeeded(baseName: baseName)
-        ciLog("Created/ensured dish: \(dishName)")
-        app.waitForUIUpdate(timeout: 1.0)
+        guard let dishName = dishToEdit else {
+            XCTFail("❌ FAILED: Could not locate or create any dish to edit")
+            return
+        }
 
-        // Narrow the list via search and open the edit screen reliably
-        ciLog("Searching and opening edit for: \(dishName)")
-        ciScreenshot("01_Dishes_List_Before_Search")
-        XCTAssertTrue(findDishInList(dishName: dishName), "Should locate created dish in list")
-        XCTAssertTrue(openDishForEditing(named: dishName), "Should open edit screen for the dish")
-        ciScreenshot("02_Edit_Screen_Basic_Info")
+        print("📝 Preparing to edit dish: '\(dishName)'")
 
-        // Basic Information step
-        XCTAssertTrue(waitForStepScreen(stepTitle: "Basic Information"))
-        ciLog("On Basic Information step")
-        let dishNameField = app.textFields["Enter dish name"].firstMatch
-        XCTAssertTrue(dishNameField.waitForExistence(timeout: 5))
+        // Ensure the dish is visible in the current view
+        let dishFound = findDishInCurrentView(dishName: dishName)
+        if !dishFound {
+            // Try to find it using the comprehensive search
+            if !findDishInList(dishName: dishName) {
+                XCTFail("❌ FAILED: Could not locate dish '\(dishName)' for editing")
+                return
+            }
+        }
 
+        // Try multiple strategies to find and tap the edit button
+        var editButtonFound = false
+        
+        // Strategy 1: Direct edit button with accessibility identifier
+        let editButton = app.buttons["edit_dish_button_\(dishName)"]
+        if editButton.waitAndScrollToElement(timeout: 3.0) {
+            editButton.tap()
+            editButtonFound = true
+            print("✅ Found edit button using direct accessibility identifier")
+        } else {
+            // Strategy 2: Look for edit button within the dish card
+            let card = app.otherElements["dish_list_item_\(dishName)"]
+            if card.exists {
+                let cardEditButton = card.buttons["edit_dish_button_\(dishName)"]
+                if cardEditButton.waitAndScrollToElement(timeout: 2.0) {
+                    cardEditButton.tap()
+                    editButtonFound = true
+                    print("✅ Found edit button within dish card")
+                }
+            }
+            
+            // Strategy 3: Look for any edit button in the current view
+            if !editButtonFound {
+                let editButtons = app.buttons.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "edit_dish_button_"))
+                if editButtons.count > 0 {
+                    let firstEditButton = editButtons.firstMatch
+                    if firstEditButton.waitAndScrollToElement(timeout: 2.0) {
+                        firstEditButton.tap()
+                        editButtonFound = true
+                        print("✅ Found edit button using generic search")
+                    }
+                }
+            }
+            
+            // Strategy 4: Tap the dish card itself to open details
+            if !editButtonFound {
+                let card = app.otherElements["dish_list_item_\(dishName)"]
+                if card.exists && card.waitAndScrollToElement(timeout: 2.0) {
+                    card.tap()
+                    editButtonFound = true
+                    print("✅ Opened dish by tapping the card")
+                }
+            }
+        }
+
+        if !editButtonFound {
+            XCTFail("❌ FAILED: Could not open dish \(dishName) for editing – all strategies failed")
+            return
+        }
+        
+        // Wait for the edit screen to load
+        let basicInfoStep = app.staticTexts["Basic Information"]
+        XCTAssertTrue(basicInfoStep.waitForExistence(timeout: 5), "Should be in Basic Information step for editing")
+        
+        // Edit the dish name
+        let dishNameField = app.textFields["Enter dish name"]
+        XCTAssertTrue(dishNameField.waitForExistence(timeout: 5), "Should find dish name field")
+        
+        // Verify the original dish name is loaded
+        let currentName = dishNameField.value as? String ?? ""
+        XCTAssertTrue(currentName.contains(dishName) || dishName.contains(currentName), "Should load the original dish name for editing")
+        print("📝 Current dish name in field: '\(currentName)'")
+        
+        // Edit the dish name with a unique suffix
         let timestamp = Int(Date().timeIntervalSince1970)
         let editedName = "EDITED \(dishName) \(timestamp)"
         dishNameField.clearAndEnterText(editedName)
-        ciLog("Entered edited name: \(editedName)")
-
-        // Optional description
+        
+        // Edit the description if available
         let descriptionEditor = app.textViews.firstMatch
-        if descriptionEditor.exists { descriptionEditor.clearAndEnterText("Edited at \(timestamp)") }
-
-        // Meal Types
+        if descriptionEditor.exists {
+            descriptionEditor.clearAndEnterText("This dish has been edited by the UI test at \(timestamp)")
+        }
+        
+        // Navigate to Meal Types step
         let nextButton = app.buttons["Next"]
-        XCTAssertTrue(nextButton.waitForExistence(timeout: 3))
+        XCTAssertTrue(nextButton.isEnabled, "Next button should be enabled")
         nextButton.tap()
-        ciLog("Advanced to Meal Types")
-        XCTAssertTrue(waitForStepScreen(stepTitle: "Meal Types"))
-        ciScreenshot("03_Meal_Types")
-        // Prefer selecting a different meal type to avoid toggling off the only selected one (Breakfast)
-        let preferredMealIds = ["mealTypeLunch", "mealTypeDinner", "mealTypeBreakfast"]
-        var tappedMeal = false
-        for id in preferredMealIds {
-            let btn = app.buttons[id]
+        
+        // STEP 2: Meal Types - Change meal type if possible
+        XCTAssertTrue(waitForStepScreen(stepTitle: "Meal Types"), "Should be in Meal Types step")
+        
+        let mealTypeIdentifiers = ["mealTypeBreakfast", "mealTypeLunch", "mealTypeDinner"]
+        var mealButtonFound = false
+        for identifier in mealTypeIdentifiers {
+            let btn = app.buttons[identifier]
             if btn.waitForExistence(timeout: 2) {
                 btn.tap()
-                tappedMeal = true
-                ciLog("Tapped meal type button: \(id)")
+                print("✅ Selected meal type with identifier \(identifier)")
+                mealButtonFound = true
                 break
             }
         }
-        XCTAssertTrue(tappedMeal, "Should tap at least one meal type")
-        // Ensure at least one meal type remains selected; if Next became disabled, re-select Breakfast (or another)
-        if !nextButton.isEnabled {
-            if app.buttons["mealTypeBreakfast"].exists { app.buttons["mealTypeBreakfast"].tap() }
-            if !nextButton.isEnabled, app.buttons["mealTypeLunch"].exists { app.buttons["mealTypeLunch"].tap() }
-            let enabledPred = NSPredicate(format: "isEnabled == true")
-            let exp = XCTNSPredicateExpectation(predicate: enabledPred, object: nextButton)
-            _ = XCTWaiter().wait(for: [exp], timeout: 3.0)
-            XCTAssertTrue(nextButton.isEnabled, "Next should be enabled with at least one meal type selected")
-        }
-
-        // Ingredients – skip product selection if Next is already enabled
-        nextButton.tap()
-        ciLog("Advanced to Ingredients")
-        XCTAssertTrue(waitForStepScreen(stepTitle: "Ingredients"))
-        ciScreenshot("04_Ingredients_Before")
-        if nextButton.isEnabled {
-            ciLog("Ingredients: Next already enabled; skipping product selection")
+        XCTAssertTrue(mealButtonFound, "❌ FAILED: Could not find any meal type button to select")
+        
+        // Navigate through remaining steps to save
+        nextButton.tap() // Go to Ingredients step
+        XCTAssertTrue(waitForStepScreen(stepTitle: "Ingredients"), "Should be in Ingredients step")
+        
+        // Ingredients Step – open selection and confirm using multi-select flow
+        let selectProductButton = app.buttons["Select Product"]
+        if selectProductButton.waitForExistence(timeout: 3) {
+            selectProductButton.tap()
+            let selectionSuccess = handleProductSelection()
+            XCTAssertTrue(selectionSuccess, "Should successfully select product(s) and return to Ingredients")
         } else {
-            let selectProductButton = app.buttons["Select Product"]
-            if selectProductButton.waitForExistence(timeout: 3) {
-                selectProductButton.tap()
-                ciLog("Ingredients: selecting a product because Next is disabled")
-                XCTAssertTrue(handleProductSelection())
-                ciScreenshot("05_Ingredients_After_Selection")
-            } else {
-                ciLog("Ingredients: Next disabled and 'Select Product' not found; continuing")
-            }
+            XCTFail("❌ FAILED: Select Product button not found in Ingredients step")
         }
-
-        // Review and Save
+        
+        // Proceed to Review step
+        XCTAssertTrue(nextButton.isEnabled)
         _ = nextButton.waitAndScrollToElement(timeout: 5.0)
-        if nextButton.isEnabled { nextButton.tap(); ciLog("Advanced to Review") }
-        // Ensure we are on Review step before searching for Save
-        if !waitForStepScreen(stepTitle: "Review", timeout: 5) {
-            // Try again if CI lagged
-            _ = nextButton.waitAndScrollToElement(timeout: 2.0)
-            if nextButton.isEnabled { nextButton.tap() }
-            XCTAssertTrue(waitForStepScreen(stepTitle: "Review", timeout: 5), "Should reach Review step")
-        }
-        // Find Save (may require scroll)
+        nextButton.tap() // Review step
+        
+        // Save the edited dish
         let saveButton = app.buttons["Save"]
-        var saveAppeared = saveButton.waitForExistence(timeout: 3)
-        var scrollAttempts = 0
-        while !saveAppeared && scrollAttempts < 6 {
-            app.swipeUp()
-            saveAppeared = saveButton.waitForExistence(timeout: 1)
-            scrollAttempts += 1
-        }
-        XCTAssertTrue(saveAppeared, "Save button not found on Review step")
-        ciScreenshot("06_Review")
-        ciLog("Tapping Save on Review")
+        XCTAssertTrue(saveButton.exists, "Save button should exist")
+        XCTAssertTrue(saveButton.isEnabled, "Save button should be enabled")
         saveButton.tap()
-
-        // Verify
-        XCTAssertTrue(app.navigationBars["Dishes"].waitForExistence(timeout: 5))
-        ciLog("Returned to Dishes list after save")
-        app.waitForUIUpdate(timeout: 1.0)
-        ciLog("Post-save before search")
-        ciScreenshot("07_List_After_Save")
-        ciDumpHierarchy("UIHierarchy_After_Save", app: app)
-        logDishListState(prefix: "Post-save before search")
-        let foundEdited = findDishInList(dishName: editedName)
-        if !foundEdited {
-            ciLog("Post-save after search FAILED")
-            logDishListState(prefix: "Post-save after search FAILED")
+        
+        // Verify we return to dish list
+        let dishListTitle = app.navigationBars["Dishes"]
+        XCTAssertTrue(dishListTitle.waitForExistence(timeout: 5), "Should return to dish list after saving edits")
+        
+        // Wait for UI to update and verify the changes are reflected
+        app.waitForUIUpdate(timeout: 2.0)
+        
+        // Verify the edited dish appears in the list
+        let editedDishFound = findDishInList(dishName: editedName)
+        
+        guard editedDishFound else {
+            XCTFail("❌ Edited dish '\(editedName)' not found in the dish list after save.")
+            return
         }
-        XCTAssertTrue(foundEdited)
+        print("✅ Successfully verified dish edit - found '\(editedName)' in the dish list")
+        
+        print("✅ Successfully tested complete dish editing workflow: open → edit → save → verify")
     }
     
     // MARK: - Helper Methods
@@ -345,24 +416,6 @@ final class DishManagementUITests: XCTestCase {
         }
 
         print("❌ Product selection failed")
-        return false
-    }
-
-    private func openDishForEditing(named name: String) -> Bool {
-        let cardId = "dish_list_item_\(name)"
-        let editId = "edit_dish_button_\(name)"
-        let card = app.otherElements[cardId]
-        if card.exists {
-            let editButtonInCard = card.buttons[editId]
-            if editButtonInCard.waitAndScrollToElement(timeout: 3.0) {
-                editButtonInCard.tap(); return true
-            }
-        }
-        let directEdit = app.buttons[editId]
-        if directEdit.waitAndScrollToElement(timeout: 3.0) { directEdit.tap(); return true }
-        if card.waitAndScrollToElement(timeout: 3.0) { card.tap(); return true }
-        let anyEdit = app.buttons.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "edit_dish_button_")).firstMatch
-        if anyEdit.exists && anyEdit.isHittable { anyEdit.tap(); return true }
         return false
     }
     
@@ -630,32 +683,23 @@ final class DishManagementUITests: XCTestCase {
     
     /// Comprehensive dish finder that uses multiple strategies to locate a dish in the list
     private func findDishInList(dishName: String) -> Bool {
-        ciLog("Searching for dish: '" + dishName + "'")
-        logDishListState(prefix: "Initial state")
+        print("🔍 Searching for dish: '\(dishName)'")
         
         // Strategy 1: Quick check of currently visible items
         if findDishInCurrentView(dishName: dishName) {
-            ciLog("Found dish in current view")
+            print("✅ Found dish in current view")
             return true
         }
         
         // Strategy 2: Try search functionality if available
         let searchField = app.searchFields.firstMatch
         if searchField.exists {
-            ciLog("Using search functionality to find dish; clearing previous text if needed")
-            // Clear existing text first for determinism
-            if let currentVal = searchField.value as? String, !currentVal.isEmpty, currentVal != (searchField.placeholderValue ?? "") {
-                ciLog("Clearing existing search text: '" + currentVal + "'")
-                if searchField.buttons["Clear text"].exists { searchField.buttons["Clear text"].tap() } else { searchField.clearTextWithFallback() }
-                XCUIApplication().waitForUIUpdate(timeout: 0.5)
-            }
+            print("🔍 Using search functionality to find dish")
             searchField.tap()
             searchField.typeText(dishName)
             
             var foundViaSearch = false
-            for i in 0..<8 { // Up to ~4 seconds total wait (8*0.5)
-                let countNow = XCUIApplication().otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_")).count
-                ciLog("Search poll #\(i+1): visible dish card count=\(countNow)")
+            for _ in 0..<6 { // Up to ~3 seconds total wait (6*0.5)
                 if findDishInCurrentView(dishName: dishName) {
                     foundViaSearch = true
                     break
@@ -664,12 +708,12 @@ final class DishManagementUITests: XCTestCase {
             }
 
             if foundViaSearch {
-                ciLog("Found dish using search functionality")
+                print("✅ Found dish using search functionality")
                 // Keep the search filter active so the dish card remains visible for further actions (e.g., delete)
                 // The caller can decide when to clear the search later.
                 return true
             } else {
-                ciLog("Dish not found via search after waiting, clearing search and falling back to scrolling")
+                print("⚠️ Dish not found via search after waiting, clearing search and falling back to scrolling")
                 // Clear search
                 let clearButton = searchField.buttons["Clear text"]
                 if clearButton.exists {
@@ -678,28 +722,26 @@ final class DishManagementUITests: XCTestCase {
                     searchField.clearText()
                 }
                 app.waitForUIUpdate(timeout: 0.5)
-                logDishListState(prefix: "After clearing search fallback")
             }
         } else {
-            ciLog("No search field found, trying scrolling method")
+            print("⚠️ No search field found, trying scrolling method")
         }
         
         // Prefer scroll view with dish cards
         let scrollView = app.scrollViews.firstMatch
         if scrollView.exists {
-            ciLog("Scrolling through scroll view to find dish")
+            print("🔍 Scrolling through scroll view to find dish")
             return findDishByScrolling(dishName: dishName, in: scrollView)
         }
         
         // Legacy collection view fallback
         let collectionView = app.collectionViews.firstMatch
         if collectionView.exists {
-            ciLog("Scrolling through collection view to find dish (legacy)")
+            print("🔍 Scrolling through collection view to find dish (legacy)")
             return findDishByScrollingLegacy(dishName: dishName, in: collectionView)
         }
         
-        ciLog("Exhausted all search strategies - dish not found")
-        logDishListState(prefix: "Final state - not found")
+        print("❌ Exhausted all search strategies - dish not found")
         return false
     }
     
@@ -751,37 +793,14 @@ final class DishManagementUITests: XCTestCase {
         
         return false
     }
-
-    private func logDishListState(prefix: String) {
-        let cards = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
-        let count = cards.count
-        let searchField = app.searchFields.firstMatch
-        let searchExists = searchField.exists
-        let searchValue = (searchField.value as? String) ?? "<nil>"
-        print("📋 [\(prefix)] dish_cards_count=\(count), search_exists=\(searchExists), search_value='\(searchValue)')")
-        // Log up to first 3 visible dish names
-        var names: [String] = []
-        for i in 0..<min(count, 3) {
-            let card = cards.element(boundBy: i)
-            let texts = card.staticTexts
-            for j in 0..<texts.count {
-                let t = texts.element(boundBy: j)
-                if t.exists, !t.label.isEmpty {
-                    names.append(t.label)
-                    break
-                }
-            }
-        }
-        if !names.isEmpty { print("📄 [\(prefix)] first_visible_cards=\(names)") }
-    }
     
     /// Scroll through a scroll view containing dish cards
     private func findDishByScrolling(dishName: String, in scrollView: XCUIElement) -> Bool {
         let maxScrollAttempts = 10
         for attempt in 1...maxScrollAttempts {
-            ciLog("Scroll attempt \(attempt)/\(maxScrollAttempts)")
+            print("📱 Scroll attempt \(attempt)/\(maxScrollAttempts)")
             if findDishInCurrentView(dishName: dishName) {
-                ciLog("Found dish after \(attempt) scroll attempts")
+                print("✅ Found dish after \(attempt) scroll attempts")
                 return true
             }
             scrollView.swipeUp()
@@ -873,20 +892,20 @@ final class DishManagementUITests: XCTestCase {
         XCTAssertTrue(mealButtonFound, "❌ FAILED: Could not find any meal type button to select")
         nextButton.tap() // Ingredients step
 
-        // Ingredients Step – select a product using the robust helper (confirms selection)
+        // Ingredients Step – tap Select Product and choose first product to satisfy validation
         let selectProductButton = app.buttons["Select Product"]
         if selectProductButton.waitForExistence(timeout: 3) {
             selectProductButton.tap()
-            XCTAssertTrue(handleProductSelection(), "Product selection should succeed and return to Ingredients")
+            // Wait for list and pick first cell
+            let firstProductCell = app.cells.firstMatch
+            XCTAssertTrue(firstProductCell.waitForExistence(timeout: 3), "Product list should appear")
+            firstProductCell.tap()
         } else {
             XCTFail("❌ FAILED: Select Product button not found in Ingredients step")
         }
 
-        // Proceed to Review step – wait for Next to become enabled on CI
-        let enabledPredicate = NSPredicate(format: "isEnabled == true")
-        let enabledExpectation = XCTNSPredicateExpectation(predicate: enabledPredicate, object: nextButton)
-        _ = XCTWaiter().wait(for: [enabledExpectation], timeout: 3.0)
-        XCTAssertTrue(nextButton.isEnabled, "Next should be enabled after confirming product selection")
+        // Proceed to Review step
+        XCTAssertTrue(nextButton.isEnabled)
         nextButton.tap() // Review step
 
         let saveButton = app.buttons["Save"]
