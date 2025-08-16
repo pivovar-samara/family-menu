@@ -704,6 +704,7 @@ final class MenuManagementUITests: XCTestCase {
                             let pencilImage = mealButton.images["pencil"]
                             XCTAssertTrue(pencilImage.exists, "Pencil image for \(mealType) should exist")
                             pencilImage.tap()
+                            handlePastEditAlertIfPresent()
                             let dishSelectionTitle = app.navigationBars["Select Dish"]
                             if dishSelectionTitle.waitForExistence(timeout: 3) {
                                 openedDishSelection = true
