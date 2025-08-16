@@ -18,6 +18,7 @@ struct MenuView: View {
     var body: some View {
         List {
             weekSegmentControl
+            editingWeekBanner
             menuContent
         }
         .listStyle(.plain)
@@ -78,6 +79,16 @@ struct MenuView: View {
                 }
             )
         }
+        .alert("Warning".localized(), isPresented: $viewModel.showPastEditWarning) {
+            Button("Cancel".localized(), role: .cancel) {
+                viewModel.cancelPendingEdit()
+            }
+            Button("Continue".localized()) {
+                viewModel.confirmPendingEdit()
+            }
+        } message: {
+            Text("You are editing a past date.".localized())
+        }
         .alert("Generate New Menu", isPresented: $viewModel.showGenerateMenuAlert) {
             Button("Cancel", role: .cancel) {
                 viewModel.showGenerateMenuAlert = false
@@ -113,6 +124,35 @@ struct MenuView: View {
         .listRowSeparator(.hidden)
     }
     
+    private var editingWeekBanner: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "calendar.badge.exclamationmark")
+                .foregroundColor(Color("AccentColor"))
+                .font(.title3)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(viewModel.editingWeekBannerTitle)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.primary)
+                Text(viewModel.todayBannerSubtitle)
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(Color("SecondaryBackgroundColor"))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.gray.opacity(0.08), lineWidth: 1)
+        )
+        .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+        .accessibilityIdentifier("menu_editing_week_banner")
+    }
+    
     private var menuContent: some View {
         Group {
             if viewModel.weeklyMenu.isEmpty {
@@ -127,9 +167,7 @@ struct MenuView: View {
                         weekDate: viewModel.selectedWeekDate,
                         weekdays: viewModel.weekdays,
                         onMealTap: { day, mealType, dishes in
-                            viewModel.selectedDay = day
-                            viewModel.editingDishes = dishes
-                            viewModel.selectedMealType = mealType
+                            viewModel.prepareEditFor(day: day, mealType: mealType, dishes: dishes)
                         },
                         onClearMeal: { day, mealType in
                             viewModel.clearMealType(for: day, mealType: mealType)

@@ -216,6 +216,13 @@
 "Tap to select this item" = "Tap to select this item";
 "Tap to select this product" = "Tap to select this product";
 "InvalidWeekSelectionMessage" = "Invalid week selection. Please try again.";
+"Editing current week" = "Editing current week";
+"Editing next week" = "Editing next week";
+"Editing week after next" = "Editing week after next";
+"Today is %@" = "Today is %@";
+"Warning" = "Warning";
+"You are editing a past date." = "You are editing a past date.";
+"Continue" = "Continue";
 
 // Dish Selection UI
 "No Dishes Available" = "No Dishes Available";

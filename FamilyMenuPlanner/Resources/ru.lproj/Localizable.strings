@@ -216,6 +216,13 @@
 "Selected" = "Выбрано";
 "Tap to select this item" = "Нажмите, чтобы выбрать этот товар";
 "InvalidWeekSelectionMessage" = "Некорректный выбор недели. Пожалуйста, попробуйте еще раз.";
+"Editing current week" = "Редактируется текущая неделя";
+"Editing next week" = "Редактируется следующая неделя";
+"Editing week after next" = "Редактируется неделя после следующей";
+"Today is %@" = "Сегодня %@";
+"Warning" = "Предупреждение";
+"You are editing a past date." = "Вы редактируете прошедшую дату.";
+"Continue" = "Продолжить";
 
 // Missing localization keys
 "App Initialization Error" = "Ошибка инициализации приложения";
