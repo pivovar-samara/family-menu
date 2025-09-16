@@ -139,6 +139,10 @@ class MockDishDetailsService: DishDetailsServiceProtocol {
         rollbackCalled = true
         context.rollback()
     }
+    
+    func normalizeIngredients(for dish: Dish) {
+        // No-op in mock; tests cover normalization via PersistenceController
+    }
 }
 
 class DishDetailsUnitTests: XCTestCase {

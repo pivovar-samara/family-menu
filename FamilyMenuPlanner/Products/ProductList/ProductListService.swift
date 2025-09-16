@@ -57,7 +57,7 @@ class ProductListService: NSObject {
             try fetchedResultsController.performFetch()
             notifyDelegate(immediate: true)
         } catch {
-            print("Error fetching products: \(error)")
+            AppLogger.error("Error fetching products", error: error, category: AppLogger.service)
         }
     }
     
@@ -71,7 +71,7 @@ class ProductListService: NSObject {
         do {
             return try context.fetch(fetchRequest)
         } catch {
-            print("Error loading units: \(error)")
+            AppLogger.error("Error loading units", error: error, category: AppLogger.service)
             return []
         }
     }

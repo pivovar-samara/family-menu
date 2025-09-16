@@ -74,6 +74,11 @@ class DishListViewModel: ObservableObject {
         
         // Explicitly set the initial sort option in the service to match loaded preference
         dishListService.updateSortOption(sortOption)
+
+        // Refresh dish list after CloudKit reconciliation
+        NotificationCenter.default.addObserver(forName: .appDataDidReconcileAfterCloudKitImport, object: nil, queue: .main) { [weak self] _ in
+            self?.loadDishes()
+        }
     }
     
     /// Loads the persistent sort preference from UserDefaults

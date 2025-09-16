@@ -136,6 +136,10 @@ class DishDetailsViewModel: ObservableObject {
                     AppLogger.warning("Fixed NaN/Infinite quantity value in ingredient detail", category: AppLogger.viewModel)
                 }
             }
+            // Ensure UI-level deduplication if any drift remains after sync
+            if let dish = dish {
+                dishDetailsService.normalizeIngredients(for: dish)
+            }
             selectedIngredients = Array(ingredientDetails).sorted { $0.sortOrder < $1.sortOrder }
             
             // Apply the current sort preference to the loaded ingredients

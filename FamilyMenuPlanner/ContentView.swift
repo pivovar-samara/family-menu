@@ -32,32 +32,33 @@ struct ContentView: View {
             // Show error state with recovery options
             ErrorRecoveryView()
         } else {
-            TabView {
+            ZStack(alignment: .top) {
+                TabView {
                 // Menu
                 NavigationStack {
                     MenuCoordinator().createMenuView()
-                        .navigationTitle("Menu")
+                        .navigationTitle("Menu".localized())
                 }
                 .tabItem {
-                    Label("Menu", systemImage: "calendar")
+                    Label("Menu".localized(), systemImage: "calendar")
                 }
 
                 // Products
                 NavigationStack {
                     ProductListCoordinator().createProductListView()
-                        .navigationTitle("Products")
+                        .navigationTitle("Products".localized())
                 }
                 .tabItem {
-                    Label("Products", systemImage: "list.bullet")
+                    Label("Products".localized(), systemImage: "list.bullet")
                 }
 
                 // Dishes
                 NavigationStack {
                     DishListCoordinator().createDishListView()
-                        .navigationTitle("Dishes")
+                        .navigationTitle("Dishes".localized())
                 }
                 .tabItem {
-                    Label("Dishes", systemImage: "fork.knife")
+                    Label("Dishes".localized(), systemImage: "fork.knife")
                 }
                 
                 #if DEBUG
@@ -68,6 +69,13 @@ struct ContentView: View {
                     Label("Debug", systemImage: "wrench.and.screwdriver")
                 }
                 #endif
+                }
+                
+                if appStateManager.isCloudKitSyncing {
+                    SyncBannerView()
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .zIndex(1)
+                }
             }
         }
     }

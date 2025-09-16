@@ -50,21 +50,48 @@ class MenuService {
             CoreDataFetchHelper.configureForSmallList(mealTypeFetchRequest)
             
             let mealTypes = try context.fetch(mealTypeFetchRequest)
+            // Ensure unique meal types in case CloudKit temporarily duplicated them
+            var uniqueMealTypes: [MealType] = []
+            var seenKeys: Set<String> = []
+            for mt in mealTypes {
+                let key = (mt.key?.isEmpty == false ? mt.key! : (mt.name ?? "").lowercased())
+                if !key.isEmpty && !seenKeys.contains(key) {
+                    seenKeys.insert(key)
+                    uniqueMealTypes.append(mt)
+                }
+            }
 
             for day in weekdays {
                 var dailyMeals: [DailyMeal] = []
-                for mealType in mealTypes {
-                    var dishes = menuEntries.filter({ $0.day == day && $0.mealType == mealType.name }).first?.dishes?.allObjects as? [Dish] ?? []
-                    // sort dishes by name
-                    dishes.sort { $0.name ?? "" < $1.name ?? "" }
-                    dailyMeals.append(DailyMeal(meal: mealType.name ?? "", dishes: dishes))
+                for mealType in uniqueMealTypes {
+                    // Match by normalized keys to avoid localized name drift
+                    let mtName = (mealType.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    let mtKey = !(mealType.key?.isEmpty ?? true) ? mealType.key! : mtName.lowercased()
+                    let matches = menuEntries.filter {
+                        guard $0.day == day else { return false }
+                        let entryKey = ($0.mealTypeKey?.isEmpty == false) ? $0.mealTypeKey! : ($0.mealType ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                        return entryKey == mtKey
+                    }
+                    var dishes: [Dish] = []
+                    for entry in matches {
+                        if let ds = entry.dishes?.allObjects as? [Dish] {
+                            dishes.append(contentsOf: ds)
+                        }
+                    }
+                    // Deduplicate dishes by objectID to avoid repeats across merged entries
+                    let uniqueByID: [NSManagedObjectID: Dish] = dishes.reduce(into: [:]) { dict, dish in
+                        dict[dish.objectID] = dish
+                    }
+                    let merged = Array(uniqueByID.values)
+                    let sorted = merged.sorted { ($0.name ?? "") < ($1.name ?? "") }
+                    dailyMeals.append(DailyMeal(meal: mealType.name ?? "", dishes: sorted))
                 }
                 initializedMenu.append(DailyMenu(day: day, dailyMeals: dailyMeals))
             }
 
             return initializedMenu
         } catch {
-            print("Error loading menu for the selected week: \(error)")
+            AppLogger.error("Error loading menu for the selected week", error: error, category: AppLogger.service)
             return []
         }
     }
@@ -78,7 +105,7 @@ class MenuService {
             
             let dishes = try context.fetch(dishFetchRequest)
             guard !dishes.isEmpty else {
-                print("No dishes available to generate a menu.")
+                AppLogger.info("No dishes available to generate a menu.", category: AppLogger.service)
                 return
             }
             
@@ -116,6 +143,7 @@ class MenuService {
                     let newMenuEntry = Menu(context: context)
                     newMenuEntry.day = day
                     newMenuEntry.mealType = mealType.name
+                    newMenuEntry.mealTypeKey = (mealType.key?.isEmpty == false) ? mealType.key : (mealType.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                     newMenuEntry.calendarWeek = Int32(encodedWeek)
 
                     if let randomDish = dishesForMealType.randomElement() {
@@ -126,7 +154,7 @@ class MenuService {
 
             try context.save()
         } catch {
-            print("Error generating menu: \(error)")
+            AppLogger.error("Error generating menu", error: error, category: AppLogger.service)
         }
     }
 
@@ -152,7 +180,7 @@ class MenuService {
             }
             try context.save()
         } catch {
-            print("Error removing old menu entries.")
+            AppLogger.error("Error removing old menu entries", error: error, category: AppLogger.service)
         }
     }
     
@@ -161,7 +189,8 @@ class MenuService {
         let encodedWeek = encodeWeek(selectedWeekComponents)
         
         let fetchRequest: NSFetchRequest<Menu> = Menu.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "day == %@ AND mealType == %@ AND calendarWeek == %d", day, mealType, encodedWeek)
+        let mtKey = mealType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        fetchRequest.predicate = NSPredicate(format: "day == %@ AND (mealTypeKey == %@ OR mealType == %@) AND calendarWeek == %d", day, mtKey, mealType, encodedWeek)
         
         // Small specific query, use smaller batch size
         CoreDataFetchHelper.configureForSmallList(fetchRequest)
@@ -174,6 +203,7 @@ class MenuService {
             let newMenuEntry = Menu(context: context)
             newMenuEntry.day = day
             newMenuEntry.mealType = mealType
+            newMenuEntry.mealTypeKey = mtKey
             newMenuEntry.calendarWeek = Int32(encodedWeek)
             newMenuEntry.dishes = NSSet(array: newDishes)
         }

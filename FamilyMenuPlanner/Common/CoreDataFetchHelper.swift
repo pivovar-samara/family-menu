@@ -42,6 +42,13 @@ struct CoreDataFetchHelper {
     /// Configures a fetch request optimized for small UI lists (like pickers, dropdowns)
     /// - Parameter fetchRequest: The fetch request to configure
     static func configureForSmallList<T: NSManagedObject>(_ fetchRequest: NSFetchRequest<T>) {
+        // For small static reference lists (Units, MealTypes, DishCategories) we prefer
+        // fully realized objects to avoid UI seeing empty attributes when objects are
+        // kept in caches across CloudKit merges. Returning faults here can result in
+        // inaccessible faults when query generations shift after sync. Loading full
+        // property values is cheap for these tiny datasets and removes that class of bugs.
         configure(fetchRequest, batchSize: smallBatchSize)
+        fetchRequest.returnsObjectsAsFaults = false
+        fetchRequest.includesPropertyValues = true
     }
 } 

@@ -71,6 +71,11 @@ class ProductListViewModel: ObservableObject {
         
         // Explicitly set the initial sort option in the service to match loaded preference
         productListService.updateSortOption(sortOption)
+
+        // Refresh after CloudKit reconciliation
+        NotificationCenter.default.addObserver(forName: .appDataDidReconcileAfterCloudKitImport, object: nil, queue: .main) { [weak self] _ in
+            self?.loadProducts()
+        }
     }
     
     private func setupSearchBindings() {

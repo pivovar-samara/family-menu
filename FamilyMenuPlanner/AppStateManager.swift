@@ -5,15 +5,19 @@
 //  Created by Ilya Khokhlov on 13.01.25.
 //
 
+@preconcurrency import Foundation
 import CoreData
 import SwiftUI
 import CloudKit
 
+@MainActor
 final class AppStateManager: ObservableObject {
     static let shared = AppStateManager()
+    private var cloudKitEventObserver: NSObjectProtocol? = nil
     
     @Published var isLoading: Bool = true
     @Published var isICloudAvailable: Bool = false
+    @Published var isCloudKitSyncing: Bool = false
     @Published var persistenceError: String? = nil
     @Published var showPersistenceErrorAlert: Bool = false
     private var isDatabaseEmpty: Bool = false
@@ -40,6 +44,10 @@ final class AppStateManager: ObservableObject {
     }
     
     deinit {
+        if let token = cloudKitEventObserver {
+            NotificationCenter.default.removeObserver(token)
+            cloudKitEventObserver = nil
+        }
         NotificationCenter.default.removeObserver(self)
     }
     
@@ -108,12 +116,15 @@ final class AppStateManager: ObservableObject {
                 } else {
                     self.isICloudAvailable = (status == .available)
                     if self.isICloudAvailable {
-                        NotificationCenter.default.addObserver(
+                        // Observe CloudKit events via classic observer to avoid non-sendable Notification in Swift 6
+                        self.cloudKitEventObserver = NotificationCenter.default.addObserver(
                             forName: NSPersistentCloudKitContainer.eventChangedNotification,
                             object: nil,
                             queue: .main
                         ) { [weak self] notification in
-                            self?.handleCloudKitEvent(notification)
+                            Task { @MainActor [weak self] in
+                                self?.handleCloudKitEvent(notification)
+                            }
                         }
                         AppLogger.info("iCloud is available - CloudKit sync enabled", category: AppLogger.cloudKit)
                     } else {
@@ -125,15 +136,48 @@ final class AppStateManager: ObservableObject {
     }
 
     private func handleCloudKitEvent(_ notification: Notification) {
-        if let event = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey] as? NSPersistentCloudKitContainer.Event,
-           event.type == .import, event.endDate != nil {
-            AppLogger.info("iCloud sync completed", category: AppLogger.cloudKit)
-            DispatchQueue.main.async {
-                // Only check database state if persistence is ready
-                if PersistenceController.shared.isReady {
-                    self.checkDatabaseState()
+        guard let event = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey] as? NSPersistentCloudKitContainer.Event else { return }
+        switch event.type {
+        case .import:
+            if event.endDate == nil {
+                isCloudKitSyncing = true
+            } else if event.endDate != nil {
+                isCloudKitSyncing = false
+                AppLogger.info("iCloud sync completed", category: AppLogger.cloudKit)
+                // Slight delay allows final merges to settle to avoid repeated reprocessing
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    if PersistenceController.shared.isReady {
+                        let bg = PersistenceController.shared.newBackgroundContext()
+                        bg.perform {
+                            // 1) Canonicalize relations
+                            PersistenceController.shared.normalizeDishMealTypeRelations(context: bg)
+                            PersistenceController.shared.normalizeDishProductRelations(context: bg)
+                            // 2) Remove duplicate reference data first
+                            PersistenceController.shared.cleanupDuplicateUnits(context: bg)
+                            PersistenceController.shared.cleanupDuplicateMealTypes(context: bg)
+                            PersistenceController.shared.cleanupDuplicateDishCategories(context: bg)
+                            PersistenceController.shared.cleanupDuplicateProducts(context: bg)
+                            // 3) If we detect locally seeded dishes for this version and remote dishes exist, drop the local seeded ones to avoid any duplication
+                            PersistenceController.shared.removeLocallySeededDishesIfRemoteExists(context: bg)
+                            // 4) Merge duplicate dishes and then normalize ingredients
+                            PersistenceController.shared.cleanupDuplicateDishes(context: bg)
+                            PersistenceController.shared.normalizeDishIngredientDetails(context: bg)
+                            // 5) Restore missing categories from preload data (in case keep had nil)
+                            PersistenceController.shared.restoreDishCategoriesFromPreload(context: bg)
+                            // 6) Normalize menu meal type strings and deduplicate menus
+                            PersistenceController.shared.normalizeMenuMealTypeStrings(context: bg)
+                            PersistenceController.shared.cleanupDuplicateMenus(context: bg)
+                            DispatchQueue.main.async {
+                                // Notify UI layers to refresh after sync
+                                NotificationCenter.default.post(name: .appDataDidReconcileAfterCloudKitImport, object: nil)
+                            }
+                        }
+                        self.checkDatabaseState()
+                    }
                 }
             }
+        default:
+            break
         }
     }
 
@@ -150,10 +194,57 @@ final class AppStateManager: ObservableObject {
         
         let context = persistence.container.viewContext
         
+        // If CloudKit is available and the local store is empty, gate seeding conservatively
+        if isICloudAvailable,
+           persistence.container is NSPersistentCloudKitContainer,
+           persistence.isDatabaseEmpty(context: context) {
+            AppLogger.info("CloudKit active and local store empty – gating seeding on import or remote emptiness", category: AppLogger.cloudKit)
+            Task { [weak self] in
+                guard let self = self else { return }
+                // If account was already seeded for this preload version, we do not seed locally
+                let alreadySeeded = await CloudKitSeedingGate.isAccountSeeded(version: PersistenceController.shared.getCurrentPreloadDataVersion())
+                let outcome: CloudKitSeedingGate.GateOutcome = alreadySeeded ? .importCompleted : await CloudKitSeedingGate.waitForImportOrRemoteEmpty(maxWait: 180)
+                DispatchQueue.main.async {
+                    switch outcome {
+                    case .importCompleted:
+                        AppLogger.info("CloudKit import completed – proceeding", category: AppLogger.cloudKit)
+                        self.checkDatabaseState()
+                    case .remoteAppearsEmpty:
+                        // Acquire a seeding lease to prevent multiple devices seeding simultaneously
+                        Task { [weak self] in
+                            let acquired = await CloudKitSeedingGate.tryAcquireSeedingLease()
+                            DispatchQueue.main.async {
+                                if acquired {
+                                    AppLogger.info("Seeding lease acquired – allowing local seed", category: AppLogger.cloudKit)
+                                    self?.checkDatabaseState()
+                                } else {
+                                    AppLogger.info("Seeding lease not acquired – waiting for remote import", category: AppLogger.cloudKit)
+                                    // Re-arm gating and continue waiting rather than risking duplicates
+                                    Task { [weak self] in
+                                        guard let self = self else { return }
+                                        _ = await CloudKitSeedingGate.waitForImportOrRemoteEmpty(maxWait: 180)
+                                        DispatchQueue.main.async { self.checkDatabaseState() }
+                                    }
+                                }
+                            }
+                        }
+                    case .timedOut:
+                        AppLogger.info("CloudKit gating timed out – continue waiting without seeding", category: AppLogger.cloudKit)
+                        self.isLoading = true
+                        Task { [weak self] in
+                            guard let self = self else { return }
+                            _ = await CloudKitSeedingGate.waitForImportOrRemoteEmpty(maxWait: 180)
+                            DispatchQueue.main.async { self.checkDatabaseState() }
+                        }
+                    }
+                }
+            }
+            return
+        }
+        
         let needsDataPopulation = persistence.isDatabaseEmptyOrOutdated(context: context)
         
-        // Clean up any existing duplicate static data from previous CloudKit sync issues
-        persistence.cleanupAllDuplicateStaticData(context: context)
+        // Avoid global cleanup that may over-delete; reconciliation runs after import
         
         // One-time migration: Restore user data that was incorrectly marked as drafts
         restoreUserDataFromDrafts(context: context)
@@ -163,11 +254,16 @@ final class AppStateManager: ObservableObject {
         
         if needsDataPopulation {
             // Use background context for initial data generation to avoid blocking UI
-            persistence.generateInitialDataInBackground { [weak self] success in
+            let cloudImportSnapshot = self.isCloudKitSyncing
+            persistence.generateInitialDataInBackground(cloudImportInProgressAtStart: cloudImportSnapshot) { [weak self] success in
                 DispatchQueue.main.async {
                     guard let self = self else { return }
                     
                     if success {
+                        // When seeded successfully in CloudKit environment, mark account seeded
+                        if self.isICloudAvailable, persistence.container is NSPersistentCloudKitContainer {
+                            Task { await CloudKitSeedingGate.markAccountSeeded(version: PersistenceController.shared.getCurrentPreloadDataVersion()) }
+                        }
                         // Initialize static data cache after database is ready
                         // This will preload all static data to ensure immediate availability
                         StaticDataCacheManager.shared.initialize(with: context)
@@ -423,4 +519,9 @@ final class AppStateManager: ObservableObject {
             AppLogger.info("Draft migration completed successfully", category: AppLogger.appState)
         }
     }
+}
+
+// MARK: - Notifications
+extension Notification.Name {
+    static let appDataDidReconcileAfterCloudKitImport = Notification.Name("AppDataDidReconcileAfterCloudKitImport")
 }
