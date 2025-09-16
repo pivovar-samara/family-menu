@@ -78,7 +78,7 @@ final class StaticKeysGenerationFromInitialDataTests: XCTestCase {
 final class StaticKeyHelperUnitTests: XCTestCase {
     func testStableKeyGeneration() {
         XCTAssertEqual(StaticKeyHelper.stableKey(from: "  Café au Lait  "), "cafe-au-lait")
-        XCTAssertEqual(StaticKeyHelper.stableKey(from: "Sugar--Free"), "sugar--free".replacingOccurrences(of: "-+", with: "-", options: .regularExpression))
+        XCTAssertEqual(StaticKeyHelper.stableKey(from: "Sugar--Free"), "sugar-free")
         XCTAssertEqual(StaticKeyHelper.stableKey(from: "Молоко"), StaticKeyHelper.stableKey(from: "молоко"))
         XCTAssertEqual(StaticKeyHelper.stableKey(from: "Milk!"), "milk")
     }
