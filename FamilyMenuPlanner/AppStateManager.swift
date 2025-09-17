@@ -148,29 +148,27 @@ final class AppStateManager: ObservableObject {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     if PersistenceController.shared.isReady {
                         let bg = PersistenceController.shared.newBackgroundContext()
-                        bg.perform {
-                            // 1) Canonicalize relations
-                            PersistenceController.shared.normalizeDishMealTypeRelations(context: bg)
-                            PersistenceController.shared.normalizeDishProductRelations(context: bg)
-                            // 2) Remove duplicate reference data first
-                            PersistenceController.shared.cleanupDuplicateUnits(context: bg)
-                            PersistenceController.shared.cleanupDuplicateMealTypes(context: bg)
-                            PersistenceController.shared.cleanupDuplicateDishCategories(context: bg)
-                            PersistenceController.shared.cleanupDuplicateProducts(context: bg)
-                            // 3) If we detect locally seeded dishes for this version and remote dishes exist, drop the local seeded ones to avoid any duplication
-                            PersistenceController.shared.removeLocallySeededDishesIfRemoteExists(context: bg)
-                            // 4) Merge duplicate dishes and then normalize ingredients
-                            PersistenceController.shared.cleanupDuplicateDishes(context: bg)
-                            PersistenceController.shared.normalizeDishIngredientDetails(context: bg)
-                            // 5) Restore missing categories from preload data (in case keep had nil)
-                            PersistenceController.shared.restoreDishCategoriesFromPreload(context: bg)
-                            // 6) Normalize menu meal type strings and deduplicate menus
-                            PersistenceController.shared.normalizeMenuMealTypeStrings(context: bg)
-                            PersistenceController.shared.cleanupDuplicateMenus(context: bg)
-                            DispatchQueue.main.async {
-                                // Notify UI layers to refresh after sync
-                                NotificationCenter.default.post(name: .appDataDidReconcileAfterCloudKitImport, object: nil)
-                            }
+                        // Call helpers directly; they manage their own concurrency via perform/performAndWait
+                        PersistenceController.shared.normalizeDishMealTypeRelations(context: bg)
+                        PersistenceController.shared.normalizeDishProductRelations(context: bg)
+                        // Remove duplicate reference data first
+                        PersistenceController.shared.cleanupDuplicateUnits(context: bg)
+                        PersistenceController.shared.cleanupDuplicateMealTypes(context: bg)
+                        PersistenceController.shared.cleanupDuplicateDishCategories(context: bg)
+                        PersistenceController.shared.cleanupDuplicateProducts(context: bg)
+                        // If we detect locally seeded dishes for this version and remote dishes exist, drop the local seeded ones
+                        PersistenceController.shared.removeLocallySeededDishesIfRemoteExists(context: bg)
+                        // Merge duplicate dishes and then normalize ingredients
+                        PersistenceController.shared.cleanupDuplicateDishes(context: bg)
+                        PersistenceController.shared.normalizeDishIngredientDetails(context: bg)
+                        // Restore missing categories from preload data (in case keep had nil)
+                        PersistenceController.shared.restoreDishCategoriesFromPreload(context: bg)
+                        // Normalize menu meal type strings and deduplicate menus
+                        PersistenceController.shared.normalizeMenuMealTypeStrings(context: bg)
+                        PersistenceController.shared.cleanupDuplicateMenus(context: bg)
+                        DispatchQueue.main.async {
+                            // Notify UI layers to refresh after sync
+                            NotificationCenter.default.post(name: .appDataDidReconcileAfterCloudKitImport, object: nil)
                         }
                         self.checkDatabaseState()
                     }
@@ -255,7 +253,7 @@ final class AppStateManager: ObservableObject {
         if needsDataPopulation {
             // Use background context for initial data generation to avoid blocking UI
             let cloudImportSnapshot = self.isCloudKitSyncing
-            persistence.generateInitialDataInBackground(cloudImportInProgressAtStart: cloudImportSnapshot) { [weak self] success in
+            persistence.generateInitialDataInBackground(isCloudImportInProgress: cloudImportSnapshot) { [weak self] success in
                 DispatchQueue.main.async {
                     guard let self = self else { return }
                     

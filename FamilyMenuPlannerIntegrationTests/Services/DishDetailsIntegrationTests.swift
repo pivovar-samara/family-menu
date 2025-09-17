@@ -46,7 +46,7 @@ class DishDetailsIntegrationTests: BaseIntegrationTest {
         dish.name = "Test Dish"
         dish.details = "Test Details"
         
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
         context.refreshAllObjects()
         return (dish, product, mealType, unit, category)
     }
@@ -191,7 +191,7 @@ class DishDetailsIntegrationTests: BaseIntegrationTest {
         let product2 = Product(context: context)
         product2.name = "Second Product"
         product2.unit = unit
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
         viewModel.addIngredient(product: product2, quantity: 2.0)
         
         // Load ingredients to sync selectedIngredients with Core Data relationship

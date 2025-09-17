@@ -156,7 +156,7 @@ final class DataValidationIntegrationTests: BaseIntegrationTest {
         }
         
         // Save the context
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
         
         // Mark current version as loaded
         UserDefaults.standard.set(getCurrentPreloadDataVersion(), forKey: "PreloadDataVersion")

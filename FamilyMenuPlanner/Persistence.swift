@@ -1754,7 +1754,7 @@ class PersistenceController {
     }
     
     @MainActor
-    func generateInitialDataInBackground(cloudImportInProgressAtStart: Bool, completion: @escaping (Bool) -> Void) {
+    func generateInitialDataInBackground(isCloudImportInProgress: Bool, completion: @escaping (Bool) -> Void) {
         // Thread-safe check
         dataGenerationLock.lock()
         let isInProgress = isDataGenerationInProgress
@@ -1791,7 +1791,7 @@ class PersistenceController {
                 // Double-check with a lightweight guard that no CloudKit import is ongoing
                 if self.container is NSPersistentCloudKitContainer {
                     // Use captured snapshot from main actor to avoid cross-actor access
-                    if cloudImportInProgressAtStart {
+                    if isCloudImportInProgress {
                         AppLogger.info("Deferred initial data generation: CloudKit import in progress", category: AppLogger.persistence)
                         return
                     }

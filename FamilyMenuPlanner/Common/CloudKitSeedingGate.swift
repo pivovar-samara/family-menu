@@ -69,26 +69,12 @@ enum CloudKitSeedingGate {
         }
 
         // Concurrently: poll for remote emptiness in expanding intervals until maxWait reached
-        @Sendable func remoteProbeTask() async -> Bool {
-            // Probe a small set of record types commonly present in the mirror
-            // Default mapping for NSPersistentCloudKitContainer prefixes entity with "CD_"
-            let probeTypes = ["CD_Unit", "CD_Product", "CD_MealType", "CD_DishCategory", "CD_Dish"]
-            var delay: TimeInterval = 2
-            while Date().timeIntervalSince(start) < maxWait {
-                if await remoteStoreAppearsEmpty(recordTypes: probeTypes) {
-                    return true
-                }
-                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                delay = min(delay * 1.5, 10)
-            }
-            return false
-        }
 
         async let importSignal: Bool? = {
             for await _ in importCompleted { return true }
             return nil
         }()
-        async let remoteEmpty: Bool = remoteProbeTask()
+        async let remoteEmpty: Bool = Self.probeRemoteEmptiness(start: start, maxWait: maxWait)
 
         let until = start.addingTimeInterval(maxWait)
         while Date() < until {
@@ -104,6 +90,23 @@ enum CloudKitSeedingGate {
 
         if didImport { return .importCompleted }
         return .timedOut
+    }
+
+    /// Polls CloudKit mirror for any presence of records within a window.
+    /// Returns true if the mirror appears empty before the timeout elapses.
+    private static func probeRemoteEmptiness(start: Date, maxWait: TimeInterval) async -> Bool {
+        // Probe a small set of record types commonly present in the mirror
+        // Default mapping for NSPersistentCloudKitContainer prefixes entity with "CD_"
+        let probeTypes = ["CD_Unit", "CD_Product", "CD_MealType", "CD_DishCategory", "CD_Dish"]
+        var delay: TimeInterval = 2
+        while Date().timeIntervalSince(start) < maxWait {
+            if await remoteStoreAppearsEmpty(recordTypes: probeTypes) {
+                return true
+            }
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            delay = min(delay * 1.5, 10)
+        }
+        return false
     }
 
     /// Best-effort probe of CloudKit mirror to see if any Core Data mirrored records exist.
