@@ -227,8 +227,14 @@ class PersistenceController {
                     let dishes = try context.fetch(dishFetch)
                     for dish in dishes where dish.category == nil {
                         guard let name = dish.name else { continue }
-                        // Tolerate key/name drift and localization by matching via stable keys
-                        let expectedCatName = expectedCategoryByDish[name] ?? expectedCategoryByDish.first(where: { StaticKeyHelper.stableKey(from: $0.key) == StaticKeyHelper.stableKey(from: name) })?.value
+                        // Try direct lookup first
+                        var expectedCatName = expectedCategoryByDish[name]
+                        // If not found, try matching by stable key
+                        if expectedCatName == nil {
+                            if let match = expectedCategoryByDish.first(where: { StaticKeyHelper.stableKey(from: $0.key) == StaticKeyHelper.stableKey(from: name) }) {
+                                expectedCatName = match.value
+                            }
+                        }
                         guard let catName = expectedCatName else { continue }
                         let key = StaticKeyHelper.stableKey(from: catName)
                         if let cat = catByKey[key] ?? catByName[catName] {

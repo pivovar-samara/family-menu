@@ -3,6 +3,8 @@ import CoreData
 import CloudKit
 
 enum CloudKitSeedingGate {
+    /// Default maximum time to wait for CloudKit import before declaring timeout
+    static let defaultMaxWait: TimeInterval = 180
     /// Waits for the first NSPersistentCloudKitContainer import event or a timeout.
     /// Returns true if an import completed, false if timed out.
     static func waitForImportOrTimeout(timeout: TimeInterval) async -> Bool {
@@ -44,51 +46,25 @@ enum CloudKitSeedingGate {
     /// probes remote for emptiness of Core Data mirror and returns an outcome.
     /// This is conservative: it will only allow seeding when remote clearly appears empty.
     @MainActor
-    static func waitForImportOrRemoteEmpty(maxWait: TimeInterval = 180) async -> GateOutcome {
+    static func waitForImportOrRemoteEmpty(maxWait: TimeInterval = CloudKitSeedingGate.defaultMaxWait) async -> GateOutcome {
         let start = Date()
-        var didImport = false
 
-        // Observe CloudKit import events
-        let importCompleted = AsyncStream<Void> { continuation in
-            let center = NotificationCenter.default
-            let token = center.addObserver(
-                forName: NSPersistentCloudKitContainer.eventChangedNotification,
-                object: nil,
-                queue: .main
-            ) { notification in
-                if let event = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey] as? NSPersistentCloudKitContainer.Event,
-                   event.type == .import,
-                   event.endDate != nil {
-                    continuation.yield(())
-                    continuation.finish()
-                }
-            }
-            continuation.onTermination = { _ in
-                center.removeObserver(token)
-            }
-        }
-
-        // Concurrently: poll for remote emptiness in expanding intervals until maxWait reached
-
-        async let importSignal: Bool? = {
-            for await _ in importCompleted { return true }
-            return nil
-        }()
+        // Start remote emptiness probe as a long-running task
         async let remoteEmpty: Bool = Self.probeRemoteEmptiness(start: start, maxWait: maxWait)
 
-        let until = start.addingTimeInterval(maxWait)
-        while Date() < until {
-            if let imported = await importSignal, imported {
-                didImport = true
-                break
+        // Tick in short intervals racing import vs. remote emptiness without blocking on either
+        while Date().timeIntervalSince(start) < maxWait {
+            // If an import completes during this small window, finish immediately
+            if await Self.waitForImportOrTimeout(timeout: 0.2) {
+                return .importCompleted
             }
+
+            // If remote appears empty before an import arrives, allow seeding
             if await remoteEmpty {
                 return .remoteAppearsEmpty
             }
-            try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s tick
         }
 
-        if didImport { return .importCompleted }
         return .timedOut
     }
 

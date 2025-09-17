@@ -29,7 +29,7 @@ final class ProductSelectionViewModelUnitTests: XCTestCase {
         let unit = Unit(context: context)
         unit.name = name
         unit.sortOrder = 0
-        XCTAssertNoThrow(try context.save())
+        try! context.save()
         return unit
     }
 
@@ -38,7 +38,7 @@ final class ProductSelectionViewModelUnitTests: XCTestCase {
         product.name = name
         product.unit = unit
         product.isDraft = false
-        XCTAssertNoThrow(try context.save())
+        try! context.save()
         return product
     }
 
