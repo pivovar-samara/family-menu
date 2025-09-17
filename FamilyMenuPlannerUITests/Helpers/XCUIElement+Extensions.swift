@@ -27,10 +27,7 @@ extension XCUIElement {
             XCUIApplication().waitForUIUpdate(timeout: 0.5)
         }
         
-        // Select all text using long press
-        self.press(forDuration: 1.1)
-        
-        // Delete selected text using delete keys
+        // Prefer fast deletion via hardware delete keys to avoid selection UI/animations
         if let existingText = self.value as? String, !existingText.isEmpty {
             let deleteString = String(repeating: XCUIKeyboardKey.delete.rawValue, count: existingText.count)
             self.typeText(deleteString)
@@ -79,24 +76,9 @@ extension XCUIElement {
             
             // If clearing didn't work, try alternative approaches
             if !isFieldEmpty {
-                // Try double-tap to select all text
-                self.doubleTap()
-                
-                // Wait for selection to complete
-                let selectionWait = XCTWaiter.wait(for: [
-                    XCTNSPredicateExpectation(predicate: NSPredicate(format: "isHittable == true"), object: self)
-                ], timeout: 2.0)
-                
-                if selectionWait == .completed {
-                    // Use delete key to remove selected text
-                    let deleteString = String(repeating: XCUIKeyboardKey.delete.rawValue, count: currentValue.count)
-                    self.typeText(deleteString)
-                } else {
-                    // If double-tap failed, try long press to select all
-                    self.press(forDuration: 1.1)
-                    let deleteString = String(repeating: XCUIKeyboardKey.delete.rawValue, count: currentValue.count)
-                    self.typeText(deleteString)
-                }
+                // Avoid selection UI as it can hang; just send delete keys again
+                let deleteString = String(repeating: XCUIKeyboardKey.delete.rawValue, count: currentValue.count)
+                self.typeText(deleteString)
             }
         }
         

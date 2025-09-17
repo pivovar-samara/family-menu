@@ -6,10 +6,12 @@
 //
 
 import SwiftUI
+import UIKit
 
 @main
 struct FamilyMenuPlannerApp: App {
     let persistenceController: PersistenceController
+    private let isUITestEnvironment: Bool
     
     init() {
         // Initialize persistence controller based on environment
@@ -21,11 +23,14 @@ struct FamilyMenuPlannerApp: App {
         let isRunningUITests = ProcessInfo.processInfo.environment["UI_TESTS"] != nil ||
                               ProcessInfo.processInfo.arguments.contains("-UITests") ||
                               ProcessInfo.processInfo.arguments.contains("-DisableCloudKit")
+        self.isUITestEnvironment = isRunningUITests
         
         if isRunningUITests {
             // For UI tests, use persistent storage (not in-memory) but disable CloudKit
             AppLogger.info("UI test environment detected - using persistent storage without CloudKit", category: AppLogger.persistence)
             self.persistenceController = PersistenceController(inMemory: false)
+            // Disable animations to avoid XCTest idling timeouts and flakiness
+            UIView.setAnimationsEnabled(false)
         } else if isRunningTests {
             // For other tests, use in-memory database to avoid interference
             self.persistenceController = PersistenceController(inMemory: true)
@@ -90,6 +95,12 @@ struct FamilyMenuPlannerApp: App {
         WindowGroup {
             ContentView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
+                // Ensure SwiftUI animations are disabled during UI tests
+                .transaction { txn in
+                    if isUITestEnvironment {
+                        txn.disablesAnimations = true
+                    }
+                }
         }
     }
 }
