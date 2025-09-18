@@ -57,24 +57,32 @@ enum CloudKitSeedingGate {
     @MainActor
     static func waitForImportOrRemoteEmpty(maxWait: TimeInterval = CloudKitSeedingGate.defaultMaxWait) async -> GateOutcome {
         let start = Date()
+        let deadline = start.addingTimeInterval(maxWait)
 
-        // Start remote emptiness probe as a long-running task
-        async let remoteEmpty: Bool = Self.probeRemoteEmptiness(start: start, maxWait: maxWait)
-
-        // Tick in short intervals racing import vs. remote emptiness without blocking on either
-        while Date().timeIntervalSince(start) < maxWait {
-            // If an import completes during this small window, finish immediately
-            if await Self.waitForImportOrTimeout(timeout: 0.2) {
-                return .importCompleted
+        // Race three outcomes concurrently: import completion, remote emptiness, or timeout
+        return await withTaskGroup(of: GateOutcome.self) { group in
+            group.addTask {
+                let didImport = await Self.waitForImportOrTimeout(timeout: maxWait)
+                return didImport ? .importCompleted : .timedOut
             }
 
-            // If remote appears empty before an import arrives, allow seeding
-            if await remoteEmpty {
-                return .remoteAppearsEmpty
+            group.addTask {
+                let empty = await Self.probeRemoteEmptiness(start: start, maxWait: maxWait)
+                return empty ? .remoteAppearsEmpty : .timedOut
             }
+
+            group.addTask {
+                let remaining = max(0, deadline.timeIntervalSinceNow)
+                if remaining > 0 {
+                    try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
+                }
+                return .timedOut
+            }
+
+            let first = await group.next() ?? .timedOut
+            group.cancelAll()
+            return first
         }
-
-        return .timedOut
     }
 
     /// Polls CloudKit mirror for any presence of records within a window.
@@ -85,10 +93,12 @@ enum CloudKitSeedingGate {
         let probeTypes = Self.probeEntityNames.map { Self.cloudKitRecordPrefix + $0 }
         var delay: TimeInterval = 2
         while Date().timeIntervalSince(start) < maxWait {
+            if Task.isCancelled { return false }
             if await remoteStoreAppearsEmpty(recordTypes: probeTypes) {
                 return true
             }
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            if Task.isCancelled { return false }
             delay = min(delay * 1.5, 10)
         }
         return false
