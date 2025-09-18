@@ -3,7 +3,11 @@ import CoreData
 import CloudKit
 
 enum CloudKitSeedingGate {
-    /// Default maximum time to wait for CloudKit import before declaring timeout
+    /// Default maximum time to wait for CloudKit import before declaring timeout.
+    /// 3 minutes is a conservative window observed to cover slow but healthy
+    /// first-time iCloud imports on older devices and congested networks.
+    /// Callers can override this by passing a custom `maxWait` to
+    /// `waitForImportOrRemoteEmpty(maxWait:)` if a different trade‑off is desired.
     static let defaultMaxWait: TimeInterval = 180
     /// Default record type prefix used by NSPersistentCloudKitContainer for mirrored entities
     private static let cloudKitRecordPrefix: String = "CD_"

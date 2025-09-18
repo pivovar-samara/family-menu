@@ -227,11 +227,12 @@ class PersistenceController {
                     let dishes = try context.fetch(dishFetch)
                     for dish in dishes where dish.category == nil {
                         guard let name = dish.name else { continue }
+                        let nameKey = StaticKeyHelper.stableKey(from: name)
                         // Try direct lookup first
                         var expectedCatName = expectedCategoryByDish[name]
                         // If not found, try matching by stable key
                         if expectedCatName == nil {
-                            if let match = expectedCategoryByDish.first(where: { StaticKeyHelper.stableKey(from: $0.key) == StaticKeyHelper.stableKey(from: name) }) {
+                            if let match = expectedCategoryByDish.first(where: { StaticKeyHelper.stableKey(from: $0.key) == nameKey }) {
                                 expectedCatName = match.value
                             }
                         }
@@ -1819,7 +1820,9 @@ class PersistenceController {
                             ProcessInfo.processInfo.arguments.contains("-UITests") ||
                             ProcessInfo.processInfo.arguments.contains("-DisableCloudKit")
         
-        // The caller provides a snapshot of CloudKit import state captured on the main actor
+        // The `isCloudImportInProgress` parameter is a snapshot of the CloudKit import state,
+        // captured on the main actor and passed in by the caller to avoid cross‑actor access.
+        // This ensures that background data generation does not interfere with ongoing CloudKit imports.
 
         BackgroundOperationManager.shared.executeBulkOperation { backgroundContext in
             // In test environments, force check for data generation needs

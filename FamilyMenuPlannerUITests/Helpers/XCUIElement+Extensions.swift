@@ -27,7 +27,7 @@ extension XCUIElement {
             XCUIApplication().waitForUIUpdate(timeout: 0.5)
         }
         
-        // Prefer fast deletion via hardware delete keys to avoid selection UI/animations
+        // Prefer fast deletion via repeated delete key simulation to avoid selection UI/animations
         if let existingText = self.value as? String, !existingText.isEmpty {
             let deleteString = String(repeating: XCUIKeyboardKey.delete.rawValue, count: existingText.count)
             self.typeText(deleteString)
