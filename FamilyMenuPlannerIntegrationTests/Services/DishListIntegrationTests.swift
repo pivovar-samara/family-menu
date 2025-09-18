@@ -42,7 +42,7 @@ class DishListIntegrationTests: BaseIntegrationTest {
         dish2.category = garnishCategory
         dish2.isDraft = false  // Mark as complete for tests
         
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
         context.refreshAllObjects()
         return [dish1, dish2]
     }
@@ -138,7 +138,7 @@ class DishListIntegrationTests: BaseIntegrationTest {
             dish.isDraft = false  // Mark as complete for tests
         }
         
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
         context.refreshAllObjects()
         
         // Create expectations
@@ -180,7 +180,7 @@ class DishListIntegrationTests: BaseIntegrationTest {
         dish.name = "Persistent Dish"
         dish.details = "This dish should persist"
         dish.isDraft = false  // Mark as complete for tests
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
         
         // Create new view model instance
         let newViewModel = DishListViewModel(dishListService: DishListService(context: context))
@@ -232,7 +232,7 @@ class DishListIntegrationTests: BaseIntegrationTest {
             dish.details = "Details for \(name)"
             dish.isDraft = false
         }
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
         context.refreshAllObjects()
         
         // Test name ascending sort (default)
@@ -264,7 +264,7 @@ class DishListIntegrationTests: BaseIntegrationTest {
             dish.details = "Details for \(name)"
             dish.isDraft = false
         }
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
         context.refreshAllObjects()
         
         // Test name descending sort
@@ -321,7 +321,7 @@ class DishListIntegrationTests: BaseIntegrationTest {
         dish4.category = mainCourseCategory
         dish4.isDraft = false
         
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
         context.refreshAllObjects()
         
         // Test category sort

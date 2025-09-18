@@ -102,7 +102,7 @@ class FamilyMenuPlannerIntegrationTests: BaseIntegrationTest {
         
         // Clean up
         context.delete(unit)
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
     }
     
     func testPersistenceStateManager() {

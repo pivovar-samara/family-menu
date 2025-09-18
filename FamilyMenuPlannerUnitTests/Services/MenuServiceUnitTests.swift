@@ -213,7 +213,7 @@ class MenuServiceUnitTests: XCTestCase {
         menu.calendarWeek = Int32(encodedWeek)
         menu.dishes = NSSet(array: dishes)
         
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
     }
     
     private func encodeWeek(_ weekComponents: DateComponents) -> Int {

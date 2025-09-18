@@ -69,10 +69,10 @@ class ShoppingListIntegrationTests: BaseIntegrationTest {
         
         // Add dishes to menu
         let weekDate = Date()
-        try? menuService.replaceDishes(for: "Monday", mealType: "Breakfast", selectedWeekDate: weekDate, with: dishes)
+        XCTAssertNoThrow(try menuService.replaceDishes(for: "Monday", mealType: "Breakfast", selectedWeekDate: weekDate, with: dishes))
         
         // Save and refresh context to ensure all relationships are properly loaded
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
         context.refreshAllObjects()
         
         // Load the menu into the view model
@@ -91,11 +91,11 @@ class ShoppingListIntegrationTests: BaseIntegrationTest {
         
         // Add same dishes to multiple days
         let weekDate = Date()
-        try? menuService.replaceDishes(for: "Monday", mealType: "Breakfast", selectedWeekDate: weekDate, with: dishes)
-        try? menuService.replaceDishes(for: "Tuesday", mealType: "Breakfast", selectedWeekDate: weekDate, with: dishes)
+        XCTAssertNoThrow(try menuService.replaceDishes(for: "Monday", mealType: "Breakfast", selectedWeekDate: weekDate, with: dishes))
+        XCTAssertNoThrow(try menuService.replaceDishes(for: "Tuesday", mealType: "Breakfast", selectedWeekDate: weekDate, with: dishes))
         
         // Save and refresh context to ensure all relationships are properly loaded
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
         context.refreshAllObjects()
         
         // Load the menu into the view model
@@ -124,7 +124,7 @@ class ShoppingListIntegrationTests: BaseIntegrationTest {
         let fetchRequest: NSFetchRequest<NSManagedObject> = NSFetchRequest(entityName: "Product")
         if let products = try? context.fetch(fetchRequest) {
             products.forEach { context.delete($0) }
-            try? context.save()
+            XCTAssertNoThrow(try context.save())
         }
         
         // Add dishes to menu
@@ -159,14 +159,14 @@ class ShoppingListIntegrationTests: BaseIntegrationTest {
         ingredient.product = product
         ingredient.quantity = 250
         
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
         
         // Add dish to menu
         let weekDate = Date()
-        try? menuService.replaceDishes(for: "Monday", mealType: "Breakfast", selectedWeekDate: weekDate, with: [dish])
+        XCTAssertNoThrow(try menuService.replaceDishes(for: "Monday", mealType: "Breakfast", selectedWeekDate: weekDate, with: [dish]))
         
         // Save and refresh context to ensure all relationships are properly loaded
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
         context.refreshAllObjects()
         
         // Load the menu into the view model
@@ -186,8 +186,8 @@ class ShoppingListIntegrationTests: BaseIntegrationTest {
         let weekDate = Date()
         
         // Add dishes to menu
-        try? menuService.replaceDishes(for: "Monday", mealType: "Breakfast", selectedWeekDate: weekDate, with: dishes)
-        try? context.save()
+        XCTAssertNoThrow(try menuService.replaceDishes(for: "Monday", mealType: "Breakfast", selectedWeekDate: weekDate, with: dishes))
+        XCTAssertNoThrow(try context.save())
         context.refreshAllObjects()
         
         // Load the menu into the view model
@@ -208,7 +208,7 @@ class ShoppingListIntegrationTests: BaseIntegrationTest {
         // Modify ingredient quantity in Core Data
         if let ingredientDetail = dishes.first?.ingredientDetails?.first(where: { ($0 as? IngredientDetail)?.product?.name == "Eggs" }) as? IngredientDetail {
             ingredientDetail.quantity = 4 // Changed from 2 to 4
-            try? context.save()
+            XCTAssertNoThrow(try context.save())
             context.refreshAllObjects()
         }
         
@@ -236,8 +236,8 @@ class ShoppingListIntegrationTests: BaseIntegrationTest {
         let weekDate = Date()
         
         // Add dishes to menu
-        try? menuService.replaceDishes(for: "Monday", mealType: "Breakfast", selectedWeekDate: weekDate, with: dishes)
-        try? context.save()
+        XCTAssertNoThrow(try menuService.replaceDishes(for: "Monday", mealType: "Breakfast", selectedWeekDate: weekDate, with: dishes))
+        XCTAssertNoThrow(try context.save())
         context.refreshAllObjects()
         
         // Load the menu into the view model
@@ -263,7 +263,7 @@ class ShoppingListIntegrationTests: BaseIntegrationTest {
         // Modify only eggs ingredient quantity in Core Data
         if let ingredientDetail = dishes.first?.ingredientDetails?.first(where: { ($0 as? IngredientDetail)?.product?.name == "Eggs" }) as? IngredientDetail {
             ingredientDetail.quantity = 3 // Changed from 2 to 3
-            try? context.save()
+            XCTAssertNoThrow(try context.save())
             context.refreshAllObjects()
         }
         
@@ -292,7 +292,7 @@ class ShoppingListIntegrationTests: BaseIntegrationTest {
         
         // Add dishes to menu
         try? menuService.replaceDishes(for: "Monday", mealType: "Breakfast", selectedWeekDate: weekDate, with: dishes)
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
         context.refreshAllObjects()
         
         // Load the menu into the view model
@@ -313,7 +313,7 @@ class ShoppingListIntegrationTests: BaseIntegrationTest {
         // Modify ingredient quantity with very small change in Core Data
         if let ingredientDetail = dishes.first?.ingredientDetails?.first(where: { ($0 as? IngredientDetail)?.product?.name == "Eggs" }) as? IngredientDetail {
             ingredientDetail.quantity = 2.0001 // Very small change, should not reset
-            try? context.save()
+            XCTAssertNoThrow(try context.save())
             context.refreshAllObjects()
         }
         
@@ -368,9 +368,9 @@ class ShoppingListIntegrationTests: BaseIntegrationTest {
         let weekDate = Date()
         
         // Add dishes to menu
-        try? menuService.replaceDishes(for: "Monday", mealType: "Breakfast", selectedWeekDate: weekDate, with: [pancakes])
-        try? menuService.replaceDishes(for: "Monday", mealType: "Lunch", selectedWeekDate: weekDate, with: [cake])
-        try? context.save()
+        XCTAssertNoThrow(try menuService.replaceDishes(for: "Monday", mealType: "Breakfast", selectedWeekDate: weekDate, with: [pancakes]))
+        XCTAssertNoThrow(try menuService.replaceDishes(for: "Monday", mealType: "Lunch", selectedWeekDate: weekDate, with: [cake]))
+        XCTAssertNoThrow(try context.save())
         context.refreshAllObjects()
         
         // Load the menu into the view model
@@ -391,7 +391,7 @@ class ShoppingListIntegrationTests: BaseIntegrationTest {
         
         // Modify quantity in one dish only
         ingredient1.quantity = 4 // Changed from 2 to 4
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
         context.refreshAllObjects()
         
         // Reload menu and generate updated shopping list

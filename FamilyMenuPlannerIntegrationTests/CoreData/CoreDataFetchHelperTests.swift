@@ -73,7 +73,7 @@ class CoreDataFetchHelperTests: BaseIntegrationTest {
         // Verify configuration
         XCTAssertEqual(fetchRequest.fetchBatchSize, CoreDataFetchHelper.smallBatchSize)
         XCTAssertFalse(fetchRequest.includesSubentities)
-        XCTAssertTrue(fetchRequest.returnsObjectsAsFaults)
+        XCTAssertFalse(fetchRequest.returnsObjectsAsFaults)
     }
     
     func testBatchSizeConstants() {

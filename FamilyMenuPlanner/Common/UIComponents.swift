@@ -331,3 +331,26 @@ enum DishFormStep: Int, CaseIterable, Hashable {
     
     var displayName: String { title }
 } 
+
+struct SyncBannerView: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle())
+            Text("Syncing with iCloud…".localized())
+                .font(.subheadline)
+                .bold()
+        }
+        .foregroundColor(.primary)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity)
+        .background(.ultraThinMaterial)
+        .overlay(
+            Rectangle()
+                .fill(Color.secondary.opacity(0.2))
+                .frame(height: 0.5)
+                .frame(maxHeight: .infinity, alignment: .bottom), alignment: .bottom
+        )
+    }
+}

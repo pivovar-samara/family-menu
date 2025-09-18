@@ -46,7 +46,7 @@ class DishDetailsIntegrationTests: BaseIntegrationTest {
         dish.name = "Test Dish"
         dish.details = "Test Details"
         
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
         context.refreshAllObjects()
         return (dish, product, mealType, unit, category)
     }
@@ -178,7 +178,7 @@ class DishDetailsIntegrationTests: BaseIntegrationTest {
     }
     
     func testDeleteIngredient() {
-        let (dish, product, mealType, _, _) = createTestData()
+        let (dish, product, mealType, unit, _) = createTestData()
         
         // Create view model with existing dish
         viewModel = DishDetailsViewModel(dishDetailsService: dishDetailsService, dish: dish)
@@ -186,9 +186,13 @@ class DishDetailsIntegrationTests: BaseIntegrationTest {
         // Add meal type first so validation will pass
         viewModel.toggleMealTypeSelection(mealType)
         
-        // Add two ingredients so we can delete one without violating validation
+        // Add two distinct ingredients (different products) so normalization doesn't merge them
         viewModel.addIngredient(product: product, quantity: 1.0)
-        viewModel.addIngredient(product: product, quantity: 2.0)
+        let product2 = Product(context: context)
+        product2.name = "Second Product"
+        product2.unit = unit
+        XCTAssertNoThrow(try context.save())
+        viewModel.addIngredient(product: product2, quantity: 2.0)
         
         // Load ingredients to sync selectedIngredients with Core Data relationship
         viewModel.loadIngredients()

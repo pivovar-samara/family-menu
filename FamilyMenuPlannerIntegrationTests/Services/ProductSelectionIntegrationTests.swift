@@ -83,7 +83,7 @@ class ProductSelectionIntegrationTests: BaseIntegrationTest {
         // Create draft product
         let draftProduct = createProduct(name: "Draft Product", unit: pieces)
         draftProduct.isDraft = true
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
 
         // Fetch products using service
         let fetchedProducts = productSelectionService.fetchAllProducts()

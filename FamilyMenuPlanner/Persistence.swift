@@ -80,6 +80,10 @@ class PersistenceController {
     
     private let dataGenerationLock = NSLock()
     private var isDataGenerationInProgress = false
+    
+    // Remote change observation
+    private var remoteChangeObserver: NSObjectProtocol?
+    private var remoteChangeDebounceWorkItem: DispatchWorkItem?
 
     init(inMemory: Bool = false) {
         // Very early logging to help diagnose CI issues
@@ -154,6 +158,9 @@ class PersistenceController {
             }
         }
         
+        // Start observing remote changes when using CloudKit
+        startObservingRemoteChangesIfNeeded()
+        
         // Step 7: Perform data validation cleanup to prevent CoreGraphics errors
         // TODO: Re-add performDataValidationCleanup() method
         // performDataValidationCleanup()
@@ -181,6 +188,92 @@ class PersistenceController {
         }
         
         AppLogger.info("PersistenceController initialization completed", category: AppLogger.persistence)
+    }
+
+    // Post-seeding reconciliation: ensure dish categories match preload and deduplicate ingredients.
+    private func reconcilePostInitialSeeding(context: NSManagedObjectContext) {
+        context.performAndWait {
+            do {
+                // 0) Clean up duplicate reference data first
+                self.cleanupDuplicateUnits(context: context)
+                self.cleanupDuplicateMealTypes(context: context)
+                self.cleanupDuplicateDishCategories(context: context)
+
+                // 1) Ensure product and meal type relations are canonicalized
+                self.normalizeDishProductRelations(context: context)
+                self.normalizeDishMealTypeRelations(context: context)
+                // 1a) Remove duplicate products so ingredient mapping is stable
+                self.cleanupDuplicateProducts(context: context)
+
+                // 2) Assign missing categories for preloaded dishes
+                if let preload = loadCurrentPreloadData() {
+                    // Build category lookup by key (prefer key), then name
+                    let catFetch: NSFetchRequest<DishCategory> = DishCategory.fetchRequest()
+                    let categories = try context.fetch(catFetch)
+                    var catByName: [String: DishCategory] = [:]
+                    var catByKey: [String: DishCategory] = [:]
+                    for cat in categories {
+                        if let name = cat.name { catByName[name] = cat }
+                        if let key = cat.key { catByKey[key] = cat }
+                    }
+
+                    // Map dish name -> expected category name from preload
+                    var expectedCategoryByDish: [String: String] = [:]
+                    for d in preload.dishes {
+                        if let cat = d.category { expectedCategoryByDish[d.name] = cat }
+                    }
+
+                    let dishFetch: NSFetchRequest<Dish> = Dish.fetchRequest()
+                    let dishes = try context.fetch(dishFetch)
+                    for dish in dishes where dish.category == nil {
+                        guard let name = dish.name else { continue }
+                        let nameKey = StaticKeyHelper.stableKey(from: name)
+                        // Try direct lookup first
+                        var expectedCatName = expectedCategoryByDish[name]
+                        // If not found, try matching by stable key
+                        if expectedCatName == nil {
+                            if let match = expectedCategoryByDish.first(where: { StaticKeyHelper.stableKey(from: $0.key) == nameKey }) {
+                                expectedCatName = match.value
+                            }
+                        }
+                        guard let catName = expectedCatName else { continue }
+                        let key = StaticKeyHelper.stableKey(from: catName)
+                        if let cat = catByKey[key] ?? catByName[catName] {
+                            dish.category = cat
+                        }
+                    }
+                }
+
+                // 3) Deduplicate IngredientDetail using existing normalization routine
+                self.normalizeDishIngredientDetails(context: context)
+                // 4) Recompute and set IngredientDetail.key for all details (heals legacy rows)
+                do {
+                    func norm(_ s: String?) -> String { (s ?? "").trimmingCharacters(in: .whitespacesAndNewlines) }
+                    let fetch: NSFetchRequest<IngredientDetail> = IngredientDetail.fetchRequest()
+                    let all = try context.fetch(fetch)
+                    var updated = 0
+                    for d in all {
+                        guard let dish = d.dish, let product = d.product else { continue }
+                        let dishKey = dish.key ?? StaticKeyHelper.stableKey(from: norm(dish.name))
+                        let unitKey = product.unit?.key ?? (product.unit?.name.map { StaticKeyHelper.stableKey(from: $0) } ?? "")
+                        let prodKey = StaticKeyHelper.productKey(name: norm(product.name), unitKey: unitKey)
+                        let k = dishKey + "|" + prodKey
+                        if d.key != k { d.key = k; updated += 1 }
+                    }
+                    if context.hasChanges { try context.save() }
+                    AppLogger.info("Recomputed IngredientDetail.key for \(updated) rows", category: AppLogger.persistence)
+                } catch {
+                    AppLogger.error("Failed to recompute IngredientDetail.key", error: error, category: AppLogger.persistence)
+                }
+
+                if context.hasChanges {
+                    try context.save()
+                }
+                AppLogger.info("Reconciliation completed", category: AppLogger.persistence)
+            } catch {
+                AppLogger.error("Post-seeding reconciliation failed", error: error, category: AppLogger.persistence)
+            }
+        }
     }
 
     private static func shouldUseCloudKitInSimulator() -> Bool {
@@ -455,6 +548,49 @@ class PersistenceController {
         
         // Set query generation only if supported (not for in-memory stores)
         setQueryGenerationIfSupported(for: container.viewContext)
+
+        // Backfill stable keys for static data if missing
+        backfillStaticKeysIfNeeded(context: container.viewContext)
+        
+        // Begin listening for CloudKit merges
+        startObservingRemoteChangesIfNeeded()
+    }
+
+    private func startObservingRemoteChangesIfNeeded() {
+        guard remoteChangeObserver == nil else { return }
+        guard container is NSPersistentCloudKitContainer else { return }
+        
+        let coordinator = container.persistentStoreCoordinator
+        
+        remoteChangeObserver = NotificationCenter.default.addObserver(
+            forName: .NSPersistentStoreRemoteChange,
+            object: coordinator,
+            queue: nil
+        ) { [weak self] _ in
+            guard let self = self else { return }
+            // Debounce a burst of notifications from a single import session
+            self.remoteChangeDebounceWorkItem?.cancel()
+            let work = DispatchWorkItem { [weak self] in
+                guard let self = self else { return }
+                self.refreshAfterRemoteMerge()
+            }
+            self.remoteChangeDebounceWorkItem = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.7, execute: work)
+        }
+        AppLogger.info("Subscribed to NSPersistentStoreRemoteChange", category: AppLogger.persistence)
+    }
+
+    /// Advances query generation, refreshes registered objects, and reloads static caches.
+    /// Call this after CloudKit merges or when resuming the app post-sync to avoid stale faults.
+    func refreshAfterRemoteMerge() {
+        let ctx = container.viewContext
+        ctx.perform {
+            do { try ctx.setQueryGenerationFrom(.current) } catch {
+                AppLogger.warning("Failed to advance query generation after remote change: \(error.localizedDescription)", category: AppLogger.persistence)
+            }
+            ctx.refreshAllObjects()
+        }
+        StaticDataCacheManager.shared.invalidateCache()
     }
     
     // MARK: - Public Error Handling Interface
@@ -925,21 +1061,32 @@ class PersistenceController {
         // Step 1: Create/update units (these are static reference data)
         var unitMap: [String: Unit] = [:]
         for unitData in jsonData.units {
+            let unitKey = StaticKeyHelper.stableKey(from: unitData.name)
             let fetchRequest: NSFetchRequest<Unit> = Unit.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "name == %@", unitData.name)
+            fetchRequest.predicate = NSPredicate(format: "key == %@ OR name == %@", unitKey, unitData.name)
             fetchRequest.fetchLimit = 1
             
-            let existingUnit = try! context.fetch(fetchRequest).first
+            var existingUnit: Unit?
+            do {
+                existingUnit = try context.fetch(fetchRequest).first
+            } catch {
+                AppLogger.error("Error checking for existing unit \(unitData.name)", error: error, category: AppLogger.dataImport)
+                existingUnit = nil
+            }
             if let existingUnit = existingUnit {
                 // Update sort order if needed
                 if existingUnit.sortOrder != unitData.sortOrder {
                     existingUnit.sortOrder = unitData.sortOrder
+                }
+                if (existingUnit.key?.isEmpty ?? true) {
+                    existingUnit.key = unitKey
                 }
                 unitMap[unitData.name] = existingUnit
             } else {
                 let unit = Unit(context: context)
                 unit.name = unitData.name
                 unit.sortOrder = unitData.sortOrder
+                unit.key = unitKey
                 unitMap[unitData.name] = unit
             }
         }
@@ -947,20 +1094,31 @@ class PersistenceController {
         // Step 2: Create/update meal types
         var mealTypeMap: [String: MealType] = [:]
         for mealTypeData in jsonData.mealTypes {
+            let mtKey = StaticKeyHelper.stableKey(from: mealTypeData.name)
             let fetchRequest: NSFetchRequest<MealType> = MealType.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "name == %@", mealTypeData.name)
+            fetchRequest.predicate = NSPredicate(format: "key == %@ OR name == %@", mtKey, mealTypeData.name)
             fetchRequest.fetchLimit = 1
             
-            let existingMealType = try! context.fetch(fetchRequest).first
+            var existingMealType: MealType?
+            do {
+                existingMealType = try context.fetch(fetchRequest).first
+            } catch {
+                AppLogger.error("Error checking for existing meal type \(mealTypeData.name)", error: error, category: AppLogger.dataImport)
+                existingMealType = nil
+            }
             if let existingMealType = existingMealType {
                 if existingMealType.sortOrder != mealTypeData.sortOrder {
                     existingMealType.sortOrder = mealTypeData.sortOrder
+                }
+                if (existingMealType.key?.isEmpty ?? true) {
+                    existingMealType.key = mtKey
                 }
                 mealTypeMap[mealTypeData.name] = existingMealType
             } else {
                 let mealType = MealType(context: context)
                 mealType.name = mealTypeData.name
                 mealType.sortOrder = mealTypeData.sortOrder
+                mealType.key = mtKey
                 mealTypeMap[mealTypeData.name] = mealType
             }
         }
@@ -968,20 +1126,31 @@ class PersistenceController {
         // Step 3: Create/update dish categories
         var dishCategoryMap: [String: DishCategory] = [:]
         for categoryData in jsonData.dishCategories {
+            let catKey = StaticKeyHelper.stableKey(from: categoryData.name)
             let fetchRequest: NSFetchRequest<DishCategory> = DishCategory.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "name == %@", categoryData.name)
+            fetchRequest.predicate = NSPredicate(format: "key == %@ OR name == %@", catKey, categoryData.name)
             fetchRequest.fetchLimit = 1
             
-            let existingCategory = try! context.fetch(fetchRequest).first
+            var existingCategory: DishCategory?
+            do {
+                existingCategory = try context.fetch(fetchRequest).first
+            } catch {
+                AppLogger.error("Error checking for existing dish category \(categoryData.name)", error: error, category: AppLogger.dataImport)
+                existingCategory = nil
+            }
             if let existingCategory = existingCategory {
                 if existingCategory.sortOrder != categoryData.sortOrder {
                     existingCategory.sortOrder = categoryData.sortOrder
+                }
+                if (existingCategory.key?.isEmpty ?? true) {
+                    existingCategory.key = catKey
                 }
                 dishCategoryMap[categoryData.name] = existingCategory
             } else {
                 let category = DishCategory(context: context)
                 category.name = categoryData.name
                 category.sortOrder = categoryData.sortOrder
+                category.key = catKey
                 dishCategoryMap[categoryData.name] = category
             }
         }
@@ -992,13 +1161,24 @@ class PersistenceController {
             let fetchRequest: NSFetchRequest<Product> = Product.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "name == %@", productData.name)
             
-            let existingProducts = try! context.fetch(fetchRequest)
+            var existingProducts: [Product] = []
+            do {
+                existingProducts = try context.fetch(fetchRequest)
+            } catch {
+                AppLogger.error("Error checking for existing product \(productData.name)", error: error, category: AppLogger.dataImport)
+                existingProducts = []
+            }
             
             if let existingProduct = existingProducts.first {
                 // If product exists but has no unit, assign the correct unit
                 if existingProduct.unit == nil, let expectedUnit = unitMap[productData.unit] {
                     existingProduct.unit = expectedUnit
                     AppLogger.info("Assigned unit '\(productData.unit)' to existing product '\(productData.name)'", category: AppLogger.dataImport)
+                }
+                // Ensure stable key exists
+                if (existingProduct.key?.isEmpty ?? true) {
+                    let unitKey = unitMap[productData.unit]?.key ?? StaticKeyHelper.stableKey(from: productData.unit)
+                    existingProduct.key = StaticKeyHelper.productKey(name: productData.name, unitKey: unitKey)
                 }
                 productMap[productData.name] = existingProduct
                 
@@ -1019,6 +1199,8 @@ class PersistenceController {
                 product.name = productData.name
                 product.unit = unitMap[productData.unit]
                 product.isDraft = false  // Preloaded products are complete
+                let unitKey = unitMap[productData.unit]?.key ?? StaticKeyHelper.stableKey(from: productData.unit)
+                product.key = StaticKeyHelper.productKey(name: productData.name, unitKey: unitKey)
                 productMap[productData.name] = product
             }
         }
@@ -1028,12 +1210,22 @@ class PersistenceController {
             let fetchRequest: NSFetchRequest<Dish> = Dish.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "name == %@", dishData.name)
             
-            let existingDishes = try! context.fetch(fetchRequest)
+            var existingDishes: [Dish] = []
+            do {
+                existingDishes = try context.fetch(fetchRequest)
+            } catch {
+                AppLogger.error("Error checking for existing dish \(dishData.name)", error: error, category: AppLogger.dataImport)
+                existingDishes = []
+            }
             
             var targetDish: Dish
             
             if let existingDish = existingDishes.first {
                 targetDish = existingDish
+                // Ensure stable key exists
+                if (targetDish.key?.isEmpty ?? true) {
+                    targetDish.key = StaticKeyHelper.stableKey(from: dishData.name)
+                }
                 
                 // Update category if missing
                 if targetDish.category == nil, 
@@ -1069,6 +1261,7 @@ class PersistenceController {
                 targetDish.name = dishData.name
                 targetDish.details = dishData.details
                 targetDish.isDraft = false  // Preloaded dishes are complete
+                targetDish.key = StaticKeyHelper.stableKey(from: dishData.name)
                 
                 // Set category
                 if let categoryName = dishData.category,
@@ -1077,16 +1270,33 @@ class PersistenceController {
                 }
             }
 
-            // Ensure ingredients exist
-            let existingIngredients = Set((targetDish.ingredientDetails as? Set<IngredientDetail>)?.compactMap { $0.product?.name } ?? [])
-            
+            // Ensure ingredients exist (idempotent by ingredient key)
+            func ingredientKey(_ productName: String, product: Product) -> String {
+                let dishKey = targetDish.key ?? StaticKeyHelper.stableKey(from: targetDish.name ?? "")
+                let unitKey = product.unit?.key ?? (product.unit?.name.map { StaticKeyHelper.stableKey(from: $0) } ?? "")
+                let prodKey = StaticKeyHelper.productKey(name: productName, unitKey: unitKey)
+                return dishKey + "|" + prodKey
+            }
+            var existingKeys: Set<String> = []
+            if let details = targetDish.ingredientDetails as? Set<IngredientDetail> {
+                for d in details {
+                    if let p = d.product {
+                        let k = ingredientKey(p.name ?? "", product: p)
+                        existingKeys.insert(k)
+                        d.key = k
+                    }
+                }
+            }
             for ingredientData in dishData.ingredients {
-                if !existingIngredients.contains(ingredientData.product),
-                   let product = productMap[ingredientData.product] {
-                    let ingredient = IngredientDetail(context: context)
-                    ingredient.dish = targetDish
-                    ingredient.product = product
-                    ingredient.quantity = ingredientData.quantity
+                if let product = productMap[ingredientData.product] {
+                    let k = ingredientKey(ingredientData.product, product: product)
+                    if !existingKeys.contains(k) {
+                        let ingredient = IngredientDetail(context: context)
+                        ingredient.dish = targetDish
+                        ingredient.product = product
+                        ingredient.quantity = ingredientData.quantity
+                        ingredient.key = k
+                    }
                 }
             }
             
@@ -1102,8 +1312,15 @@ class PersistenceController {
 
         // Save all changes
         if context.hasChanges {
-            try! context.save()
+            do {
+                try context.save()
+            } catch {
+                AppLogger.error("Error saving CloudKit conflict resolution data generation", error: error, category: AppLogger.dataImport)
+            }
         }
+        
+        // Perform post-seeding reconciliation to ensure categories and deduplicate ingredients
+        reconcilePostInitialSeeding(context: context)
     }
     
     private func generateDataTraditional(context: NSManagedObjectContext, jsonData: PreloadedData) {
@@ -1115,21 +1332,26 @@ class PersistenceController {
             clearStaticData(context: context)
         }
 
-        // Create Units with deduplication
+        // Create Units with deduplication (prefer key)
         var unitMap: [String: Unit] = [:]
         for unitData in jsonData.units {
+            let unitKey = StaticKeyHelper.stableKey(from: unitData.name)
             let fetchRequest: NSFetchRequest<Unit> = Unit.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "name == %@", unitData.name)
+            fetchRequest.predicate = NSPredicate(format: "key == %@ OR name == %@", unitKey, unitData.name)
             fetchRequest.fetchLimit = 1
             
             do {
                 let existingUnit = try context.fetch(fetchRequest).first
                 if let existingUnit = existingUnit {
+                    if (existingUnit.key?.isEmpty ?? true) {
+                        existingUnit.key = unitKey
+                    }
                     unitMap[unitData.name] = existingUnit
                 } else {
                     let unit = Unit(context: context)
                     unit.name = unitData.name
                     unit.sortOrder = unitData.sortOrder
+                    unit.key = unitKey
                     unitMap[unitData.name] = unit
                 }
             } catch {
@@ -1137,21 +1359,26 @@ class PersistenceController {
             }
         }
         
-        // Create Meal types with deduplication
+        // Create Meal types with deduplication (prefer key)
         var mealTypeMap: [String: MealType] = [:]
         for mealTypeData in jsonData.mealTypes {
+            let mtKey = StaticKeyHelper.stableKey(from: mealTypeData.name)
             let fetchRequest: NSFetchRequest<MealType> = MealType.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "name == %@", mealTypeData.name)
+            fetchRequest.predicate = NSPredicate(format: "key == %@ OR name == %@", mtKey, mealTypeData.name)
             fetchRequest.fetchLimit = 1
             
             do {
                 let existingMealType = try context.fetch(fetchRequest).first
                 if let existingMealType = existingMealType {
+                    if (existingMealType.key?.isEmpty ?? true) {
+                        existingMealType.key = mtKey
+                    }
                     mealTypeMap[mealTypeData.name] = existingMealType
                 } else {
                     let mealType = MealType(context: context)
                     mealType.name = mealTypeData.name
                     mealType.sortOrder = mealTypeData.sortOrder
+                    mealType.key = mtKey
                     mealTypeMap[mealTypeData.name] = mealType
                 }
             } catch {
@@ -1159,21 +1386,26 @@ class PersistenceController {
             }
         }
         
-        // Create Dish Categories with deduplication
+        // Create Dish Categories with deduplication (prefer key)
         var dishCategoryMap: [String: DishCategory] = [:]
         for categoryData in jsonData.dishCategories {
+            let catKey = StaticKeyHelper.stableKey(from: categoryData.name)
             let fetchRequest: NSFetchRequest<DishCategory> = DishCategory.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "name == %@", categoryData.name)
+            fetchRequest.predicate = NSPredicate(format: "key == %@ OR name == %@", catKey, categoryData.name)
             fetchRequest.fetchLimit = 1
             
             do {
                 let existingCategory = try context.fetch(fetchRequest).first
                 if let existingCategory = existingCategory {
+                    if (existingCategory.key?.isEmpty ?? true) {
+                        existingCategory.key = catKey
+                    }
                     dishCategoryMap[categoryData.name] = existingCategory
                 } else {
                     let category = DishCategory(context: context)
                     category.name = categoryData.name
                     category.sortOrder = categoryData.sortOrder
+                    category.key = catKey
                     dishCategoryMap[categoryData.name] = category
                 }
             } catch {
@@ -1197,6 +1429,8 @@ class PersistenceController {
                     product.name = productData.name
                     product.unit = unitMap[productData.unit]
                     product.isDraft = false  // Preloaded products are complete
+                    let unitKey = unitMap[productData.unit]?.key ?? StaticKeyHelper.stableKey(from: productData.unit)
+                    product.key = StaticKeyHelper.productKey(name: productData.name, unitKey: unitKey)
                     productMap[productData.name] = product
                 }
             } catch {
@@ -1221,6 +1455,7 @@ class PersistenceController {
                 dish.name = dishData.name
                 dish.details = dishData.details
                 dish.isDraft = false  // Preloaded dishes are complete
+                dish.key = StaticKeyHelper.stableKey(from: dishData.name)
                 
                 // Set category
                 if let categoryName = dishData.category,
@@ -1228,12 +1463,33 @@ class PersistenceController {
                     dish.category = category
                 }
 
+                // Create ingredients idempotently by (dish|product) key
+                func ingredientKey(_ productName: String, product: Product) -> String {
+                    let dishKey = dish.key ?? StaticKeyHelper.stableKey(from: dish.name ?? "")
+                    let unitKey = product.unit?.key ?? (product.unit?.name.map { StaticKeyHelper.stableKey(from: $0) } ?? "")
+                    let prodKey = StaticKeyHelper.productKey(name: productName, unitKey: unitKey)
+                    return dishKey + "|" + prodKey
+                }
+                var existingKeys: Set<String> = []
+                if let details = dish.ingredientDetails as? Set<IngredientDetail> {
+                    for d in details {
+                        if let p = d.product {
+                            let k = ingredientKey(p.name ?? "", product: p)
+                            existingKeys.insert(k)
+                            d.key = k
+                        }
+                    }
+                }
                 for ingredientData in dishData.ingredients {
                     if let product = productMap[ingredientData.product] {
-                        let ingredient = IngredientDetail(context: context)
-                        ingredient.dish = dish
-                        ingredient.product = product
-                        ingredient.quantity = ingredientData.quantity
+                        let k = ingredientKey(ingredientData.product, product: product)
+                        if !existingKeys.contains(k) {
+                            let ingredient = IngredientDetail(context: context)
+                            ingredient.dish = dish
+                            ingredient.product = product
+                            ingredient.quantity = ingredientData.quantity
+                            ingredient.key = k
+                        }
                     } else {
                         AppLogger.warning("Product \(ingredientData.product) not found for dish \(dishData.name)", category: AppLogger.dataImport)
                     }
@@ -1260,6 +1516,9 @@ class PersistenceController {
         } catch {
             AppLogger.error("Error saving traditional data generation", error: error, category: AppLogger.dataImport)
         }
+        
+        // Perform post-seeding reconciliation to ensure categories and deduplicate ingredients
+        reconcilePostInitialSeeding(context: context)
     }
     
     private func clearStaticData(context: NSManagedObjectContext) {
@@ -1357,6 +1616,90 @@ class PersistenceController {
             AppLogger.info("Skipping query generation for in-memory or test store", category: AppLogger.persistence)
         }
     }
+
+    // MARK: - Static Keys
+    /// Generates a stable key from a human readable name
+    private func generateKey(from name: String) -> String {
+        let lower = name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        // Remove diacritics and non-ASCII
+        let folded = lower.folding(options: [.diacriticInsensitive, .widthInsensitive, .caseInsensitive], locale: .current)
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
+        let replaced = folded.map { ch -> Character in
+            let s = String(ch)
+            if s.rangeOfCharacter(from: allowed.inverted) != nil {
+                return "-"
+            }
+            return ch
+        }
+        // Collapse multiple dashes
+        let key = String(replaced).replacingOccurrences(of: "-+", with: "-", options: .regularExpression)
+        return key.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+    }
+
+    /// Ensures Unit/MealType/DishCategory have non-nil keys; idempotent
+    func backfillStaticKeysIfNeeded(context: NSManagedObjectContext) {
+        context.performAndWait {
+            do {
+                // Units
+                do {
+                    let fetch: NSFetchRequest<Unit> = Unit.fetchRequest()
+                    let items = try context.fetch(fetch)
+                    for item in items {
+                        if (item.key?.isEmpty ?? true), let name = item.name {
+                            item.key = generateKey(from: name)
+                        }
+                    }
+                }
+                // MealTypes
+                do {
+                    let fetch: NSFetchRequest<MealType> = MealType.fetchRequest()
+                    let items = try context.fetch(fetch)
+                    for item in items {
+                        if (item.key?.isEmpty ?? true), let name = item.name {
+                            item.key = generateKey(from: name)
+                        }
+                    }
+                }
+                // DishCategories
+                do {
+                    let fetch: NSFetchRequest<DishCategory> = DishCategory.fetchRequest()
+                    let items = try context.fetch(fetch)
+                    for item in items {
+                        if (item.key?.isEmpty ?? true), let name = item.name {
+                            item.key = generateKey(from: name)
+                        }
+                    }
+                }
+                // Dishes
+                do {
+                    let fetch: NSFetchRequest<Dish> = Dish.fetchRequest()
+                    let items = try context.fetch(fetch)
+                    for item in items {
+                        if (item.key?.isEmpty ?? true), let name = item.name {
+                            item.key = StaticKeyHelper.stableKey(from: name)
+                        }
+                    }
+                }
+                // Products
+                do {
+                    let fetch: NSFetchRequest<Product> = Product.fetchRequest()
+                    let items = try context.fetch(fetch)
+                    for item in items {
+                        if (item.key?.isEmpty ?? true), let name = item.name {
+                            let unitKey: String? = item.unit?.key ?? item.unit?.name.map { StaticKeyHelper.stableKey(from: $0) }
+                            item.key = StaticKeyHelper.productKey(name: name, unitKey: unitKey)
+                        }
+                    }
+                }
+
+                if context.hasChanges {
+                    try context.save()
+                }
+            } catch {
+                AppLogger.error("Backfilling static keys failed", error: error, category: AppLogger.persistence)
+            }
+        }
+    }
     
     // MARK: - Heavy Operations Support
     
@@ -1451,7 +1794,8 @@ class PersistenceController {
         }
     }
     
-    func generateInitialDataInBackground(completion: @escaping (Bool) -> Void) {
+    @MainActor
+    func generateInitialDataInBackground(isCloudImportInProgress: Bool, completion: @escaping (Bool) -> Void) {
         // Thread-safe check
         dataGenerationLock.lock()
         let isInProgress = isDataGenerationInProgress
@@ -1476,6 +1820,10 @@ class PersistenceController {
                             ProcessInfo.processInfo.arguments.contains("-UITests") ||
                             ProcessInfo.processInfo.arguments.contains("-DisableCloudKit")
         
+        // The `isCloudImportInProgress` parameter is a snapshot of the CloudKit import state,
+        // captured on the main actor and passed in by the caller to avoid cross‑actor access.
+        // This ensures that background data generation does not interfere with ongoing CloudKit imports.
+
         BackgroundOperationManager.shared.executeBulkOperation { backgroundContext in
             // In test environments, force check for data generation needs
             let needsPopulation = isRunningTests ? 
@@ -1483,6 +1831,14 @@ class PersistenceController {
                 self.isDatabaseEmptyOrOutdated(context: backgroundContext)
                 
             if needsPopulation {
+                // Double-check with a lightweight guard that no CloudKit import is ongoing
+                if self.container is NSPersistentCloudKitContainer {
+                    // Use captured snapshot from main actor to avoid cross-actor access
+                    if isCloudImportInProgress {
+                        AppLogger.info("Deferred initial data generation: CloudKit import in progress", category: AppLogger.persistence)
+                        return
+                    }
+                }
                 self.performInitialDataGeneration(context: backgroundContext)
             } else {
                 AppLogger.info("Background data generation skipped - data is already valid", category: AppLogger.persistence)
@@ -1548,6 +1904,7 @@ class PersistenceController {
                     let unit = Unit(context: context)
                     unit.name = unitData.name
                     unit.sortOrder = unitData.sortOrder
+                    unit.key = generateKey(from: unitData.name)
                     unitMap[unitData.name] = unit
                 }
             }
@@ -1567,6 +1924,7 @@ class PersistenceController {
                     let mealType = MealType(context: context)
                     mealType.name = mealTypeData.name
                     mealType.sortOrder = mealTypeData.sortOrder
+                    mealType.key = generateKey(from: mealTypeData.name)
                     mealTypeMap[mealTypeData.name] = mealType
                 }
             }
@@ -1586,6 +1944,7 @@ class PersistenceController {
                     let category = DishCategory(context: context)
                     category.name = categoryData.name
                     category.sortOrder = categoryData.sortOrder
+                    category.key = generateKey(from: categoryData.name)
                     dishCategoryMap[categoryData.name] = category
                 }
             }
@@ -1606,6 +1965,8 @@ class PersistenceController {
                     product.name = productData.name
                     product.unit = unitMap[productData.unit]
                     product.isDraft = false  // Preloaded products are complete
+                    let unitKey = unitMap[productData.unit]?.key ?? generateKey(from: productData.unit)
+                    product.key = generateKey(from: productData.name) + "|" + unitKey
                     productMap[productData.name] = product
                 }
             }
@@ -1627,6 +1988,7 @@ class PersistenceController {
                 dish.name = dishData.name
                 dish.details = dishData.details
                 dish.isDraft = false  // Preloaded dishes are complete
+                dish.key = generateKey(from: dishData.name)
                 
                 // Set category
                 if let categoryName = dishData.category,
@@ -1710,6 +2072,34 @@ class PersistenceController {
         return UserDefaults.standard.string(forKey: Self.preloadDataVersionKey)
     }
     
+    // Remove local duplicates when CloudKit import brought remote copies: decide by dish key presence in both local preseeded set and remote set.
+    func removeLocallySeededDishesIfRemoteExists(context: NSManagedObjectContext) {
+        context.performAndWait {
+            do {
+                func norm(_ s: String?) -> String { (s ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+                // Load all dishes and group by key
+                let fetch: NSFetchRequest<Dish> = Dish.fetchRequest()
+                let all = try context.fetch(fetch)
+                var groups: [String: [Dish]] = [:]
+                for d in all {
+                    let k = !(d.key?.isEmpty ?? true) ? d.key! : norm(d.name)
+                    if k.isEmpty { continue }
+                    groups[k, default: []].append(d)
+                }
+                var removed = 0
+                for (_, dishes) in groups where dishes.count > 1 {
+                    // Keep the one that is linked to any Menu entry (assumed Cloud import), else keep the most connected
+                    let linked = dishes.filter { ($0.menus?.count ?? 0) > 0 }
+                    let keep = linked.first ?? dishes.sorted { (($0.ingredientDetails?.count ?? 0) + ($0.mealTypes?.count ?? 0)) > (($1.ingredientDetails?.count ?? 0) + ($1.mealTypes?.count ?? 0)) }.first!
+                    for d in dishes where d != keep { context.delete(d); removed += 1 }
+                }
+                if context.hasChanges { try context.save() }
+                if removed > 0 { AppLogger.info("Removed \(removed) duplicate dishes after Cloud import (key-based)", category: AppLogger.persistence) }
+            } catch {
+                AppLogger.error("Failed to remove locally seeded dishes", error: error, category: AppLogger.persistence)
+            }
+        }
+    }
     func cleanupAllDuplicateStaticData(context: NSManagedObjectContext) {
         AppLogger.info("Starting comprehensive cleanup of duplicate static data", category: AppLogger.persistence)
         
@@ -1717,6 +2107,8 @@ class PersistenceController {
         cleanupDuplicateUnits(context: context)
         cleanupDuplicateDishCategories(context: context)
         cleanupDuplicateProducts(context: context)
+        cleanupDuplicateDishes(context: context)
+        cleanupDuplicateMenus(context: context)
         
         AppLogger.info("Completed comprehensive cleanup of duplicate static data", category: AppLogger.persistence)
     }
@@ -1729,14 +2121,15 @@ class PersistenceController {
             let fetchRequest: NSFetchRequest<MealType> = MealType.fetchRequest()
             let allMealTypes = try context.fetch(fetchRequest)
             
-            // Group meal types by name
+            // Group meal types by key when available, else by name
             var mealTypeGroups: [String: [MealType]] = [:]
             for mealType in allMealTypes {
-                guard let name = mealType.name else { continue }
-                if mealTypeGroups[name] == nil {
-                    mealTypeGroups[name] = []
+                let groupKey = (mealType.key?.isEmpty == false ? mealType.key! : (mealType.name ?? ""))
+                if groupKey.isEmpty { continue }
+                if mealTypeGroups[groupKey] == nil {
+                    mealTypeGroups[groupKey] = []
                 }
-                mealTypeGroups[name]?.append(mealType)
+                mealTypeGroups[groupKey]?.append(mealType)
             }
             
             var duplicatesRemoved = 0
@@ -1779,6 +2172,220 @@ class PersistenceController {
             AppLogger.error("Error cleaning up duplicate meal types", error: error, category: AppLogger.persistence)
         }
     }
+
+    // Normalize dish->mealTypes relationships by collapsing duplicates to canonical objects
+    func normalizeDishMealTypeRelations(context: NSManagedObjectContext) {
+        context.performAndWait {
+            do {
+                let mtFetch: NSFetchRequest<MealType> = MealType.fetchRequest()
+                let allMealTypes = try context.fetch(mtFetch)
+                var canonicalMap: [String: MealType] = [:]
+                for mt in allMealTypes {
+                    let key = (mt.key?.isEmpty == false ? mt.key! : (mt.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+                    if key.isEmpty { continue }
+                    if let existing = canonicalMap[key] {
+                        if mt.sortOrder < existing.sortOrder { canonicalMap[key] = mt }
+                    } else {
+                        canonicalMap[key] = mt
+                    }
+                }
+
+                let dishFetch: NSFetchRequest<Dish> = Dish.fetchRequest()
+                let dishes = try context.fetch(dishFetch)
+                var normalizedCount = 0
+                for dish in dishes {
+                    guard let mts = dish.mealTypes as? Set<MealType>, !mts.isEmpty else { continue }
+                    var newSet: Set<MealType> = []
+                    for mt in mts {
+                        let key = (mt.key?.isEmpty == false ? mt.key! : (mt.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+                        if let canonical = canonicalMap[key] { newSet.insert(canonical) }
+                    }
+                    if newSet != mts {
+                        dish.mealTypes = newSet as NSSet
+                        normalizedCount += 1
+                    }
+                }
+                // Save and refresh dishes to ensure relationships are realized before menu reconciliation
+                if context.hasChanges {
+                    try context.save()
+                }
+                AppLogger.info("Normalized meal type relations for \(normalizedCount) dishes", category: AppLogger.persistence)
+            } catch {
+                AppLogger.error("Failed to normalize dish meal types", error: error, category: AppLogger.persistence)
+            }
+        }
+    }
+
+    // Deduplicate IngredientDetail within each Dish; remove orphans
+    func normalizeDishIngredientDetails(context: NSManagedObjectContext) {
+        context.performAndWait {
+            do {
+                // Ensure product relations are canonicalized before deduping details
+                self.normalizeDishProductRelations(context: context)
+
+                let dishFetch: NSFetchRequest<Dish> = Dish.fetchRequest()
+                let dishes = try context.fetch(dishFetch)
+                var totalRemoved = 0
+                var totalOrphans = 0
+                var totalReassigned = 0
+                for dish in dishes {
+                    guard let details = dish.ingredientDetails as? Set<IngredientDetail>, !details.isEmpty else { continue }
+
+                    // Reset any nil/invalid quantities to 0 to avoid NaN propagations
+                    for d in details { if d.quantity.isNaN || d.quantity.isInfinite { d.quantity = 0 } }
+
+                    // Second pass: group by canonicalized product key (name|unit), not by object identity
+                    guard let reassigned = dish.ingredientDetails as? Set<IngredientDetail> else { continue }
+                    func norm(_ s: String?) -> String { (s ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+                    var buckets: [String: (sum: Double, minSort: Int16, keep: IngredientDetail, others: [IngredientDetail])] = [:]
+                    var orphans: [IngredientDetail] = []
+                    for d in reassigned {
+                        guard let product = d.product else { orphans.append(d); continue }
+                        // Treat details with unnamed or zero-quantity products as invalid and remove them
+                        let nameIsEmpty = (product.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        if nameIsEmpty || d.quantity == 0 { orphans.append(d); continue }
+                        let key = norm(product.name) + "|" + norm(product.unit?.name)
+                        if var b = buckets[key] {
+                            b.sum += d.quantity
+                            b.minSort = min(b.minSort, d.sortOrder)
+                            b.others.append(d)
+                            buckets[key] = b
+                        } else {
+                            buckets[key] = (sum: d.quantity, minSort: d.sortOrder, keep: d, others: [])
+                        }
+                    }
+                    for (key, bucket) in buckets {
+                        var keepDetail = bucket.keep
+                        // Choose a deterministic keeper: lower sortOrder, then lower objectID
+                        for candidate in [bucket.keep] + bucket.others {
+                            if candidate.sortOrder < keepDetail.sortOrder || (candidate.sortOrder == keepDetail.sortOrder && candidate.objectID.uriRepresentation().absoluteString < keepDetail.objectID.uriRepresentation().absoluteString) {
+                                keepDetail = candidate
+                            }
+                        }
+                        // Use max to avoid inflation across repeated sync cycles
+                        let candidates = [bucket.keep] + bucket.others
+                        let maxQuantity = candidates.map { $0.quantity }.max() ?? bucket.sum
+                        keepDetail.quantity = maxQuantity
+                        keepDetail.sortOrder = bucket.minSort
+                        // Ensure product points to canonical product for this key if needed
+                        do {
+                            let parts = key.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false)
+                            let nameKey = String(parts.first ?? "")
+                            let unitKey = parts.count > 1 ? String(parts[1]) : ""
+                            let productFetch: NSFetchRequest<Product> = Product.fetchRequest()
+                            if unitKey.isEmpty {
+                                productFetch.predicate = NSPredicate(format: "(name ==[c] %@) AND (unit == nil)", nameKey)
+                            } else {
+                                productFetch.predicate = NSPredicate(format: "(name ==[c] %@) AND (unit.name ==[c] %@)", nameKey, unitKey)
+                            }
+                            productFetch.fetchLimit = 1
+                            if let target = try context.fetch(productFetch).first {
+                                keepDetail.product = target
+                            }
+                        } catch {
+                            // best-effort; keep current relation on error
+                        }
+                        // Delete all non-keeper candidates, including the original bucket.keep if it is no longer the keeper
+                        for d in candidates where d != keepDetail {
+                            context.delete(d)
+                            totalRemoved += 1
+                            totalReassigned += 1
+                        }
+                    }
+                    for d in orphans { context.delete(d); totalOrphans += 1 }
+                }
+                if context.hasChanges { try context.save() }
+                AppLogger.info("Normalized ingredients: reassigned \(totalReassigned), removed \(totalRemoved) duplicates, \(totalOrphans) orphans", category: AppLogger.persistence)
+            } catch {
+                AppLogger.error("Failed to normalize ingredient details", error: error, category: AppLogger.persistence)
+            }
+        }
+    }
+
+    // Canonicalize IngredientDetail.product by mapping to a single Product per key (preferring Product.key),
+    // falling back to (stable name|stable unit) when key is missing.
+    func normalizeDishProductRelations(context: NSManagedObjectContext) {
+        context.performAndWait {
+            do {
+                func norm(_ s: String?) -> String { (s ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+                let productFetch: NSFetchRequest<Product> = Product.fetchRequest()
+                let allProducts = try context.fetch(productFetch)
+                var canonical: [String: Product] = [:]
+                for p in allProducts {
+                    let key: String = {
+                        if let k = p.key, !k.isEmpty { return k }
+                        let unitKey = p.unit?.key ?? (p.unit?.name.map { StaticKeyHelper.stableKey(from: $0) } ?? "")
+                        return StaticKeyHelper.productKey(name: p.name ?? "", unitKey: unitKey)
+                    }()
+                    if key.isEmpty { continue }
+                    if (p.key?.isEmpty ?? true) { p.key = key }
+                    func completenessScore(_ prod: Product) -> Int {
+                        var score = 0
+                        if let n = prod.name, !n.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { score += 2 }
+                        if prod.unit != nil { score += 2 }
+                        if !prod.isDraft { score += 1 }
+                        return score
+                    }
+                    if let exist = canonical[key] {
+                        // Prefer more complete product, then non-draft, then lowest objectID
+                        let lhs = completenessScore(exist)
+                        let rhs = completenessScore(p)
+                        if rhs > lhs {
+                            canonical[key] = p
+                        } else if rhs == lhs {
+                            let preferExisting = (!exist.isDraft && p.isDraft) ||
+                                (exist.isDraft == p.isDraft && exist.objectID.uriRepresentation().absoluteString < p.objectID.uriRepresentation().absoluteString)
+                            if !preferExisting { canonical[key] = p }
+                        }
+                    } else {
+                        canonical[key] = p
+                    }
+                }
+
+                // Secondary map: when a name maps uniquely across all units, allow name-only canonicalization
+                var nameUnique: [String: Product] = [:]
+                var nameCounts: [String: Int] = [:]
+                for (_, p) in canonical {
+                    let nameKey = norm(p.name)
+                    guard !nameKey.isEmpty else { continue }
+                    nameCounts[nameKey, default: 0] += 1
+                    if nameCounts[nameKey] == 1 {
+                        nameUnique[nameKey] = p
+                    }
+                }
+                for (k, count) in nameCounts where count != 1 { nameUnique.removeValue(forKey: k) }
+
+                let detailFetch: NSFetchRequest<IngredientDetail> = IngredientDetail.fetchRequest()
+                // Process in small batches to reduce memory footprint and ensure deterministic dedup
+                detailFetch.fetchBatchSize = 200
+                let details = try context.fetch(detailFetch)
+                var reassigned = 0
+                var deleted = 0
+                for d in details {
+                    guard let prod = d.product else { context.delete(d); deleted += 1; continue }
+                    let prefKey = (prod.key?.isEmpty == false) ? prod.key! : {
+                        let unitKey = prod.unit?.key ?? (prod.unit?.name.map { StaticKeyHelper.stableKey(from: $0) } ?? "")
+                        return StaticKeyHelper.productKey(name: prod.name ?? "", unitKey: unitKey)
+                    }()
+                    if let target = canonical[prefKey], target != prod {
+                        d.product = target
+                        reassigned += 1
+                        continue
+                    }
+                    // Fallback: if mapping not found and the name is unique globally, reassign by name-only
+                    let nameKeyOnly = norm(prod.name)
+                    if let targetByName = nameUnique[nameKeyOnly], targetByName != prod {
+                        d.product = targetByName
+                        reassigned += 1
+                    }
+                }
+                if context.hasChanges { try context.save() }
+                AppLogger.info("Canonicalized product relations for \(reassigned) details, removed \(deleted) orphans", category: AppLogger.persistence)
+            } catch {
+                AppLogger.error("Failed to canonicalize product relations", error: error, category: AppLogger.persistence)
+            }
+        }
+    }
     
     func cleanupDuplicateUnits(context: NSManagedObjectContext) {
         do {
@@ -1787,11 +2394,12 @@ class PersistenceController {
             
             var unitGroups: [String: [Unit]] = [:]
             for unit in allUnits {
-                guard let name = unit.name else { continue }
-                if unitGroups[name] == nil {
-                    unitGroups[name] = []
+                let groupKey = (unit.key?.isEmpty == false ? unit.key! : (unit.name ?? ""))
+                if groupKey.isEmpty { continue }
+                if unitGroups[groupKey] == nil {
+                    unitGroups[groupKey] = []
                 }
-                unitGroups[name]?.append(unit)
+                unitGroups[groupKey]?.append(unit)
             }
             
             var duplicatesRemoved = 0
@@ -1833,11 +2441,12 @@ class PersistenceController {
             
             var categoryGroups: [String: [DishCategory]] = [:]
             for category in allCategories {
-                guard let name = category.name else { continue }
-                if categoryGroups[name] == nil {
-                    categoryGroups[name] = []
+                let groupKey = (category.key?.isEmpty == false ? category.key! : (category.name ?? ""))
+                if groupKey.isEmpty { continue }
+                if categoryGroups[groupKey] == nil {
+                    categoryGroups[groupKey] = []
                 }
-                categoryGroups[name]?.append(category)
+                categoryGroups[groupKey]?.append(category)
             }
             
             var duplicatesRemoved = 0
@@ -1874,62 +2483,224 @@ class PersistenceController {
     
     func cleanupDuplicateProducts(context: NSManagedObjectContext) {
         do {
+            func norm(_ s: String?) -> String { (s ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
             let fetchRequest: NSFetchRequest<Product> = Product.fetchRequest()
             let allProducts = try context.fetch(fetchRequest)
             
-            var productGroups: [String: [Product]] = [:]
-            for product in allProducts {
-                guard let name = product.name else { continue }
-                if productGroups[name] == nil {
-                    productGroups[name] = []
+            // Group by stable product.key when available, otherwise by name|unit
+            var groups: [String: [Product]] = [:]
+            for p in allProducts {
+                let key = !(p.key?.isEmpty ?? true) ? p.key! : (norm(p.name) + "|" + norm(p.unit?.name))
+                if key == "|" { continue }
+                groups[key, default: []].append(p)
+            }
+            
+            var removed = 0
+            for (_, items) in groups where items.count > 1 {
+                // Prefer keeper by completeness, then by non-draft, then by lowest objectID
+                func completeness(_ prod: Product) -> Int {
+                    var score = 0
+                    if !(norm(prod.name).isEmpty) { score += 2 }
+                    if prod.unit != nil { score += 2 }
+                    if !prod.isDraft { score += 1 }
+                    return score
                 }
-                productGroups[name]?.append(product)
+                let sorted = items.sorted { a, b in
+                    let sa = completeness(a), sb = completeness(b)
+                    if sa != sb { return sa > sb }
+                    if a.isDraft != b.isDraft { return !a.isDraft }
+                    return a.objectID.debugDescription < b.objectID.debugDescription
+                }
+                let keep = sorted.first!
+                for dup in sorted.dropFirst() {
+                    if let details = dup.ingredientDetails {
+                        for case let d as IngredientDetail in details { d.product = keep }
+                    }
+                    context.delete(dup)
+                    removed += 1
+                }
+            }
+            if context.hasChanges { try context.save() }
+            AppLogger.info("Cleaned up \(removed) duplicate products (key-based)", category: AppLogger.persistence)
+        } catch {
+            AppLogger.error("Error cleaning up duplicate products", error: error, category: AppLogger.persistence)
+        }
+    }
+
+    func cleanupDuplicateDishes(context: NSManagedObjectContext) {
+        do {
+            let fetchRequest: NSFetchRequest<Dish> = Dish.fetchRequest()
+            let allDishes = try context.fetch(fetchRequest)
+            
+            func norm(_ s: String?) -> String { (s ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            var dishGroups: [String: [Dish]] = [:]
+            for dish in allDishes {
+                let nameKey = !(dish.key?.isEmpty ?? true) ? dish.key! : norm(dish.name)
+                if nameKey.isEmpty { continue }
+                dishGroups[nameKey, default: []].append(dish)
             }
             
             var duplicatesRemoved = 0
-            for (name, products) in productGroups {
-                if products.count > 1 {
-                    // For products, also consider the unit when determining duplicates
-                    // Group by name + unit combination
-                    var productUnitGroups: [String: [Product]] = [:]
-                    for product in products {
-                        let key = "\(name)_\(product.unit?.name ?? "nil")"
-                        if productUnitGroups[key] == nil {
-                            productUnitGroups[key] = []
-                        }
-                        productUnitGroups[key]?.append(product)
-                    }
-                    
-                    for (_, unitProducts) in productUnitGroups {
-                        if unitProducts.count > 1 {
-                            let sortedProducts = unitProducts.sorted { $0.objectID.debugDescription < $1.objectID.debugDescription }
-                            let keepProduct = sortedProducts.first!
-                            let duplicatesToRemove = Array(sortedProducts.dropFirst())
-                            
-                            // Reassign ingredient details from duplicates to the keeper
-                            for duplicateProduct in duplicatesToRemove {
-                                if let ingredientDetails = duplicateProduct.ingredientDetails {
-                                    for case let ingredient as IngredientDetail in ingredientDetails {
-                                        ingredient.product = keepProduct
-                                    }
-                                }
-                                context.delete(duplicateProduct)
-                                duplicatesRemoved += 1
+            for (_, dishes) in dishGroups where dishes.count > 1 {
+                // Keep the dish with most relationships/content
+                let sorted = dishes.sorted {
+                    let lhsScore = (($0.ingredientDetails?.count ?? 0) + ($0.mealTypes?.count ?? 0))
+                    let rhsScore = (($1.ingredientDetails?.count ?? 0) + ($1.mealTypes?.count ?? 0))
+                    return (lhsScore, $0.objectID.debugDescription) > (rhsScore, $1.objectID.debugDescription)
+                }
+                let keep = sorted.first!
+                for duplicate in sorted.dropFirst() {
+                    // If both are initial preloaded dishes, prefer to keep ingredients only from the richer one and drop duplicates entirely
+                    if let dupDetails = duplicate.ingredientDetails as? Set<IngredientDetail>, let keepDetails = keep.ingredientDetails as? Set<IngredientDetail> {
+                        // Build set of product keys existing in keeper to avoid duplicate ingredient rows
+                        func productKey(_ p: Product?) -> String { guard let p = p else { return "" }; let u = p.unit?.key ?? (p.unit?.name ?? ""); return (p.key?.isEmpty == false ? p.key! : (norm(p.name) + "|" + norm(u))) }
+                        var existingProductKeys: Set<String> = Set(keepDetails.map { productKey($0.product) })
+                        for d in dupDetails {
+                            let pk = productKey(d.product)
+                            if existingProductKeys.contains(pk) {
+                                // Skip importing this ingredient to avoid duplicates
+                                continue
                             }
-                            
-                            AppLogger.info("Removed \(duplicatesToRemove.count) duplicate(s) of product '\(name)'", category: AppLogger.persistence)
+                            d.dish = keep
+                            existingProductKeys.insert(pk)
                         }
+                    }
+                    // Merge relationships and details
+                    if let details = duplicate.ingredientDetails {
+                        for case let item as IngredientDetail in details { item.dish = keep }
+                    }
+                    if let mts = duplicate.mealTypes {
+                        for case let mt as MealType in mts { keep.addToMealTypes(mt) }
+                    }
+                    // Reassign menus referencing the duplicate to keep dish
+                    if let menus = duplicate.menus {
+                        for case let m as Menu in menus {
+                            m.addToDishes(keep)
+                        }
+                    }
+                    if keep.category == nil, let cat = duplicate.category { keep.category = cat }
+                    if (keep.details?.isEmpty ?? true), let d = duplicate.details, !d.isEmpty { keep.details = d }
+                    context.delete(duplicate)
+                    duplicatesRemoved += 1
+                }
+                AppLogger.info("Removed duplicates for dish '\(keep.name ?? "unknown")': \(dishes.count - 1)", category: AppLogger.persistence)
+            }
+            if context.hasChanges { try context.save() }
+            AppLogger.info("Cleaned up \(duplicatesRemoved) duplicate dishes", category: AppLogger.persistence)
+        } catch {
+            AppLogger.error("Error cleaning up duplicate dishes", error: error, category: AppLogger.persistence)
+        }
+    }
+
+    // Backfill categories for dishes missing one, using preload data mapping by stable keys
+    func restoreDishCategoriesFromPreload(context: NSManagedObjectContext) {
+        context.performAndWait {
+            guard let preload = loadCurrentPreloadData() else { return }
+            do {
+                var expectedByDishKey: [String: String] = [:]
+                for d in preload.dishes { expectedByDishKey[StaticKeyHelper.stableKey(from: d.name)] = d.category ?? "" }
+                let catFetch: NSFetchRequest<DishCategory> = DishCategory.fetchRequest()
+                let categories = try context.fetch(catFetch)
+                var catsByKey: [String: DishCategory] = [:]
+                for c in categories { if let name = c.name { catsByKey[StaticKeyHelper.stableKey(from: name)] = c } }
+                let dishFetch: NSFetchRequest<Dish> = Dish.fetchRequest()
+                let dishes = try context.fetch(dishFetch)
+                var updated = 0
+                for dish in dishes where dish.category == nil {
+                    let dk = (dish.key?.isEmpty == false) ? dish.key! : StaticKeyHelper.stableKey(from: dish.name ?? "")
+                    if let catName = expectedByDishKey[dk], !catName.isEmpty {
+                        let ck = StaticKeyHelper.stableKey(from: catName)
+                        if let cat = catsByKey[ck] { dish.category = cat; updated += 1 }
                     }
                 }
+                if context.hasChanges { try context.save() }
+                AppLogger.info("Restored categories for \(updated) dishes from preload", category: AppLogger.persistence)
+            } catch {
+                AppLogger.error("Failed to restore dish categories from preload", error: error, category: AppLogger.persistence)
+            }
+        }
+    }
+
+    func cleanupDuplicateMenus(context: NSManagedObjectContext) {
+        do {
+            let fetchRequest: NSFetchRequest<Menu> = Menu.fetchRequest()
+            let allMenus = try context.fetch(fetchRequest)
+            
+            func norm(_ s: String?) -> String { (s ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            var groups: [String: [Menu]] = [:]
+            for menu in allMenus {
+                var key = ""
+                if let date = menu.date {
+                    // Normalize to start of day to avoid time component differences
+                    let start = Calendar.current.startOfDay(for: date)
+                    let mtKey = (menu.mealTypeKey?.isEmpty == false) ? menu.mealTypeKey! : norm(menu.mealType)
+                    key = "date:\(start.timeIntervalSince1970)|type:\(mtKey)"
+                } else {
+                    let week = menu.calendarWeek
+                    let day = norm(menu.day)
+                    let type = (menu.mealTypeKey?.isEmpty == false) ? menu.mealTypeKey! : norm(menu.mealType)
+                    key = "wk:\(week)|day:\(day)|type:\(type)"
+                }
+                groups[key, default: []].append(menu)
             }
             
-            if context.hasChanges {
-                try context.save()
-                AppLogger.info("Cleaned up \(duplicatesRemoved) duplicate products", category: AppLogger.persistence)
+            var removed = 0
+            for (_, menus) in groups where menus.count > 1 {
+                // Keep menu with most dishes
+                let sorted = menus.sorted {
+                    let lhsCount = ($0.dishes?.count ?? 0)
+                    let rhsCount = ($1.dishes?.count ?? 0)
+                    return (lhsCount, $0.objectID.debugDescription) > (rhsCount, $1.objectID.debugDescription)
+                }
+                let keep = sorted.first!
+                for duplicate in sorted.dropFirst() {
+                    if let dishes = duplicate.dishes {
+                        for case let dish as Dish in dishes {
+                            keep.addToDishes(dish)
+                        }
+                    }
+                    context.delete(duplicate)
+                    removed += 1
+                }
             }
-            
+            if context.hasChanges { try context.save() }
+            AppLogger.info("Cleaned up \(removed) duplicate menus", category: AppLogger.persistence)
         } catch {
-            AppLogger.error("Error cleaning up duplicate products", error: error, category: AppLogger.persistence)
+            AppLogger.error("Error cleaning up duplicate menus", error: error, category: AppLogger.persistence)
+        }
+    }
+
+    // Normalize Menu.mealType strings to canonical names (using MealType.key/name map)
+    func normalizeMenuMealTypeStrings(context: NSManagedObjectContext) {
+        context.performAndWait {
+            do {
+                func norm(_ s: String?) -> String { (s ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+                let mtFetch: NSFetchRequest<MealType> = MealType.fetchRequest()
+                let mts = try context.fetch(mtFetch)
+                var canonicalByLookup: [String: String] = [:]
+                for mt in mts {
+                    let key = !(mt.key?.isEmpty ?? true) ? mt.key! : (mt.name ?? "")
+                    let lookup = norm(key)
+                    if !lookup.isEmpty {
+                        canonicalByLookup[lookup] = mt.name
+                    }
+                }
+                let menuFetch: NSFetchRequest<Menu> = Menu.fetchRequest()
+                let menus = try context.fetch(menuFetch)
+                var updated = 0
+                for m in menus {
+                    let lookup = norm(m.mealType)
+                    if let canonical = canonicalByLookup[lookup] {
+                        m.mealType = canonical
+                        m.mealTypeKey = lookup
+                        updated += 1
+                    }
+                }
+                if context.hasChanges { try context.save() }
+                AppLogger.info("Normalized menu mealType strings for \(updated) entries", category: AppLogger.persistence)
+            } catch {
+                AppLogger.error("Failed to normalize menu mealType strings", error: error, category: AppLogger.persistence)
+            }
         }
     }
 }

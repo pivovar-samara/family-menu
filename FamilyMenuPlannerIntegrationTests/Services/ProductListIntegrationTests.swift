@@ -84,7 +84,7 @@ class ProductListIntegrationTests: BaseIntegrationTest {
         
         // Clear any existing products for this test
         let allProducts = viewModel.allProducts
-        try? productListService.deleteProducts(products: allProducts)
+        XCTAssertNoThrow(try productListService.deleteProducts(products: allProducts))
         viewModel.loadProducts()
         
         // Set up new product data
@@ -164,7 +164,7 @@ class ProductListIntegrationTests: BaseIntegrationTest {
         banana.unit = pieces
         banana.isDraft = false  // Mark as complete for tests
         
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
         context.refreshAllObjects()
         
         // Load products again to get our test products

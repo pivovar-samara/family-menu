@@ -64,6 +64,12 @@ class MenuViewModel: ObservableObject {
         
         // Load persistent selected week index after all stored properties are initialized
         loadSelectedWeekIndex()
+
+        // Refresh menu after CloudKit reconciliation completes
+        NotificationCenter.default.addObserver(forName: .appDataDidReconcileAfterCloudKitImport, object: nil, queue: .main) { [weak self] _ in
+            guard let self = self else { return }
+            self.loadMenu(for: self.selectedWeekIndex)
+        }
     }
     
     /// Loads the persistent selected week index from UserDefaults

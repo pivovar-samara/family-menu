@@ -177,12 +177,19 @@ class DishListService: NSObject {
             do {
                 var createdDishes: [Dish] = []
                 for data in dishData {
-                    let dish = Dish(context: context)
+                    // Upsert by key
+                    let key = StaticKeyHelper.stableKey(from: data.name)
+                    let fetch: NSFetchRequest<Dish> = Dish.fetchRequest()
+                    fetch.predicate = NSPredicate(format: "key == %@ OR name == %@", key, data.name)
+                    fetch.fetchLimit = 1
+                    let existing = try context.fetch(fetch).first
+                    let dish = existing ?? Dish(context: context)
+                    dish.key = key
                     dish.name = data.name
                     dish.details = data.details
                     dish.category = data.category
                     dish.mealTypes = data.mealTypes as NSSet
-                    dish.isDraft = false  // Bulk created dishes are complete
+                    dish.isDraft = false
                     createdDishes.append(dish)
                 }
                 try context.save()
@@ -199,6 +206,7 @@ class DishListService: NSObject {
             
             for data in dishData {
                 let dish = Dish(context: backgroundContext)
+                dish.key = StaticKeyHelper.stableKey(from: data.name)
                 dish.name = data.name
                 dish.details = data.details
                 dish.isDraft = false  // Bulk created dishes are complete

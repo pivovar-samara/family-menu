@@ -63,7 +63,7 @@ class DishSelectionIntegrationTests: BaseIntegrationTest {
         // Create a draft dish
         let draftDish = createDishWithMealTypes(name: "Draft Dish", mealTypeNames: ["Dinner"])
         draftDish.isDraft = true
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
 
         // Fetch dishes using service
         let fetchedDishes = dishSelectionService.fetchAllDishes()
@@ -93,7 +93,7 @@ class DishSelectionIntegrationTests: BaseIntegrationTest {
         
         // Delete the dish
         context.delete(dish)
-        try? context.save()
+        XCTAssertNoThrow(try context.save())
         
         // Verify meal types still exist (nullify relationship)
         let newMealTypeCount = (try? context.count(for: MealType.fetchRequest())) ?? 0
@@ -137,7 +137,11 @@ class DishSelectionIntegrationTests: BaseIntegrationTest {
             dishes.forEach { dish in
                 dish.details = "Updated in batch"
             }
-            try? context.save()
+            do {
+                try context.save()
+            } catch {
+                XCTFail("Save failed: \(error)")
+            }
         }
         
         // Verify updates in a new context to ensure changes were persisted

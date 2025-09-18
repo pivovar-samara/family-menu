@@ -255,14 +255,10 @@ final class StaticDataCacheManager: ObservableObject {
             return []
         }
 
-        // Choose context that will not deadlock the current thread
-        // Apply the same logic for both test and non-test instances
-        let effectiveContext: NSManagedObjectContext
-        if !Thread.isMainThread && context.concurrencyType == .mainQueueConcurrencyType {
-            effectiveContext = backgroundContext ?? context
-        } else {
-            effectiveContext = context
-        }
+        // Fetch directly on the provided context using performAndWait.
+        // For small static datasets this avoids cross-context objectID
+        // bridging that re-introduces faults in the main context.
+        let effectiveContext: NSManagedObjectContext = context
 
         let fetchRequest: NSFetchRequest<Unit> = Unit.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Unit.sortOrder, ascending: true)]
@@ -284,23 +280,8 @@ final class StaticDataCacheManager: ObservableObject {
             fetched = []
         }
 
-        // For test instances or when using the same context, use fetched results directly
-        let resultArray: [Unit]
-        if isTestInstance || effectiveContext === context {
-            resultArray = fetched
-        } else {
-            // Only do cross-context conversion for production scenarios with different contexts
-            let mainContext = context
-            var temp: [Unit] = []
-            // Perform on the correct queue for the main context to avoid threading violations.
-            mainContext.performAndWait {
-                temp = fetched.compactMap { mainContext.object(with: $0.objectID) as? Unit }
-            }
-            if temp.count != fetched.count {
-                Self.logger.warning("Some Unit objects were not found in main context – possible merge delay")
-            }
-            resultArray = temp
-        }
+        // Always return objects fetched on the target context; no cross-context bridging
+        let resultArray: [Unit] = fetched
 
         unitsLock.lock()
         isUnitsLoaded = fetchError == nil
@@ -328,14 +309,8 @@ final class StaticDataCacheManager: ObservableObject {
             return []
         }
 
-        // Choose context that will not deadlock the current thread
-        // Apply the same logic for both test and non-test instances
-        let effectiveContext: NSManagedObjectContext
-        if !Thread.isMainThread && context.concurrencyType == .mainQueueConcurrencyType {
-            effectiveContext = backgroundContext ?? context
-        } else {
-            effectiveContext = context
-        }
+        // See notes in loadUnits(): fetch directly on the provided context
+        let effectiveContext: NSManagedObjectContext = context
 
         let fetchRequest: NSFetchRequest<MealType> = MealType.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \MealType.sortOrder, ascending: true)]
@@ -357,23 +332,7 @@ final class StaticDataCacheManager: ObservableObject {
             fetched = []
         }
 
-        // For test instances or when using the same context, use fetched results directly
-        let resultArray: [MealType]
-        if isTestInstance || effectiveContext === context {
-            resultArray = fetched
-        } else {
-            // Only do cross-context conversion for production scenarios with different contexts
-            let mainContext = context
-            var temp: [MealType] = []
-            // Perform on the correct queue for the main context to avoid threading violations.
-            mainContext.performAndWait {
-                temp = fetched.compactMap { mainContext.object(with: $0.objectID) as? MealType }
-            }
-            if temp.count != fetched.count {
-                Self.logger.warning("Some MealType objects were not found in main context – possible merge delay")
-            }
-            resultArray = temp
-        }
+        let resultArray: [MealType] = fetched
 
         mealTypesLock.lock()
         isMealTypesLoaded = fetchError == nil
@@ -401,14 +360,8 @@ final class StaticDataCacheManager: ObservableObject {
             return []
         }
 
-        // Choose context that will not deadlock the current thread
-        // Apply the same logic for both test and non-test instances
-        let effectiveContext: NSManagedObjectContext
-        if !Thread.isMainThread && context.concurrencyType == .mainQueueConcurrencyType {
-            effectiveContext = backgroundContext ?? context
-        } else {
-            effectiveContext = context
-        }
+        // See notes in loadUnits(): fetch directly on the provided context
+        let effectiveContext: NSManagedObjectContext = context
 
         let fetchRequest: NSFetchRequest<DishCategory> = DishCategory.fetchRequest()
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \DishCategory.sortOrder, ascending: true)]
@@ -430,22 +383,7 @@ final class StaticDataCacheManager: ObservableObject {
             fetched = []
         }
 
-        // For test instances or when using the same context, use fetched results directly
-        let resultArray: [DishCategory]
-        if isTestInstance || effectiveContext === context {
-            resultArray = fetched
-        } else {
-            // Only do cross-context conversion for production scenarios with different contexts
-            let mainContext = context
-            var temp: [DishCategory] = []
-            mainContext.performAndWait {
-                temp = fetched.compactMap { mainContext.object(with: $0.objectID) as? DishCategory }
-            }
-            if temp.count != fetched.count {
-                Self.logger.warning("Some DishCategory objects were not found in main context – possible merge delay")
-            }
-            resultArray = temp
-        }
+        let resultArray: [DishCategory] = fetched
 
         dishCategoriesLock.lock()
         isDishCategoriesLoaded = fetchError == nil
