@@ -151,14 +151,17 @@ enum CloudKitSeedingGate {
     }
 
     /// Returns true if the account already has the given seed version recorded.
+    /// The check validates the stored CloudKit record's `version` field equals the requested `version`.
+    /// If the record is missing, or the stored version differs (or is missing), returns false.
     static func isAccountSeeded(version: String) async -> Bool {
         do {
             let db = CKContainer.default().privateCloudDatabase
             let recordID = CKRecord.ID(recordName: "FM_SeededVersion")
             return try await withCheckedThrowingContinuation { continuation in
                 db.fetch(withRecordID: recordID) { record, error in
-                    if let _ = record, error == nil {
-                        continuation.resume(returning: true)
+                    if let record, error == nil {
+                        let storedVersion = record["version"] as? String
+                        continuation.resume(returning: Self.doesStoredSeedVersionSatisfy(stored: storedVersion, required: version))
                         return
                     }
                     if let ckError = error as? CKError, ckError.code == .unknownItem {
@@ -171,6 +174,13 @@ enum CloudKitSeedingGate {
         } catch {
             return false
         }
+    }
+
+    /// Pure helper to decide whether a stored seed version satisfies the required version.
+    /// Currently strict-equality; can be extended to semantic version precedence if needed.
+    static func doesStoredSeedVersionSatisfy(stored: String?, required: String) -> Bool {
+        guard let stored = stored, !stored.isEmpty else { return false }
+        return stored == required
     }
 
     /// Marks the account as seeded for the specified version. Idempotent.

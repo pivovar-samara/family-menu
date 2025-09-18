@@ -20,3 +20,21 @@ final class CloudKitSeedingGateUnitTests: XCTestCase {
 }
 
 
+final class CloudKitSeedingGatePureTests: XCTestCase {
+    func testVersionSatisfiesWhenEqual() {
+        XCTAssertTrue(CloudKitSeedingGate.doesStoredSeedVersionSatisfy(stored: "1.1", required: "1.1"))
+    }
+
+    func testVersionDoesNotSatisfyWhenNil() {
+        XCTAssertFalse(CloudKitSeedingGate.doesStoredSeedVersionSatisfy(stored: nil, required: "1.1"))
+    }
+
+    func testVersionDoesNotSatisfyWhenEmpty() {
+        XCTAssertFalse(CloudKitSeedingGate.doesStoredSeedVersionSatisfy(stored: "", required: "1.1"))
+    }
+
+    func testVersionDoesNotSatisfyWhenDifferent() {
+        XCTAssertFalse(CloudKitSeedingGate.doesStoredSeedVersionSatisfy(stored: "1.0", required: "1.1"))
+    }
+}
+
