@@ -1065,7 +1065,13 @@ class PersistenceController {
             fetchRequest.predicate = NSPredicate(format: "key == %@ OR name == %@", unitKey, unitData.name)
             fetchRequest.fetchLimit = 1
             
-            let existingUnit = try! context.fetch(fetchRequest).first
+            var existingUnit: Unit?
+            do {
+                existingUnit = try context.fetch(fetchRequest).first
+            } catch {
+                AppLogger.error("Error checking for existing unit \(unitData.name)", error: error, category: AppLogger.dataImport)
+                existingUnit = nil
+            }
             if let existingUnit = existingUnit {
                 // Update sort order if needed
                 if existingUnit.sortOrder != unitData.sortOrder {
@@ -1092,7 +1098,13 @@ class PersistenceController {
             fetchRequest.predicate = NSPredicate(format: "key == %@ OR name == %@", mtKey, mealTypeData.name)
             fetchRequest.fetchLimit = 1
             
-            let existingMealType = try! context.fetch(fetchRequest).first
+            var existingMealType: MealType?
+            do {
+                existingMealType = try context.fetch(fetchRequest).first
+            } catch {
+                AppLogger.error("Error checking for existing meal type \(mealTypeData.name)", error: error, category: AppLogger.dataImport)
+                existingMealType = nil
+            }
             if let existingMealType = existingMealType {
                 if existingMealType.sortOrder != mealTypeData.sortOrder {
                     existingMealType.sortOrder = mealTypeData.sortOrder
@@ -1118,7 +1130,13 @@ class PersistenceController {
             fetchRequest.predicate = NSPredicate(format: "key == %@ OR name == %@", catKey, categoryData.name)
             fetchRequest.fetchLimit = 1
             
-            let existingCategory = try! context.fetch(fetchRequest).first
+            var existingCategory: DishCategory?
+            do {
+                existingCategory = try context.fetch(fetchRequest).first
+            } catch {
+                AppLogger.error("Error checking for existing dish category \(categoryData.name)", error: error, category: AppLogger.dataImport)
+                existingCategory = nil
+            }
             if let existingCategory = existingCategory {
                 if existingCategory.sortOrder != categoryData.sortOrder {
                     existingCategory.sortOrder = categoryData.sortOrder
@@ -1142,7 +1160,13 @@ class PersistenceController {
             let fetchRequest: NSFetchRequest<Product> = Product.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "name == %@", productData.name)
             
-            let existingProducts = try! context.fetch(fetchRequest)
+            var existingProducts: [Product] = []
+            do {
+                existingProducts = try context.fetch(fetchRequest)
+            } catch {
+                AppLogger.error("Error checking for existing product \(productData.name)", error: error, category: AppLogger.dataImport)
+                existingProducts = []
+            }
             
             if let existingProduct = existingProducts.first {
                 // If product exists but has no unit, assign the correct unit
@@ -1185,7 +1209,13 @@ class PersistenceController {
             let fetchRequest: NSFetchRequest<Dish> = Dish.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "name == %@", dishData.name)
             
-            let existingDishes = try! context.fetch(fetchRequest)
+            var existingDishes: [Dish] = []
+            do {
+                existingDishes = try context.fetch(fetchRequest)
+            } catch {
+                AppLogger.error("Error checking for existing dish \(dishData.name)", error: error, category: AppLogger.dataImport)
+                existingDishes = []
+            }
             
             var targetDish: Dish
             
@@ -1281,7 +1311,11 @@ class PersistenceController {
 
         // Save all changes
         if context.hasChanges {
-            try! context.save()
+            do {
+                try context.save()
+            } catch {
+                AppLogger.error("Error saving CloudKit conflict resolution data generation", error: error, category: AppLogger.dataImport)
+            }
         }
         
         // Perform post-seeding reconciliation to ensure categories and deduplicate ingredients
