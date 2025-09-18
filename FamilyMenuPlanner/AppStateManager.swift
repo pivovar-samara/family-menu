@@ -14,6 +14,8 @@ import CloudKit
 final class AppStateManager: ObservableObject {
     static let shared = AppStateManager()
     private var cloudKitEventObserver: NSObjectProtocol? = nil
+    /// Small delay that allows CloudKit merge operations to fully settle
+    private static let cloudKitMergeSettleDelay: TimeInterval = 0.5
     
     @Published var isLoading: Bool = true
     @Published var isICloudAvailable: Bool = false
@@ -145,7 +147,7 @@ final class AppStateManager: ObservableObject {
                 isCloudKitSyncing = false
                 AppLogger.info("iCloud sync completed", category: AppLogger.cloudKit)
                 // Slight delay allows final merges to settle to avoid repeated reprocessing
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + Self.cloudKitMergeSettleDelay) {
                     if PersistenceController.shared.isReady {
                         let bg = PersistenceController.shared.newBackgroundContext()
                         bg.perform {

@@ -5,6 +5,11 @@ import CloudKit
 enum CloudKitSeedingGate {
     /// Default maximum time to wait for CloudKit import before declaring timeout
     static let defaultMaxWait: TimeInterval = 180
+    /// Default record type prefix used by NSPersistentCloudKitContainer for mirrored entities
+    private static let cloudKitRecordPrefix: String = "CD_"
+    /// A minimal set of Core Data entity names that should exist in any real dataset
+    /// Kept as entity names to avoid duplicating the CloudKit prefix in many places
+    private static let probeEntityNames: [String] = ["Unit", "Product", "MealType", "DishCategory", "Dish"]
     /// Waits for the first NSPersistentCloudKitContainer import event or a timeout.
     /// Returns true if an import completed, false if timed out.
     static func waitForImportOrTimeout(timeout: TimeInterval) async -> Bool {
@@ -72,8 +77,8 @@ enum CloudKitSeedingGate {
     /// Returns true if the mirror appears empty before the timeout elapses.
     private static func probeRemoteEmptiness(start: Date, maxWait: TimeInterval) async -> Bool {
         // Probe a small set of record types commonly present in the mirror
-        // Default mapping for NSPersistentCloudKitContainer prefixes entity with "CD_"
-        let probeTypes = ["CD_Unit", "CD_Product", "CD_MealType", "CD_DishCategory", "CD_Dish"]
+        // Build record types from entity names using the configured/default prefix
+        let probeTypes = Self.probeEntityNames.map { Self.cloudKitRecordPrefix + $0 }
         var delay: TimeInterval = 2
         while Date().timeIntervalSince(start) < maxWait {
             if await remoteStoreAppearsEmpty(recordTypes: probeTypes) {
