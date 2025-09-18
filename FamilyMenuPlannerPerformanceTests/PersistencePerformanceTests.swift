@@ -126,7 +126,11 @@ class PersistencePerformanceTests: BaseIntegrationTest {
                     product.unit = unit
                     product.isDraft = false  // Mark as complete for performance tests
                 }
-                try! context.save()
+                do {
+                    try context.save()
+                } catch {
+                    XCTFail("context.save() threw error: \(error)")
+                }
             }
         }
     }

@@ -519,7 +519,7 @@ class DishDetailsUnitTests: XCTestCase {
         ingredient.quantity = Double.nan
         
         // Save the corrupted data
-        try! context.save()
+        XCTAssertNoThrow(try context.save())
         
         // Verify the NaN value exists before cleanup
         XCTAssertTrue(ingredient.quantity.isNaN, "Ingredient should have NaN quantity before cleanup")
