@@ -23,6 +23,9 @@ final class AppStateManager: ObservableObject {
     @Published var persistenceError: String? = nil
     @Published var showPersistenceErrorAlert: Bool = false
     private var isDatabaseEmpty: Bool = false
+    /// When true, we have acquired a CloudKit seeding lease and must bypass the CloudKit gating
+    /// to proceed with local initial data generation to avoid an infinite wait loop.
+    private var hasCloudKitSeedingLease: Bool = false
 
     private init() {
         // Early CI detection to prevent potential startup issues
@@ -196,10 +199,14 @@ final class AppStateManager: ObservableObject {
         
         let context = persistence.container.viewContext
         
-        // If CloudKit is available and the local store is empty, gate seeding conservatively
-        if isICloudAvailable,
-           persistence.container is NSPersistentCloudKitContainer,
-           persistence.isDatabaseEmpty(context: context) {
+        // If CloudKit is available and the local store is empty, gate seeding conservatively,
+        // unless a seeding lease has been acquired which explicitly allows local seeding.
+        if AppSeedingGating.shouldGateSeeding(
+            isICloudAvailable: isICloudAvailable,
+            isCloudKitContainer: persistence.container is NSPersistentCloudKitContainer,
+            isDatabaseEmpty: persistence.isDatabaseEmpty(context: context),
+            hasSeedingLease: hasCloudKitSeedingLease
+        ) {
             AppLogger.info("CloudKit active and local store empty – gating seeding on import or remote emptiness", category: AppLogger.cloudKit)
             Task { [weak self] in
                 guard let self = self else { return }
@@ -218,6 +225,7 @@ final class AppStateManager: ObservableObject {
                             DispatchQueue.main.async {
                                 if acquired {
                                     AppLogger.info("Seeding lease acquired – allowing local seed", category: AppLogger.cloudKit)
+                                    self?.hasCloudKitSeedingLease = true
                                     self?.checkDatabaseState()
                                 } else {
                                     AppLogger.info("Seeding lease not acquired – waiting for remote import", category: AppLogger.cloudKit)
@@ -269,6 +277,8 @@ final class AppStateManager: ObservableObject {
                         // Initialize static data cache after database is ready
                         // This will preload all static data to ensure immediate availability
                         StaticDataCacheManager.shared.initialize(with: context)
+                    // Reset the lease flag now that seeding has completed
+                    self.hasCloudKitSeedingLease = false
                         self.isLoading = false
                     } else {
                         self.persistenceError = "Failed to initialize app data. Please restart the app.".localized()
@@ -526,4 +536,18 @@ final class AppStateManager: ObservableObject {
 // MARK: - Notifications
 extension Notification.Name {
     static let appDataDidReconcileAfterCloudKitImport = Notification.Name("AppDataDidReconcileAfterCloudKitImport")
+}
+
+// MARK: - Testable helpers (pure, non-actor-isolated)
+enum AppSeedingGating {
+    /// Determines whether the app should gate initial data seeding awaiting CloudKit signals.
+    /// Returns true when CloudKit is available, a CloudKit container is in use, and the database is empty,
+    /// and no seeding lease has been acquired.
+    static func shouldGateSeeding(isICloudAvailable: Bool,
+                                  isCloudKitContainer: Bool,
+                                  isDatabaseEmpty: Bool,
+                                  hasSeedingLease: Bool) -> Bool {
+        if hasSeedingLease { return false }
+        return isICloudAvailable && isCloudKitContainer && isDatabaseEmpty
+    }
 }
