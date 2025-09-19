@@ -47,12 +47,12 @@ struct FamilyMenuPlannerApp: App {
         }
         let tabBarItemAppearance = UITabBarItemAppearance()
         tabBarItemAppearance.normal.titleTextAttributes = [
-            .foregroundColor: UIColor.gray
+            .foregroundColor: UIColor.secondaryLabel
         ]
         tabBarItemAppearance.selected.titleTextAttributes = [
             .foregroundColor: UIColor(named: "AccentColor") ?? UIColor.blue
         ]
-        tabBarItemAppearance.normal.iconColor = UIColor.gray
+        tabBarItemAppearance.normal.iconColor = UIColor.secondaryLabel
         tabBarItemAppearance.selected.iconColor = UIColor(named: "AccentColor") ?? UIColor.blue
 
         tabBarAppearance.stackedLayoutAppearance = tabBarItemAppearance
