@@ -182,31 +182,26 @@ struct ProductCardView: View {
 
                 Spacer()
 
-                HStack(spacing: 12) {
+                // Visible Edit menu trigger
+                SwiftUI.Menu {
                     Button(action: onEdit) {
-                        Image(systemName: "pencil")
-                            .font(.title3)
-                            .foregroundColor(Color("AccentColor"))
-                            .frame(width: 32, height: 32)
-                            .background(Color("AccentColor").opacity(0.1))
-                            .cornerRadius(8)
+                        Label("Edit".localized(), systemImage: "pencil")
                     }
-                    .buttonStyle(ScaleButtonStyle())
-                    .accessibilityIdentifier("EditProductButton")
-                    .accessibilityLabel("Edit product")
-
-                    Button(action: { showDeleteConfirmation = true }) {
-                        Image(systemName: "trash")
-                            .font(.title3)
-                            .foregroundColor(.red)
-                            .frame(width: 32, height: 32)
-                            .background(Color.red.opacity(0.1))
-                            .cornerRadius(8)
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
+                    } label: {
+                        Label("Delete".localized(), systemImage: "trash")
                     }
-                    .buttonStyle(ScaleButtonStyle())
-                    .accessibilityIdentifier("DeleteProductButton")
-                    .accessibilityLabel("Delete product")
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.title3)
+                        .foregroundColor(Color("AccentColor"))
+                        .frame(width: 32, height: 32)
+                        .background(Color("AccentColor").opacity(0.1))
+                        .cornerRadius(8)
                 }
+                .accessibilityIdentifier("EditProductButton")
+                .accessibilityLabel("Edit product")
             }
 
             // Product name

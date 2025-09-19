@@ -224,8 +224,11 @@ final class ProductManagementUITests: XCTestCase {
         let editButton = app.buttons["EditProductButton"].firstMatch
         XCTAssertTrue(editButton.waitForExistence(timeout: 8), "EditProductButton should be present")
         
-        // Open edit
+        // Open edit menu then select Edit
         editButton.tap()
+        let editMenuItem = app.buttons["Edit"].firstMatch
+        XCTAssertTrue(editMenuItem.waitForExistence(timeout: 3), "Edit menu item should appear")
+        editMenuItem.tap()
         
         // Wait for edit screen
         let editNav = app.navigationBars["Edit Product"]
@@ -407,28 +410,28 @@ final class ProductManagementUITests: XCTestCase {
         if foundProductToDelete {
             print("🧪 Testing product deletion functionality")
             var productDeleted = false
-            
-            // Delete using the delete icon on the first product card
-            let deleteButton = app.buttons["DeleteProductButton"].firstMatch
-            if deleteButton.waitForExistence(timeout: 3) {
-                deleteButton.tap()
 
-                // Confirm deletion via confirmation dialog button
-                let confirmDelete = app.buttons["Delete"].firstMatch
-                if confirmDelete.waitForExistence(timeout: 3) {
-                    confirmDelete.tap()
-                    // Wait until the confirmation button disappears (dialog dismissed)
-                    XCTAssertFalse(confirmDelete.waitForExistence(timeout: 1.0), "Confirmation dialog did not disappear in time")
-                    productDeleted = true
+            // Open the Edit menu from the visible Edit button, then choose Delete
+            let editMenuButton = app.buttons["EditProductButton"].firstMatch
+            if editMenuButton.waitForExistence(timeout: 3) {
+                editMenuButton.tap()
+                let deleteMenuItem = app.buttons["Delete"].firstMatch
+                if deleteMenuItem.waitForExistence(timeout: 3) {
+                    deleteMenuItem.tap()
+                    let confirmDelete = app.buttons["Delete"].firstMatch
+                    if confirmDelete.waitForExistence(timeout: 3) {
+                        confirmDelete.tap()
+                        // Wait for the specific card to disappear
+                        let targetCard = app.otherElements["product_list_item_\(productToDeleteName)"]
+                        let gonePredicate = NSPredicate(format: "exists == false")
+                        let goneExpectation = XCTNSPredicateExpectation(predicate: gonePredicate, object: targetCard)
+                        let waiter = XCTWaiter()
+                        productDeleted = waiter.wait(for: [goneExpectation], timeout: 5.0) == .completed
+                    }
                 }
             }
 
-            // Verify deletion flagged
-            if productDeleted {
-                XCTAssertTrue(true, "Product deleted via delete icon")
-            } else {
-                XCTFail("Product deletion failed - delete icon not tappable or confirmation missing")
-            }
+            XCTAssertTrue(productDeleted, "Product should be deleted via context menu")
         } else {
             print("❌ No product cells found")
             XCTFail("No products found - check if preload data is loading correctly or if the app structure has changed")

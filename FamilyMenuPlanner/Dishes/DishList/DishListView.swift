@@ -179,34 +179,26 @@ struct DishCardView: View {
                 
                 Spacer()
                 
-                // Action buttons
-                HStack(spacing: 12) {
+                // Visible Edit menu trigger
+                SwiftUI.Menu {
                     Button(action: onEdit) {
-                        Image(systemName: "pencil")
-                            .font(.title3)
-                            .foregroundColor(Color("AccentColor"))
-                            .frame(width: 32, height: 32)
-                            .background(Color("AccentColor").opacity(0.1))
-                            .cornerRadius(8)
+                        Label("Edit".localized(), systemImage: "pencil")
                     }
-                    .buttonStyle(ScaleButtonStyle())
-                    .accessibilityIdentifier("edit_dish_button_\(dish.name ?? "unnamed")")
-                    .accessibilityLabel("Edit dish")
-                    
-                    Button(action: {
+                    Button(role: .destructive) {
                         showDeleteConfirmation = true
-                    }) {
-                        Image(systemName: "trash")
-                            .font(.title3)
-                            .foregroundColor(.red)
-                            .frame(width: 32, height: 32)
-                            .background(Color.red.opacity(0.1))
-                            .cornerRadius(8)
+                    } label: {
+                        Label("Delete".localized(), systemImage: "trash")
                     }
-                    .buttonStyle(ScaleButtonStyle())
-                    .accessibilityIdentifier("delete_dish_button_\(dish.name ?? "unnamed")")
-                    .accessibilityLabel("Delete dish")
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.title3)
+                        .foregroundColor(Color("AccentColor"))
+                        .frame(width: 32, height: 32)
+                        .background(Color("AccentColor").opacity(0.1))
+                        .cornerRadius(8)
                 }
+                .accessibilityIdentifier("edit_dish_button_\(dish.name ?? "unnamed")")
+                .accessibilityLabel("Edit dish")
             }
             
             // Main Content
