@@ -44,8 +44,18 @@ final class CommonUnitTests: XCTestCase {
 
     func testFormattingWeek() throws {
         let formattedWeek = CalendarHelper.formattedWeek(inputDate, calendar: calendar, locale: locale)
-        let correctResult = "22 - 28 Jan"
-        XCTAssert(formattedWeek == correctResult, "Formatted week for \(dateFormatter.string(from: inputDate)) is \(correctResult), not \(formattedWeek)")
+        let start = CalendarHelper.startOfWeek(for: inputDate, calendar: calendar)
+        let end = calendar.date(byAdding: .day, value: 6, to: start)!
+        let left = DateFormatter()
+        left.calendar = calendar
+        left.locale = locale
+        left.dateFormat = DateFormatter.dateFormat(fromTemplate: "MMMd", options: 0, locale: locale)
+        let right = DateFormatter()
+        right.calendar = calendar
+        right.locale = locale
+        right.dateFormat = DateFormatter.dateFormat(fromTemplate: "d", options: 0, locale: locale)
+        let expected = "\(left.string(from: start)) – \(right.string(from: end))"
+        XCTAssertEqual(formattedWeek, expected, "Formatted week should show single month for same-month range")
     }
 
     func testIsSameMonths() throws {
@@ -80,14 +90,34 @@ final class CommonUnitTests: XCTestCase {
         // 2024-01-29 is a Monday, week ends in February
         let date = Date(timeIntervalSince1970: 1706486400.0)
         let formatted = CalendarHelper.formattedWeek(date, calendar: calendar, locale: locale)
-        XCTAssertEqual(formatted, "29 Jan - 4 Feb", "Week spanning months should show both months")
+        let start = CalendarHelper.startOfWeek(for: date, calendar: calendar)
+        let end = calendar.date(byAdding: .day, value: 6, to: start)!
+        let left = DateFormatter()
+        left.calendar = calendar
+        left.locale = locale
+        left.dateFormat = DateFormatter.dateFormat(fromTemplate: "MMMd", options: 0, locale: locale)
+        let right = DateFormatter()
+        right.calendar = calendar
+        right.locale = locale
+        right.dateFormat = DateFormatter.dateFormat(fromTemplate: "MMMd", options: 0, locale: locale)
+        let expected = "\(left.string(from: start)) – \(right.string(from: end))"
+        XCTAssertEqual(formatted, expected, "Week spanning months should show months on both sides")
     }
     
     func testFormattedWeekSpanningYears() throws {
-        // 2023-12-25 is a Monday, week ends in 2023-12-31
-        let date = Date(timeIntervalSince1970: 1703462400.0)
+        // Use a date that yields a week spanning two years: Mon Dec 30, 2024 – Sun Jan 5, 2025
+        let date = calendar.date(from: DateComponents(year: 2024, month: 12, day: 31))!
         let formatted = CalendarHelper.formattedWeek(date, calendar: calendar, locale: locale)
-        XCTAssertEqual(formatted, "25 - 31 Dec", "Week spanning end of year should show correct format")
+        let start = CalendarHelper.startOfWeek(for: date, calendar: calendar)
+        let end = calendar.date(byAdding: .day, value: 6, to: start)!
+        let dif = DateIntervalFormatter()
+        dif.calendar = calendar
+        dif.locale = locale
+        dif.timeZone = calendar.timeZone
+        dif.dateStyle = .medium
+        dif.timeStyle = .none
+        let expected = dif.string(from: start, to: end)
+        XCTAssertEqual(formatted, expected, "Week spanning end of year should include years as needed")
     }
     
     func testIsSameMonthsWithDifferentYears() throws {

@@ -122,8 +122,8 @@ class MenuViewModel: ObservableObject {
         let formatter = DateFormatter()
         formatter.locale = .current
         formatter.calendar = .current
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
+        let template = "d MMMM" // e.g., 15 September / 15 сентября
+        formatter.dateFormat = DateFormatter.dateFormat(fromTemplate: template, options: 0, locale: .current)
         let dateString = formatter.string(from: Date())
         return String(format: "Today is %@".localized(), dateString)
     }

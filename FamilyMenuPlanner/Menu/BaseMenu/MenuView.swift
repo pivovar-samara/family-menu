@@ -89,15 +89,15 @@ struct MenuView: View {
         } message: {
             Text("You are editing a past date.".localized())
         }
-        .alert("Generate New Menu", isPresented: $viewModel.showGenerateMenuAlert) {
-            Button("Cancel", role: .cancel) {
+        .alert("Generate New Menu".localized(), isPresented: $viewModel.showGenerateMenuAlert) {
+            Button("Cancel".localized(), role: .cancel) {
                 viewModel.showGenerateMenuAlert = false
             }
-            Button("Generate", role: .destructive) {
+            Button("Generate".localized(), role: .destructive) {
                 viewModel.generateMenu()
             }
         } message: {
-            Text("This will overwrite the current menu. Are you sure?")
+            Text("This will overwrite the current menu. Are you sure?".localized())
         }
     }
     
@@ -196,7 +196,10 @@ struct MenuView: View {
 extension MenuView {
     static let weekDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
+        formatter.locale = .current
+        formatter.calendar = .current
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
         return formatter
     }()
 }
@@ -307,7 +310,11 @@ struct DailyMenuCardView: View {
 extension DailyMenuCardView {
     static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMM d"
+        formatter.locale = .current
+        formatter.calendar = .current
+        let locale = formatter.locale
+        let template = "d MMMM" // e.g., 15 September / 15 сентября
+        formatter.dateFormat = DateFormatter.dateFormat(fromTemplate: template, options: 0, locale: locale)
         return formatter
     }()
 }

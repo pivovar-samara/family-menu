@@ -35,25 +35,51 @@ final class CalendarHelper {
         return calendar.date(from: components) ?? date
     }
     
-    /// Returns a formatted string for the week of a given date.
+    /// Returns a localized formatted string for the week of a given date.
+    /// Hides the year when both dates are in the same year, shows it when spanning years.
     static func formattedWeek(_ date: Date, calendar: Calendar = Calendar(identifier: .gregorian), locale: Locale = Locale.current) -> String {
         let start = startOfWeek(for: date, calendar: calendar)
         let end = calendar.date(byAdding: .day, value: 6, to: start) ?? start
 
-        let formatterRight = DateFormatter()
-        formatterRight.dateFormat = "d MMM"
-        formatterRight.locale = locale
-        formatterRight.calendar = calendar
+        let sameYear = calendar.component(.year, from: start) == calendar.component(.year, from: end)
+        let sameMonth = sameYear && (calendar.component(.month, from: start) == calendar.component(.month, from: end))
 
-        let formatterLeft = DateFormatter()
-        formatterLeft.locale = locale
-        formatterLeft.calendar = calendar
-        if isSameMonths(for: start, and: end, calendar: calendar) {
-            formatterLeft.dateFormat = "d"
+        if sameYear {
+            // Determine if the locale prefers day-first or month-first order
+            let orderFormat = DateFormatter.dateFormat(fromTemplate: "dMMM", options: 0, locale: locale) ?? "d MMM"
+            let dayIndex = orderFormat.firstIndex(of: "d")
+            let monthIndex = orderFormat.firstIndex(of: "M")
+            let isDayFirst = {
+                guard let d = dayIndex, let m = monthIndex else { return true }
+                return d < m
+            }()
+
+            let leftTemplateSameMonth = isDayFirst ? "d" : "MMMd"
+            let rightTemplateSameMonth = isDayFirst ? "MMMd" : "d"
+            let leftTemplateCrossMonth = "MMMd"
+            let rightTemplateCrossMonth = "MMMd"
+
+            let leftFormatter = DateFormatter()
+            leftFormatter.locale = locale
+            leftFormatter.calendar = calendar
+            leftFormatter.dateFormat = DateFormatter.dateFormat(fromTemplate: sameMonth ? leftTemplateSameMonth : leftTemplateCrossMonth, options: 0, locale: locale)
+
+            let rightFormatter = DateFormatter()
+            rightFormatter.locale = locale
+            rightFormatter.calendar = calendar
+            rightFormatter.dateFormat = DateFormatter.dateFormat(fromTemplate: sameMonth ? rightTemplateSameMonth : rightTemplateCrossMonth, options: 0, locale: locale)
+
+            return "\(leftFormatter.string(from: start)) – \(rightFormatter.string(from: end))"
         } else {
-            formatterLeft.dateFormat = "d MMM"
+            // Different years: include year for clarity using DateIntervalFormatter
+            let intervalFormatter = DateIntervalFormatter()
+            intervalFormatter.calendar = calendar
+            intervalFormatter.locale = locale
+            intervalFormatter.timeZone = calendar.timeZone
+            intervalFormatter.dateStyle = .medium
+            intervalFormatter.timeStyle = .none
+            return intervalFormatter.string(from: start, to: end)
         }
-        return "\(formatterLeft.string(from: start)) - \(formatterRight.string(from: end))"
     }
     
     /// Returns true if two dates are in the same month and year.
