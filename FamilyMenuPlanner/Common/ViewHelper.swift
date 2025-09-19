@@ -137,6 +137,9 @@ struct ChipView: View {
                 Image(systemName: icon)
             }
             Text(text)
+                .lineLimit(1)
+                .allowsTightening(false)
+                .truncationMode(.tail)
         }
         .font(font)
         .foregroundColor(fg)

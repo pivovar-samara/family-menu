@@ -242,6 +242,9 @@ struct MealTypeChip: View {
             Text(mealType.name?.localized() ?? "")
                 .font(.caption.weight(.medium))
                 .foregroundColor(.primary)
+                .lineLimit(1)
+                .allowsTightening(false)
+                .truncationMode(.tail)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)

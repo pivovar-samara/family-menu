@@ -321,47 +321,10 @@ struct MealTypeRowView: View {
     
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 12) {
-                // Meal type icon and name
-                HStack(spacing: 8) {
-                    Image(systemName: mealTypeIcon)
-                        .font(.title3)
-                        .foregroundColor(mealTypeColor)
-                        .frame(width: 24, height: 24)
-                    
-                    Text(mealType.localized())
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                }
-                
-                Spacer()
-                
-                // Dishes or placeholder
-                VStack(alignment: .trailing, spacing: 4) {
-                    if !dishes.isEmpty {
-                        ForEach(dishes, id: \.self) { dish in
-                            Text(dish.name ?? "Unnamed Dish".localized())
-                                .font(.subheadline)
-                                .foregroundColor(.primary)
-                                .lineLimit(2)
-                                .truncationMode(.tail)
-                                .multilineTextAlignment(.trailing)
-                        }
-                    } else {
-                        Text("Choose a dish".localized())
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .italic()
-                    }
-                }
-                
-                // Edit icon
-                Image(systemName: "pencil")
-                    .font(.caption)
-                    .foregroundColor(Color("AccentColor"))
-                    .frame(width: 28, height: 28)
-                    .background(Color("AccentColor").opacity(0.1))
-                    .cornerRadius(6)
+            VStack(alignment: .leading, spacing: 8) {
+                headerRow
+                dishesContent
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(16)
             .background(Color("BackgroundColor"))
@@ -381,6 +344,56 @@ struct MealTypeRowView: View {
             } label: {
                 Label(String(format: "Clear %@".localized(), mealType.localized()), systemImage: "trash")
             }
+        }
+    }
+    
+    @ViewBuilder
+    private var dishesContent: some View {
+        if !dishes.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(dishes, id: \.self) { dish in
+                    Text("• \(dish.name ?? "Unnamed Dish".localized())")
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+                        .lineLimit(2)
+                        .truncationMode(.tail)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(.top, 4)
+        } else {
+            Text("Choose a dish".localized())
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .italic()
+                .padding(.top, 4)
+        }
+    }
+
+    private var headerRow: some View {
+        HStack(spacing: 8) {
+            Image(systemName: mealTypeIcon)
+                .font(.title3)
+                .foregroundColor(mealTypeColor)
+                .frame(width: 24, height: 24)
+
+            Text(mealType.localized())
+                .font(.headline)
+                .foregroundColor(.primary)
+                .lineLimit(1)
+                .allowsTightening(false)
+                .fixedSize(horizontal: true, vertical: false)
+                .layoutPriority(1)
+
+            Spacer()
+
+            Image(systemName: "pencil")
+                .font(.caption)
+                .foregroundColor(Color("AccentColor"))
+                .frame(width: 28, height: 28)
+                .background(Color("AccentColor").opacity(0.1))
+                .cornerRadius(6)
         }
     }
     

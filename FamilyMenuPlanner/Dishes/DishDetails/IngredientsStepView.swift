@@ -632,6 +632,9 @@ struct MealTypeSmallChip: View {
             Text(mealType.name?.localized() ?? "")
                 .font(.caption2)
                 .foregroundColor(.secondary)
+                .lineLimit(1)
+                .allowsTightening(false)
+                .truncationMode(.tail)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)

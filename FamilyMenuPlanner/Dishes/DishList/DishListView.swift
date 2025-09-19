@@ -338,6 +338,9 @@ public struct DishListMealTypeChip: View {
             Text(mealType.name?.localized() ?? "")
                 .font(.caption)
                 .foregroundColor(.secondary)
+                .lineLimit(1)
+                .allowsTightening(false)
+                .truncationMode(.tail)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)

@@ -175,6 +175,9 @@ struct MealTypeCard: View {
                     .font(.body.weight(isSelected ? .semibold : .medium))
                     .foregroundColor(isSelected ? .primary : .secondary)
                     .multilineTextAlignment(.center)
+                    .lineLimit(1)
+                    .allowsTightening(false)
+                    .truncationMode(.tail)
                     .frame(minWidth: 100)
                 
                 // Selection Indicator
