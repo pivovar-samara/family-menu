@@ -50,10 +50,10 @@ extension StylingHelper {
     static func mealTypeColor(for mealTypeName: String) -> Color {
         let name = mealTypeName.lowercased()
         switch name {
-        case "breakfast": return .orange
+        case "breakfast": return Color.appWarning
         case "lunch": return .yellow
         case "dinner": return .purple
-        default: return Color("AccentColor")
+        default: return Color.accent
         }
     }
 }
@@ -129,7 +129,7 @@ extension StylingHelper {
         case "cup", "cups":
             return .purple
         default:
-            return Color("AccentColor")
+            return Color.accent
         }
     }
     
@@ -163,9 +163,9 @@ extension StylingHelper {
     /// - Returns: Tuple with color and icon
     static func validationStatus(isValid: Bool) -> (color: Color, icon: String) {
         if isValid {
-            return (.green, "checkmark.circle.fill")
+            return (Color.appSuccess, "checkmark.circle.fill")
         } else {
-            return (.red, "xmark.circle.fill")
+            return (Color.appError, "xmark.circle.fill")
         }
     }
     
@@ -174,7 +174,7 @@ extension StylingHelper {
     /// - Returns: Tuple with color and icon
     static func completionStatus(isCompleted: Bool) -> (color: Color, icon: String) {
         if isCompleted {
-            return (.green, "checkmark.circle.fill")
+            return (Color.appSuccess, "checkmark.circle.fill")
         } else {
             return (.gray, "circle")
         }

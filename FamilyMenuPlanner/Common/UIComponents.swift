@@ -20,7 +20,7 @@ struct FloatingActionButton: View {
                 .font(.title2.weight(.semibold))
                 .foregroundColor(.white)
                 .frame(width: 56, height: 56)
-                .background(Color("AccentColor"))
+                .background(Color.accent)
                 .clipShape(Circle())
                 .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
         }
@@ -47,7 +47,7 @@ struct ProgressIndicatorView: View {
                     
                     // Progress fill
                     Rectangle()
-                        .fill(Color("AccentColor"))
+                        .fill(Color.accent)
                         .frame(width: geometry.size.width * progress, height: 4)
                         .cornerRadius(2)
                         .animation(.easeInOut(duration: 0.3), value: progress)
@@ -60,7 +60,7 @@ struct ProgressIndicatorView: View {
                 ForEach(Array(steps.enumerated()), id: \.element) { index, step in
                     VStack(spacing: 4) {
                         Circle()
-                            .fill(index < currentStep ? Color("AccentColor") : Color.gray.opacity(0.3))
+                            .fill(index < currentStep ? Color.accent : Color.gray.opacity(0.3))
                             .frame(width: 24, height: 24)
                             .overlay(
                                 Text("\(index + 1)")
@@ -163,11 +163,11 @@ struct ModernTextFieldStyle: TextFieldStyle {
         configuration
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color("BackgroundColor"))
+            .background(Color.appBackground)
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                    .stroke(Color.appBorder, lineWidth: 1)
             )
     }
 }
@@ -193,7 +193,7 @@ struct LoadingView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color("BackgroundColor"))
+        .background(Color.appBackground)
     }
 }
 
@@ -225,7 +225,7 @@ struct ErrorView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color("BackgroundColor"))
+        .background(Color.appBackground)
     }
 }
 
@@ -257,7 +257,7 @@ struct EmptyStateView: View {
             RoundedRectangle(cornerRadius: 20)
                 .fill(
                     LinearGradient(
-                        colors: [Color("AccentColor").opacity(0.1), Color("AccentColor").opacity(0.05)],
+                        colors: [Color.accent.opacity(0.1), Color.accent.opacity(0.05)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -266,7 +266,7 @@ struct EmptyStateView: View {
                 .overlay(
                     Image(systemName: icon)
                         .font(.system(size: 60, weight: .light))
-                        .foregroundColor(Color("AccentColor").opacity(0.6))
+                    .foregroundColor(Color.accent.opacity(0.6))
                 )
             
             VStack(spacing: 12) {
@@ -291,7 +291,7 @@ struct EmptyStateView: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 14)
-                    .background(Color("AccentColor"))
+                    .background(Color.accent)
                     .cornerRadius(12)
                     .shadow(color: .black.opacity(0.1), radius: 4)
                 }

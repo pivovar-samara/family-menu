@@ -30,7 +30,7 @@ struct EditProductView: View {
             .padding(.horizontal, 20)
             .padding(.top, 20)
         }
-        .background(Color("BackgroundColor"))
+        .background(Color.appBackground)
         .navigationTitle(viewModel.isCreatingNewProduct ? "Add Product".localized() : "Edit Product".localized())
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -40,7 +40,7 @@ struct EditProductView: View {
                         dismiss()
                     }
                 }
-                .foregroundColor(Color("AccentColor"))
+                .foregroundColor(Color.accent)
                 .font(.body.weight(.semibold))
                 .accessibilityIdentifier("Save")
             }
@@ -49,7 +49,7 @@ struct EditProductView: View {
                     viewModel.rollback()
                     dismiss()
                 }
-                .foregroundColor(Color("AccentColor"))
+                .foregroundColor(Color.accent)
             }
         }
         .onAppear {
@@ -81,7 +81,7 @@ struct ProductDetailsCard: View {
             // Header
             HStack {
                 Image(systemName: "info.circle")
-                    .foregroundColor(Color("AccentColor"))
+                    .foregroundColor(Color.accent)
                     .font(.title3)
                 
                 Text("Product Information".localized())
@@ -111,7 +111,7 @@ struct ProductDetailsCard: View {
             }
         }
         .padding(20)
-        .background(Color("SecondaryBackgroundColor"))
+        .background(Color.appSecondaryBackground)
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
     }
@@ -126,7 +126,7 @@ struct UnitSelectionCard: View {
             // Header
             HStack {
                 Image(systemName: "ruler")
-                    .foregroundColor(Color("AccentColor"))
+                    .foregroundColor(Color.accent)
                     .font(.title3)
                 
                 Text("Unit of Measurement".localized())
@@ -141,7 +141,7 @@ struct UnitSelectionCard: View {
                         ChipView(
                             text: (unit.name ?? "").localized(),
                             isSelected: viewModel.selectedUnit == unit,
-                            backgroundColor: viewModel.selectedUnit == unit ? Color("AccentColor") : Color("BackgroundColor"),
+                            background: viewModel.selectedUnit == unit ? Color.accent : Color.appChipBackground,
                             foregroundColor: viewModel.selectedUnit == unit ? .white : .primary,
                             font: .body.weight(viewModel.selectedUnit == unit ? .semibold : .medium),
                             horizontalPadding: 16,
@@ -160,7 +160,7 @@ struct UnitSelectionCard: View {
         }
         .cardStyle(
             cornerRadius: 16,
-            backgroundColor: Color("SecondaryBackgroundColor"),
+            background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.06),
             shadowRadius: 8,
             borderColor: Color.clear,
@@ -186,11 +186,11 @@ struct UnitChip: View {
                 .frame(maxWidth: .infinity)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(isSelected ? Color("AccentColor") : Color("BackgroundColor"))
+                        .fill(isSelected ? Color.accent : Color.appBackground)
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
                                 .stroke(
-                                    isSelected ? Color("AccentColor") : Color.gray.opacity(0.3),
+                                    isSelected ? Color.accent : Color.gray.opacity(0.3),
                                     lineWidth: isSelected ? 2 : 1
                                 )
                         )

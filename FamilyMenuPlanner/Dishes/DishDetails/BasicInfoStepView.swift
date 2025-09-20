@@ -54,7 +54,7 @@ struct BasicInfoStepView: View {
             .padding(.horizontal, 20)
             .padding(.top, 20)
         }
-        .background(Color("BackgroundColor"))
+        .background(Color.appBackground)
         .onAppear {
             viewModel.descriptionText = viewModel.dish?.details ?? ""
         }
@@ -73,7 +73,7 @@ struct HeroInfoCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "textformat")
-                        .foregroundColor(Color("AccentColor"))
+                        .foregroundColor(Color.accent)
                         .font(.title3)
                     
                     Text("Dish Name".localized())
@@ -90,7 +90,7 @@ struct HeroInfoCard: View {
         }
         .cardStyle(
             cornerRadius: 20,
-            backgroundColor: Color("SecondaryBackgroundColor"),
+            background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.06),
             shadowRadius: 12,
             borderColor: Color.clear,
@@ -110,7 +110,7 @@ struct DescriptionCard: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "text.alignleft")
-                    .foregroundColor(Color("AccentColor"))
+                    .foregroundColor(Color.accent)
                     .font(.title3)
                 
                 Text("Recipe".localized())
@@ -121,7 +121,7 @@ struct DescriptionCard: View {
                 
                 ChipView(
                     text: "Optional".localized(),
-                    backgroundColor: Color.gray.opacity(0.2),
+                    background: Color.gray.opacity(0.2),
                     font: .caption,
                     horizontalPadding: 8,
                     verticalPadding: 4,
@@ -131,7 +131,7 @@ struct DescriptionCard: View {
             
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                    .stroke(Color.appBorder, lineWidth: 1)
                     .background(Color.clear)
                 
                 TextEditor(text: $description)
@@ -146,7 +146,7 @@ struct DescriptionCard: View {
         }
         .cardStyle(
             cornerRadius: 16,
-            backgroundColor: Color("SecondaryBackgroundColor"),
+            background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.04),
             shadowRadius: 8,
             borderColor: Color.clear,
@@ -166,7 +166,7 @@ struct CategorySelectionCard: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "tag")
-                    .foregroundColor(Color("AccentColor"))
+                    .foregroundColor(Color.accent)
                     .font(.title3)
                 
                 Text("Category".localized())
@@ -181,7 +181,7 @@ struct CategorySelectionCard: View {
                 ChipView(
                     text: "No Category".localized(),
                     isSelected: selectedCategory == nil,
-                    backgroundColor: selectedCategory == nil ? Color("AccentColor") : Color("BackgroundColor"),
+                        background: selectedCategory == nil ? Color.accent : Color.appChipBackground,
                     foregroundColor: selectedCategory == nil ? .white : .primary,
                     font: .body.weight(selectedCategory == nil ? .semibold : .medium),
                     horizontalPadding: 16,
@@ -194,7 +194,7 @@ struct CategorySelectionCard: View {
                     ChipView(
                         text: category.name?.localized() ?? "",
                         isSelected: selectedCategory == category,
-                        backgroundColor: selectedCategory == category ? Color("AccentColor") : Color("BackgroundColor"),
+                        background: selectedCategory == category ? Color.accent : Color.appChipBackground,
                         foregroundColor: selectedCategory == category ? .white : .primary,
                         font: .body.weight(selectedCategory == category ? .semibold : .medium),
                         horizontalPadding: 16,
@@ -207,7 +207,7 @@ struct CategorySelectionCard: View {
         }
         .cardStyle(
             cornerRadius: 16,
-            backgroundColor: Color("SecondaryBackgroundColor"),
+            background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.04),
             shadowRadius: 8,
             borderColor: Color.clear,

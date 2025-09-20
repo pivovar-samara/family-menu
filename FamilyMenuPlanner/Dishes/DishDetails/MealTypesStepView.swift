@@ -32,7 +32,7 @@ struct MealTypesStepView: View {
             .padding(.horizontal, 20)
             .padding(.top, 20)
         }
-        .background(Color("BackgroundColor"))
+        .background(Color.appBackground)
     }
 }
 
@@ -47,7 +47,7 @@ struct HeaderCard: View {
             // Icon
             Image(systemName: icon)
                 .font(.system(size: 48, weight: .light))
-                .foregroundColor(Color("AccentColor"))
+                .foregroundColor(Color.accent)
             
             // Text Content
             VStack(spacing: 8) {
@@ -64,7 +64,7 @@ struct HeaderCard: View {
         }
         .cardStyle(
             cornerRadius: 20,
-            backgroundColor: Color("SecondaryBackgroundColor"),
+            background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.04),
             shadowRadius: 8,
             borderColor: Color.clear,
@@ -89,7 +89,7 @@ struct MealTypesGridCard: View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
                 Image(systemName: "square.grid.2x2")
-                    .foregroundColor(Color("AccentColor"))
+                    .foregroundColor(Color.accent)
                     .font(.title3)
                 
                 Text("Meal Types".localized())
@@ -100,7 +100,7 @@ struct MealTypesGridCard: View {
                 
                 ChipView(
                     text: String.localizedStringWithFormat("%d selected".localized(), selectedMealTypes.count),
-                    backgroundColor: Color("AccentColor").opacity(0.1),
+                    background: Color.accent.opacity(0.1),
                     font: .caption,
                     horizontalPadding: 8,
                     verticalPadding: 4,
@@ -120,7 +120,7 @@ struct MealTypesGridCard: View {
         }
         .cardStyle(
             cornerRadius: 16,
-            backgroundColor: Color("SecondaryBackgroundColor"),
+            background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.04),
             shadowRadius: 8,
             borderColor: Color.clear,
@@ -147,12 +147,12 @@ struct MealTypeCard: View {
     }
     
     private var mealTypeColor: Color {
-        guard let name = mealType.name?.lowercased() else { return .orange }
+        guard let name = mealType.name?.lowercased() else { return Color.appWarning }
         switch name {
-        case "breakfast": return .orange
+        case "breakfast": return Color.appWarning
         case "lunch": return .yellow
         case "dinner": return .purple
-        default: return Color("AccentColor")
+        default: return Color.accent
         }
     }
     
@@ -184,15 +184,15 @@ struct MealTypeCard: View {
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.title3)
-                        .foregroundColor(Color("AccentColor"))
+                        .foregroundColor(Color.accent)
                 }
             }
             .cardStyle(
                 cornerRadius: 16,
-                backgroundColor: isSelected ? Color("AccentColor").opacity(0.05) : Color("BackgroundColor"),
+                background: isSelected ? Color.accent.opacity(0.05) : Color.appChipBackground,
                 shadowColor: Color.clear,
                 shadowRadius: 0,
-                borderColor: isSelected ? Color("AccentColor") : Color.gray.opacity(0.3),
+                borderColor: isSelected ? Color.accent : Color.appBorder,
                 borderWidth: isSelected ? 2 : 1,
                 padding: 16
             )

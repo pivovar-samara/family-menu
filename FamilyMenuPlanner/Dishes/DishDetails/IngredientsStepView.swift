@@ -57,7 +57,7 @@ struct IngredientsStepView: View {
             .padding(.horizontal, 20)
             .padding(.top, 20)
         }
-        .background(Color("BackgroundColor"))
+        .background(Color.appBackground)
     }
 }
 
@@ -76,7 +76,7 @@ struct IngredientsHeaderCard: View {
             ZStack {
                 Image(systemName: icon)
                     .font(.system(size: 48, weight: .light))
-                    .foregroundColor(Color("AccentColor"))
+                    .foregroundColor(Color.accent)
                 
                 if ingredientCount > 0 {
                     VStack {
@@ -84,7 +84,7 @@ struct IngredientsHeaderCard: View {
                             Spacer()
                             ZStack {
                                 Circle()
-                                    .fill(Color("AccentColor"))
+                                    .fill(Color.accent)
                                     .frame(width: 24, height: 24)
                                 
                                 Text("\(ingredientCount)")
@@ -120,13 +120,13 @@ struct IngredientsHeaderCard: View {
                         HStack(spacing: 6) {
                             Image(systemName: "tag")
                                 .font(.caption)
-                                .foregroundColor(Color("AccentColor"))
+                                .foregroundColor(Color.accent)
                             Text(category)
                                 .font(.caption.weight(.medium))
                                 .foregroundColor(.primary)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(Color("AccentColor").opacity(0.1))
+                                .background(Color.accent.opacity(0.1))
                                 .cornerRadius(8)
                         }
                     }
@@ -146,7 +146,7 @@ struct IngredientsHeaderCard: View {
             }
         }
         .padding(24)
-        .background(Color("SecondaryBackgroundColor"))
+        .background(Color.appSecondaryBackground)
         .cornerRadius(20)
         .shadow(color: .black.opacity(0.04), radius: 8)
     }
@@ -160,7 +160,7 @@ struct QuickAddIngredientCard: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "plus.circle")
-                    .foregroundColor(Color("AccentColor"))
+                    .foregroundColor(Color.accent)
                     .font(.title3)
                 
                 Text("Add Ingredient".localized())
@@ -185,15 +185,15 @@ struct QuickAddIngredientCard: View {
                     Image(systemName: "chevron.right")
                         .font(.caption)
                 }
-                .foregroundColor(Color("AccentColor"))
+                .foregroundColor(Color.accent)
                 .padding(16)
-                .background(Color("AccentColor").opacity(0.1))
+                .background(Color.accent.opacity(0.1))
                 .cornerRadius(12)
             }
             .buttonStyle(ScaleButtonStyle())
         }
         .padding(20)
-        .background(Color("SecondaryBackgroundColor"))
+        .background(Color.appSecondaryBackground)
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.04), radius: 8)
     }
@@ -244,7 +244,7 @@ struct IngredientsListCard: View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
                 Image(systemName: "list.bullet")
-                    .foregroundColor(Color("AccentColor"))
+                    .foregroundColor(Color.accent)
                     .font(.title3)
                 
                 Text("Ingredients List".localized())
@@ -271,7 +271,7 @@ struct IngredientsListCard: View {
                     }
                 }
                 .pickerStyle(.menu)
-                .tint(Color("AccentColor"))
+                .tint(Color.accent)
             }
             
             Text("Tap to edit • Long press for options".localized())
@@ -300,7 +300,7 @@ struct IngredientsListCard: View {
             }
         }
         .padding(20)
-        .background(Color("SecondaryBackgroundColor"))
+        .background(Color.appSecondaryBackground)
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.04), radius: 8)
     }
@@ -370,11 +370,11 @@ struct SmartIngredientRow: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
             .frame(width: 70)
-            .background(isQuantityFieldFocused ? Color("AccentColor").opacity(0.2) : Color("AccentColor").opacity(0.1))
+            .background(isQuantityFieldFocused ? Color.accent.opacity(0.2) : Color.accent.opacity(0.1))
             .cornerRadius(6)
             .overlay(
                 RoundedRectangle(cornerRadius: 6)
-                    .stroke(isQuantityFieldFocused ? Color("AccentColor") : Color("AccentColor").opacity(0.5), lineWidth: isQuantityFieldFocused ? 2 : 1)
+                    .stroke(isQuantityFieldFocused ? Color.accent : Color.accent.opacity(0.5), lineWidth: isQuantityFieldFocused ? 2 : 1)
             )
             .onSubmit {
                 commitQuantityChange()
@@ -419,12 +419,12 @@ struct SmartIngredientRow: View {
                         // Product Icon
                         ZStack {
                             Circle()
-                                .fill(showWarning ? Color.orange.opacity(0.1) : Color("AccentColor").opacity(0.1))
+                                .fill(showWarning ? Color.orange.opacity(0.1) : Color.accent.opacity(0.1))
                                 .frame(width: 40, height: 40)
                             
                             Image(systemName: showWarning ? "exclamationmark" : (ingredient.product != nil ? "checkmark" : "questionmark"))
                                 .font(.body.weight(.medium))
-                                .foregroundColor(showWarning ? .orange : (ingredient.product != nil ? Color("AccentColor") : .secondary))
+                                .foregroundColor(showWarning ? .orange : (ingredient.product != nil ? Color.accent : .secondary))
                         }
                         
                         VStack(alignment: .leading, spacing: 4) {
@@ -465,7 +465,7 @@ struct SmartIngredientRow: View {
                             }
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
-                            .background(Color("AccentColor").opacity(0.1))
+                            .background(Color.accent.opacity(0.1))
                             .cornerRadius(8)
                         }
                         .buttonStyle(PlainButtonStyle())
@@ -479,7 +479,7 @@ struct SmartIngredientRow: View {
                             }) {
                                 Image(systemName: "minus.circle.fill")
                                     .font(.title3)
-                                    .foregroundColor(.red)
+                                .foregroundColor(Color.appError)
                             }
                             .buttonStyle(PlainButtonStyle())
                             
@@ -488,7 +488,7 @@ struct SmartIngredientRow: View {
                             }) {
                                 Image(systemName: "plus.circle.fill")
                                     .font(.title3)
-                                    .foregroundColor(Color("AccentColor"))
+                                    .foregroundColor(Color.accent)
                             }
                             .buttonStyle(PlainButtonStyle())
                         }
@@ -501,7 +501,7 @@ struct SmartIngredientRow: View {
                 HStack {
                     Text("Large quantity".localized())
                         .font(.caption)
-                        .foregroundColor(.orange)
+                        .foregroundColor(Color.appWarning)
                     
                     Spacer()
                 }
@@ -509,11 +509,11 @@ struct SmartIngredientRow: View {
             }
         }
         .padding(16)
-        .background(Color("BackgroundColor"))
+        .background(Color.appChipBackground)
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                .stroke(Color.appBorder, lineWidth: 1)
         )
         .contextMenu {
             Button(action: onEdit) {
@@ -615,7 +615,7 @@ struct EmptyIngredientsCard: View {
             actionTitle: "Add First Ingredient".localized(),
             action: onAddFirst
         )
-        .background(Color("SecondaryBackgroundColor"))
+        .background(Color.appSecondaryBackground)
         .cornerRadius(20)
         .shadow(color: .black.opacity(0.04), radius: 8)
     }
@@ -638,7 +638,7 @@ struct MealTypeSmallChip: View {
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
-        .background(Color("BackgroundColor"))
+        .background(Color.appChipBackground)
         .cornerRadius(6)
         .overlay(
             RoundedRectangle(cornerRadius: 6)

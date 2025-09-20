@@ -61,17 +61,17 @@ extension View {
 /// Modifier for consistent card styling across the app
 struct CardModifier: ViewModifier {
     var cornerRadius: CGFloat = UIConstants.cardCornerRadius
-    var backgroundColor: Color = Color("SecondaryBackgroundColor")
+    var background: Color = Color.appSecondaryBackground
     var shadowColor: Color = .black.opacity(0.06)
     var shadowRadius: CGFloat = UIConstants.cardShadowRadius
-    var borderColor: Color = Color.gray.opacity(0.1)
+    var borderColor: Color = Color.appBorder
     var borderWidth: CGFloat = UIConstants.cardBorderWidth
     var padding: CGFloat = 0
 
     func body(content: Content) -> some View {
         content
             .padding(padding)
-            .background(backgroundColor)
+            .background(background)
             .cornerRadius(cornerRadius)
             .shadow(color: shadowColor, radius: shadowRadius, x: 0, y: 2)
             .overlay(
@@ -85,7 +85,7 @@ extension View {
     /// Applies card styling to a view with customizable parameters
     /// - Parameters:
     ///   - cornerRadius: Corner radius for the card (default: 16)
-    ///   - backgroundColor: Background color (default: SecondaryBackgroundColor)
+    ///   - background: Background color (default: Secondarybackground)
     ///   - shadowColor: Shadow color (default: black with 6% opacity)
     ///   - shadowRadius: Shadow radius (default: 8)
     ///   - borderColor: Border color (default: gray with 10% opacity)
@@ -94,16 +94,16 @@ extension View {
     /// - Returns: A view with card styling applied
     func cardStyle(
         cornerRadius: CGFloat = UIConstants.cardCornerRadius,
-        backgroundColor: Color = Color("SecondaryBackgroundColor"),
+        background: Color = Color.appSecondaryBackground,
         shadowColor: Color = .black.opacity(0.06),
         shadowRadius: CGFloat = UIConstants.cardShadowRadius,
-        borderColor: Color = Color.gray.opacity(0.1),
+        borderColor: Color = Color.appBorder,
         borderWidth: CGFloat = UIConstants.cardBorderWidth,
         padding: CGFloat = 0
     ) -> some View {
         self.modifier(CardModifier(
             cornerRadius: cornerRadius,
-            backgroundColor: backgroundColor,
+            background: background,
             shadowColor: shadowColor,
             shadowRadius: shadowRadius,
             borderColor: borderColor,
@@ -118,7 +118,7 @@ struct ChipView: View {
     let text: String
     var icon: String? = nil
     var isSelected: Bool = false
-    var backgroundColor: Color? = nil
+    var background: Color? = nil
     var foregroundColor: Color? = nil
     var borderColor: Color? = nil
     var font: Font = .body.weight(.medium)
@@ -128,9 +128,9 @@ struct ChipView: View {
     var onTap: (() -> Void)? = nil
 
     var body: some View {
-        let bg = backgroundColor ?? (isSelected ? Color("AccentColor") : Color("BackgroundColor"))
-        let fg = foregroundColor ?? (isSelected ? Color.white : .primary)
-        let border = borderColor ?? (isSelected ? Color.clear : Color.gray.opacity(0.3))
+        let bg = background ?? (isSelected ? Color.accent : Color.appChipBackground)
+        let fg = foregroundColor ?? (isSelected ? Color.white : Color.appChipText)
+        let border = borderColor ?? (isSelected ? Color.clear : Color.appBorder)
         
         let content = HStack(spacing: 6) {
             if let icon = icon {
@@ -176,7 +176,7 @@ struct PrimaryButtonStyle: ButtonStyle {
             .foregroundColor(.white)
             .padding(.horizontal, UIConstants.buttonHorizontalPadding)
             .padding(.vertical, UIConstants.buttonVerticalPadding)
-            .background(Color("AccentColor"))
+            .background(Color.accent)
             .cornerRadius(UIConstants.buttonCornerRadius)
             .shadow(color: .black.opacity(0.1), radius: UIConstants.buttonShadowRadius)
             .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
@@ -189,10 +189,10 @@ struct SecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.body.weight(.semibold))
-            .foregroundColor(Color("AccentColor"))
+            .foregroundColor(Color.accent)
             .padding(.horizontal, UIConstants.buttonHorizontalPadding)
             .padding(.vertical, UIConstants.buttonVerticalPadding)
-            .background(Color("AccentColor").opacity(0.1))
+            .background(Color.accent.opacity(0.1))
             .cornerRadius(UIConstants.buttonCornerRadius)
             .shadow(color: .black.opacity(0.05), radius: 2)
             .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
@@ -224,8 +224,8 @@ struct EmptyStateModifier: ViewModifier {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             Spacer()
         }
-        .listRowBackground(Color("BackgroundColor"))
-        .background(Color("BackgroundColor").ignoresSafeArea())
+        .listRowBackground(Color.appBackground)
+        .background(Color.appBackground.ignoresSafeArea())
     }
 }
 
@@ -242,8 +242,8 @@ class ViewHelper {
         } label: {
             Label(title, systemImage: systemImage)
         }
-        .foregroundColor(Color("AccentColor"))
-        .tint(Color("AccentColor"))
+        .foregroundColor(Color.accent)
+        .tint(Color.accent)
     }
 
     /// Applies empty state styling to a view
@@ -255,7 +255,7 @@ class ViewHelper {
     static func applyStyle<V: View>(_ list: V) -> some View {
         list.listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(Color("BackgroundColor"))
+            .background(Color.appBackground)
     }
 }
 
@@ -324,7 +324,7 @@ extension View {
     func applyStyle() -> some View {
         self.listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(Color("BackgroundColor"))
+            .background(Color.appBackground)
     }
 }
 
@@ -361,7 +361,7 @@ struct SortingToolbarModifier<SortOptionType: SortOption>: ViewModifier {
                 Button(action: { showingSortOptions = true }) {
                     Image(systemName: "arrow.up.arrow.down")
                         .font(.body)
-                        .foregroundColor(Color("AccentColor"))
+                        .foregroundColor(Color.accent)
                 }
                 .accessibilityIdentifier(accessibilityIdentifier)
                 .accessibilityLabel(accessibilityLabel)

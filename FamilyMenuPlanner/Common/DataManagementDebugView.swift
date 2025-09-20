@@ -24,7 +24,7 @@ struct DataManagementDebugView: View {
                     Text(PersistenceController.shared.getCurrentPreloadDataVersion())
                         .foregroundColor(.secondary)
                 }
-                .listRowBackground(Color("SecondaryBackgroundColor"))
+                .listRowBackground(Color.appSecondaryBackground)
                 
                 HStack {
                     Text("Stored Version:")
@@ -32,7 +32,7 @@ struct DataManagementDebugView: View {
                     Text(PersistenceController.shared.getStoredPreloadDataVersion() ?? "None")
                         .foregroundColor(.secondary)
                 }
-                .listRowBackground(Color("SecondaryBackgroundColor"))
+                .listRowBackground(Color.appSecondaryBackground)
                 
                 HStack {
                     Text("Database Status:")
@@ -41,7 +41,7 @@ struct DataManagementDebugView: View {
                         .foregroundColor(getDatabaseStatusColor())
                         .fontWeight(.medium)
                 }
-                .listRowBackground(Color("SecondaryBackgroundColor"))
+                .listRowBackground(Color.appSecondaryBackground)
             } header: {
                 Text("Data Version Info")
             }
@@ -51,26 +51,26 @@ struct DataManagementDebugView: View {
                 Button("Check Data Validity") {
                     checkDataValidity()
                 }
-                .foregroundColor(Color("AccentColor"))
-                .listRowBackground(Color("SecondaryBackgroundColor"))
+                .foregroundColor(Color.accent)
+                .listRowBackground(Color.appSecondaryBackground)
                 
                 Button("Force Schema Update") {
                     forceSchemaUpdate()
                 }
-                .foregroundColor(.orange)
-                .listRowBackground(Color("SecondaryBackgroundColor"))
+                .foregroundColor(Color.appWarning)
+                .listRowBackground(Color.appSecondaryBackground)
                 
                 Button("Clear All Data") {
                     clearAllData()
                 }
-                .foregroundColor(.red)
-                .listRowBackground(Color("SecondaryBackgroundColor"))
+                .foregroundColor(Color.appError)
+                .listRowBackground(Color.appSecondaryBackground)
                 
                 Button("Regenerate Initial Data") {
                     regenerateInitialData()
                 }
-                .foregroundColor(.blue)
-                .listRowBackground(Color("SecondaryBackgroundColor"))
+                .foregroundColor(Color.appInfo)
+                .listRowBackground(Color.appSecondaryBackground)
             } header: {
                 Text("Database Operations")
             }
@@ -80,14 +80,14 @@ struct DataManagementDebugView: View {
                 Button("Invalidate Static Cache") {
                     invalidateStaticCache()
                 }
-                .foregroundColor(Color("AccentColor"))
-                .listRowBackground(Color("SecondaryBackgroundColor"))
+                .foregroundColor(Color.accent)
+                .listRowBackground(Color.appSecondaryBackground)
                 
                 Button("Show Cache Status") {
                     showCacheStatus()
                 }
-                .foregroundColor(Color("AccentColor"))
-                .listRowBackground(Color("SecondaryBackgroundColor"))
+                .foregroundColor(Color.accent)
+                .listRowBackground(Color.appSecondaryBackground)
             } header: {
                 Text("Cache Management")
             }
@@ -125,11 +125,11 @@ struct DataManagementDebugView: View {
     private func getDatabaseStatusColor() -> Color {
         let persistence = PersistenceController.shared
         if persistence.isDatabaseEmpty(context: viewContext) {
-            return .red
+            return Color.appError
         } else if persistence.isDatabaseEmptyOrOutdated(context: viewContext) {
-            return .orange
+            return Color.appWarning
         } else {
-            return .green
+            return Color.appSuccess
         }
     }
     

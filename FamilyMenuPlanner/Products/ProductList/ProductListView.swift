@@ -109,7 +109,7 @@ struct ProductListView: View {
             .accessibilityIdentifier("ProductList")
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(Color("BackgroundColor"))
+            .background(Color.appBackground)
         }
     }
 
@@ -171,7 +171,7 @@ struct ProductCardView: View {
                 if let unitName = product.unit?.name?.localized(), !unitName.isEmpty {
                     ChipView(
                         text: unitName,
-                        backgroundColor: Color("AccentColor"),
+                        background: Color.accent,
                         foregroundColor: .white,
                         font: .caption.weight(.medium),
                         horizontalPadding: UIConstants.chipHorizontalPadding,
@@ -195,9 +195,9 @@ struct ProductCardView: View {
                 } label: {
                     Image(systemName: "pencil")
                         .font(.title3)
-                        .foregroundColor(Color("AccentColor"))
+                        .foregroundColor(Color.accent)
                         .frame(width: 32, height: 32)
-                        .background(Color("AccentColor").opacity(0.1))
+                        .background(Color.accent.opacity(0.1))
                         .cornerRadius(8)
                 }
                 .accessibilityIdentifier("EditProductButton")
@@ -214,10 +214,10 @@ struct ProductCardView: View {
         }
         .cardStyle(
             cornerRadius: UIConstants.cardCornerRadius,
-            backgroundColor: Color("SecondaryBackgroundColor"),
+            background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.06),
             shadowRadius: UIConstants.cardShadowRadius,
-            borderColor: Color.gray.opacity(0.1),
+            borderColor: Color.appBorder,
             borderWidth: UIConstants.cardBorderWidth,
             padding: UIConstants.cardPadding
         )

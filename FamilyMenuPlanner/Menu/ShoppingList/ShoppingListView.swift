@@ -22,7 +22,7 @@ struct ShoppingListView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .background(Color("BackgroundColor"))
+        .background(Color.appBackground)
         .navigationTitle("Shopping List".localized())
         .searchable(text: $viewModel.searchText, prompt: "Search items...".localized())
         .toolbar { toolbarContent }
@@ -81,7 +81,7 @@ struct ShoppingListView: View {
             Button("Close".localized()) {
                 dismiss()
             }
-            .foregroundColor(Color("AccentColor"))
+            .foregroundColor(Color.accent)
         }
         ToolbarItem(placement: .navigationBarTrailing) {
             HStack(spacing: 12) {
@@ -92,7 +92,7 @@ struct ShoppingListView: View {
                     }) {
                         Image(systemName: "checkmark.circle")
                             .font(.body)
-                            .foregroundColor(Color("AccentColor"))
+                            .foregroundColor(Color.accent)
                     }
                     .accessibilityIdentifier("selection_options_button")
                     .accessibilityLabel("Selection options".localized())
@@ -112,7 +112,7 @@ struct ShoppingListView: View {
                 }) {
                     Image(systemName: "arrow.up.arrow.down")
                         .font(.body)
-                        .foregroundColor(Color("AccentColor"))
+                        .foregroundColor(Color.accent)
                 }
                 .accessibilityIdentifier("sort_shopping_list_button")
                 .accessibilityLabel("Sort shopping list".localized())
@@ -140,7 +140,7 @@ struct ShoppingListCardView: View {
                 // Selection checkbox
                 ZStack {
                     Circle()
-                        .fill(item.isSelected ? Color("AccentColor") : Color("AccentColor").opacity(0.1))
+                        .fill(item.isSelected ? Color.accent : Color.accent.opacity(0.1))
                         .frame(width: 44, height: 44)
                     
                     if item.isSelected {
@@ -150,7 +150,7 @@ struct ShoppingListCardView: View {
                     } else {
                         Image(systemName: "circle")
                             .font(.title3)
-                            .foregroundColor(Color("AccentColor"))
+                            .foregroundColor(Color.accent)
                     }
                 }
                 
@@ -181,16 +181,16 @@ struct ShoppingListCardView: View {
                 // Shopping cart icon
                 Image(systemName: "cart")
                     .font(.title3)
-                    .foregroundColor(item.isSelected ? .green : Color("AccentColor"))
+                    .foregroundColor(item.isSelected ? Color.appSuccess : Color.accent)
             }
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(item.isSelected ? Color.green.opacity(0.05) : Color("SecondaryBackgroundColor"))
+                    .fill(item.isSelected ? Color.appSuccess.opacity(0.05) : Color.appSecondaryBackground)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(
-                                item.isSelected ? Color.green : Color.gray.opacity(0.2),
+                                item.isSelected ? Color.appSuccess : Color.appBorder,
                                 lineWidth: item.isSelected ? 2 : 1
                             )
                     )

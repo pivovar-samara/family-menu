@@ -88,7 +88,6 @@
 				Products/Product/EditProductView.swift,
 				Products/ProductList/ProductListCoordinator.swift,
 				Products/ProductList/ProductListView.swift,
-				Resources/Assets.xcassets,
 				Resources/LaunchScreen.storyboard,
 			);
 			target = A004ED8A2D11DC030081DDC0 /* FamilyMenuPlannerUnitTests */;
@@ -119,7 +118,6 @@
 				Products/Product/EditProductView.swift,
 				Products/ProductList/ProductListCoordinator.swift,
 				Products/ProductList/ProductListView.swift,
-				Resources/Assets.xcassets,
 				Resources/LaunchScreen.storyboard,
 			);
 			target = 4841617D2DEF52D800A48C49 /* FamilyMenuPlannerIntegrationTests */;
@@ -150,7 +148,6 @@
 				Products/Product/EditProductView.swift,
 				Products/ProductList/ProductListCoordinator.swift,
 				Products/ProductList/ProductListView.swift,
-				Resources/Assets.xcassets,
 				Resources/LaunchScreen.storyboard,
 			);
 			target = 484161BE2DEF698200A48C49 /* FamilyMenuPlannerPerformanceTests */;
@@ -159,7 +156,6 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				Resources/Assets.xcassets,
 				Resources/LaunchScreen.storyboard,
 			);
 			target = A004ED942D11DC030081DDC0 /* FamilyMenuPlannerUITests */;

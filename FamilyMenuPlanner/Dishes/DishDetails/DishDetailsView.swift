@@ -62,7 +62,7 @@ struct DishDetailsView: View {
             .padding(.horizontal)
             .padding(.bottom)
         }
-        .background(Color("BackgroundColor"))
+        .background(Color.appBackground)
         .onAppear {
             viewModel.loadDish()
             viewModel.loadIngredients()

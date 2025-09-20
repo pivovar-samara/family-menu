@@ -23,7 +23,7 @@ struct MenuView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .background(Color("BackgroundColor"))
+        .background(Color.appBackground)
         .navigationTitle("Menu".localized())
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -127,7 +127,7 @@ struct MenuView: View {
     private var editingWeekBanner: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "calendar.badge.exclamationmark")
-                .foregroundColor(Color("AccentColor"))
+                .foregroundColor(Color.accent)
                 .font(.title3)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 4) {
@@ -141,11 +141,11 @@ struct MenuView: View {
             Spacer(minLength: 0)
         }
         .padding(12)
-        .background(Color("SecondaryBackgroundColor"))
+        .background(Color.appSecondaryBackground)
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.gray.opacity(0.08), lineWidth: 1)
+                    .stroke(Color.appBorder, lineWidth: 1)
         )
         .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
         .listRowBackground(Color.clear)
@@ -231,8 +231,8 @@ struct DailyMenuCardView: View {
                     ChipView(
                         text: "Today".localized(),
                         icon: "circle.fill",
-                        backgroundColor: Color("AccentColor").opacity(0.1),
-                        foregroundColor: Color("AccentColor"),
+                        background: Color.accent.opacity(0.1),
+                        foregroundColor: Color.accent,
                         font: .caption.weight(.medium),
                         horizontalPadding: 12,
                         verticalPadding: 6,
@@ -259,10 +259,10 @@ struct DailyMenuCardView: View {
         }
         .cardStyle(
             cornerRadius: UIConstants.cardCornerRadius,
-            backgroundColor: Color("SecondaryBackgroundColor"),
+            background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.06),
             shadowRadius: UIConstants.cardShadowRadius,
-            borderColor: Color.gray.opacity(0.1),
+            borderColor: Color.appBorder,
             borderWidth: UIConstants.cardBorderWidth,
             padding: UIConstants.cardPadding
         )
@@ -334,7 +334,7 @@ struct MealTypeRowView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(16)
-            .background(Color("BackgroundColor"))
+            .background(Color.appBackground)
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
@@ -397,9 +397,9 @@ struct MealTypeRowView: View {
 
             Image(systemName: "pencil")
                 .font(.caption)
-                .foregroundColor(Color("AccentColor"))
+                .foregroundColor(Color.accent)
                 .frame(width: 28, height: 28)
-                .background(Color("AccentColor").opacity(0.1))
+                .background(Color.accent.opacity(0.1))
                 .cornerRadius(6)
         }
     }
@@ -435,14 +435,14 @@ struct ShoppingListIncorrectView: View {
                 .accessibilityIdentifier("product_selection_no_results_state")
         }
         .scrollContentBackground(.hidden)
-        .background(Color("BackgroundColor"))
+                .background(Color.appBackground)
         .navigationTitle("Shopping List".localized())
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Close".localized()) {
                     onDismiss?()
                 }
-                .foregroundColor(Color("AccentColor"))
+                .foregroundColor(Color.accent)
             }
         }
     }

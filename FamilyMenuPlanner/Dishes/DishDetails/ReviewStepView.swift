@@ -34,7 +34,7 @@ struct ReviewStepView: View {
             .padding(.horizontal, 20)
             .padding(.top, 20)
         }
-        .background(Color("BackgroundColor"))
+        .background(Color.appBackground)
     }
 }
 
@@ -49,7 +49,7 @@ struct DishSummaryCard: View {
             // Header
             HStack {
                 Image(systemName: "doc.text")
-                    .foregroundColor(Color("AccentColor"))
+                    .foregroundColor(Color.accent)
                     .font(.title3)
                 
                 Text("Dish Summary".localized())
@@ -107,7 +107,7 @@ struct DishSummaryCard: View {
                         HStack {
                             Spacer(minLength: 4)
                             Text("No meal types selected".localized())
-                                .foregroundColor(.red)
+                                .foregroundColor(Color.appError)
                                 .font(.body)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
@@ -139,7 +139,7 @@ struct DishSummaryCard: View {
                         HStack {
                             Spacer(minLength: 4)
                             Text("No ingredients added".localized())
-                                .foregroundColor(.red)
+                                .foregroundColor(Color.appError)
                                 .font(.body)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
@@ -148,7 +148,7 @@ struct DishSummaryCard: View {
             }
         }
         .padding(20)
-        .background(Color("SecondaryBackgroundColor"))
+        .background(Color.appSecondaryBackground)
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.04), radius: 8)
     }
@@ -178,7 +178,7 @@ struct SummarySection<Content: View>: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: icon)
-                    .foregroundColor(Color("AccentColor"))
+                    .foregroundColor(Color.accent)
                     .font(.body)
                 
                 Text(title)
@@ -208,12 +208,12 @@ struct SummaryRow: View {
             if isMultiline {
                 Text(value)
                     .font(.body)
-                    .foregroundColor(isValid ? .primary : .red)
+                    .foregroundColor(isValid ? .primary : Color.appError)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 Text(value)
                     .font(.body)
-                    .foregroundColor(isValid ? .primary : .red)
+                    .foregroundColor(isValid ? .primary : Color.appError)
             }
         }
     }
@@ -224,12 +224,12 @@ struct MealTypeChip: View {
     let mealType: MealType
     
     private var mealTypeColor: Color {
-        guard let name = mealType.name?.lowercased() else { return Color("AccentColor") }
+        guard let name = mealType.name?.lowercased() else { return Color.accent }
         switch name {
-        case "breakfast": return .orange
+        case "breakfast": return Color.appWarning
         case "lunch": return .yellow
         case "dinner": return .purple
-        default: return Color("AccentColor")
+        default: return Color.accent
         }
     }
     
@@ -272,11 +272,11 @@ struct IngredientSummaryRow: View {
             if showWarning {
                 Image(systemName: "exclamationmark.circle.fill")
                     .font(.caption)
-                    .foregroundColor(.orange)
+                    .foregroundColor(Color.appWarning)
                     .frame(width: 12, height: 12)
             } else {
                 Circle()
-                    .fill(Color("AccentColor").opacity(0.2))
+                    .fill(Color.accent.opacity(0.2))
                     .frame(width: 6, height: 6)
             }
             
@@ -297,7 +297,7 @@ struct IngredientSummaryRow: View {
             HStack(spacing: 4) {
                 Text(formattedQuantity)
                     .font(.body.weight(.medium).monospacedDigit())
-                    .foregroundColor(showWarning ? .orange : .primary)
+                    .foregroundColor(showWarning ? Color.appWarning : .primary)
                 
                 Text(ingredient.product?.unit?.name?.localized() ?? "")
                     .font(.caption)
@@ -368,7 +368,7 @@ struct ValidationCard: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: validationIssues.isEmpty ? "checkmark.shield" : "exclamationmark.shield")
-                    .foregroundColor(validationIssues.isEmpty ? .green : .orange)
+                    .foregroundColor(validationIssues.isEmpty ? Color.appSuccess : Color.appWarning)
                     .font(.title3)
                 
                 Text("Validation".localized())
@@ -380,10 +380,10 @@ struct ValidationCard: View {
                 if validationIssues.isEmpty {
                     Text("All good!".localized())
                         .font(.caption.weight(.medium))
-                        .foregroundColor(.green)
+                        .foregroundColor(Color.appSuccess)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(Color.green.opacity(0.1))
+                        .background(Color.appSuccess.opacity(0.1))
                         .cornerRadius(8)
                 }
             }
@@ -391,18 +391,18 @@ struct ValidationCard: View {
             if validationIssues.isEmpty {
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
+                        .foregroundColor(Color.appSuccess)
                     
                     Text("Your dish is ready to save!".localized())
                         .font(.body)
                         .foregroundColor(.primary)
                 }
                 .padding(16)
-                .background(Color.green.opacity(0.05))
+                .background(Color.appSuccess.opacity(0.05))
                 .cornerRadius(12)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                        .stroke(Color.appSuccess.opacity(0.3), lineWidth: 1)
                 )
             } else {
                 VStack(alignment: .leading, spacing: 12) {
@@ -413,7 +413,7 @@ struct ValidationCard: View {
             }
         }
         .padding(20)
-        .background(Color("SecondaryBackgroundColor"))
+        .background(Color.appSecondaryBackground)
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.04), radius: 8)
     }
@@ -470,7 +470,7 @@ struct QuickEditActionsCard: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "pencil.circle")
-                    .foregroundColor(Color("AccentColor"))
+                    .foregroundColor(Color.accent)
                     .font(.title3)
                 
                 Text("Need to make changes?".localized())
@@ -486,7 +486,7 @@ struct QuickEditActionsCard: View {
         .padding(20)
         .background(
             LinearGradient(
-                colors: [Color("AccentColor").opacity(0.05), Color("AccentColor").opacity(0.02)],
+                colors: [Color.accent.opacity(0.05), Color.accent.opacity(0.02)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -494,7 +494,7 @@ struct QuickEditActionsCard: View {
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color("AccentColor").opacity(0.2), lineWidth: 1)
+                .stroke(Color.accent.opacity(0.2), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.02), radius: 4)
     }

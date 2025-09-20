@@ -42,18 +42,17 @@ struct FamilyMenuPlannerApp: App {
         // Customize TabBar appearance
         let tabBarAppearance = UITabBarAppearance()
         tabBarAppearance.configureWithOpaqueBackground() // Makes the background opaque
-        if let tabBarColor = UIColor(named: "BackgroundColor") {
-            tabBarAppearance.backgroundColor = tabBarColor
-        }
+        tabBarAppearance.backgroundColor = UIColor.appBackground
+        
         let tabBarItemAppearance = UITabBarItemAppearance()
         tabBarItemAppearance.normal.titleTextAttributes = [
             .foregroundColor: UIColor.secondaryLabel
         ]
         tabBarItemAppearance.selected.titleTextAttributes = [
-            .foregroundColor: UIColor(named: "AccentColor") ?? UIColor.blue
+            .foregroundColor: UIColor.accent
         ]
         tabBarItemAppearance.normal.iconColor = UIColor.secondaryLabel
-        tabBarItemAppearance.selected.iconColor = UIColor(named: "AccentColor") ?? UIColor.blue
+        tabBarItemAppearance.selected.iconColor = UIColor.accent
 
         tabBarAppearance.stackedLayoutAppearance = tabBarItemAppearance
         UITabBar.appearance().standardAppearance = tabBarAppearance
@@ -62,16 +61,14 @@ struct FamilyMenuPlannerApp: App {
         // Customize UINavigationBarAppearance
         let navBarAppearance = UINavigationBarAppearance()
         navBarAppearance.configureWithOpaqueBackground()
-        if let navigationBarColor = UIColor(named: "BackgroundColor") {
-            navBarAppearance.backgroundColor = navigationBarColor
-        }
+        navBarAppearance.backgroundColor = UIColor.appBackground
         
         let buttonAppearance = UIBarButtonItemAppearance()
         buttonAppearance.normal.titleTextAttributes = [
-            .foregroundColor: UIColor(named: "AccentColor") ?? UIColor.blue
+            .foregroundColor: UIColor.accent
         ]
         buttonAppearance.highlighted.titleTextAttributes = [
-            .foregroundColor: UIColor(named: "AccentColor") ?? UIColor.blue
+            .foregroundColor: UIColor.accent
         ]
 
         navBarAppearance.buttonAppearance = buttonAppearance
@@ -82,13 +79,13 @@ struct FamilyMenuPlannerApp: App {
         
         UINavigationBar.appearance().standardAppearance = navBarAppearance
         UINavigationBar.appearance().scrollEdgeAppearance = scrollEdgeNavBarAppearance
-        UINavigationBar.appearance().tintColor = UIColor(named: "BackgroundColor")
+        UINavigationBar.appearance().tintColor = UIColor.appBackground
         
         // Customize Search bar
-        UISearchBar.appearance().tintColor = UIColor(named: "AccentColor")
+        UISearchBar.appearance().tintColor = UIColor.accent
         
-        UISegmentedControl.appearance().selectedSegmentTintColor = UIColor(named: "SecondaryBackgroundColor")
-        UISegmentedControl.appearance().backgroundColor = UIColor(named: "BackgroundColor")
+        UISegmentedControl.appearance().selectedSegmentTintColor = UIColor.appSecondaryBackground
+        UISegmentedControl.appearance().backgroundColor = UIColor.appBackground
     }
 
     var body: some Scene {
