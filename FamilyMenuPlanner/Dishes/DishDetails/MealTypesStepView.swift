@@ -147,13 +147,8 @@ struct MealTypeCard: View {
     }
     
     private var mealTypeColor: Color {
-        guard let name = mealType.name?.lowercased() else { return Color.appWarning }
-        switch name {
-        case "breakfast": return Color.appWarning
-        case "lunch": return .yellow
-        case "dinner": return .purple
-        default: return Color.accent
-        }
+        guard let name = mealType.name else { return Color.accent }
+        return StylingHelper.mealTypeColor(for: name)
     }
     
     var body: some View {

@@ -168,12 +168,9 @@ struct DishCardView: View {
                 if let categoryName = dish.category?.name {
                     ChipView(
                         text: categoryName.localized(),
-                        background: categoryColor(for: categoryName),
-                        foregroundColor: .white,
-                        font: .caption.weight(.medium),
-                        horizontalPadding: UIConstants.chipHorizontalPadding,
-                        verticalPadding: UIConstants.chipVerticalPadding,
-                        cornerRadius: UIConstants.chipCornerRadius
+                        style: .filled,
+                        tint: categoryColor(for: categoryName),
+                        font: .caption
                     )
                 }
                 
@@ -246,13 +243,9 @@ struct DishCardView: View {
                                 ChipView(
                                     text: mealType.name?.localized() ?? "",
                                     icon: ViewHelper.mealTypeIcon(for: mealType),
-                                    background: Color.appChipBackground,
-                                    foregroundColor: Color.appChipText,
-                                    borderColor: Color.appBorder,
-                                    font: .caption,
-                                    horizontalPadding: 8,
-                                    verticalPadding: 4,
-                                    cornerRadius: 8
+                                    style: .outline,
+                                    tint: StylingHelper.mealTypeColor(for: mealType),
+                                    font: .caption
                                 )
                             }
                         }
@@ -294,56 +287,7 @@ struct DishCardView: View {
     }
 }
 
-// MARK: - Supporting Components
-
-public struct DishListCategoryChip: View {
-    let title: String
-    let color: Color
-    
-    public var body: some View {
-        Text(title)
-            .font(.caption.weight(.medium))
-            .foregroundColor(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                LinearGradient(
-                    colors: [color, color.opacity(0.8)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .cornerRadius(12)
-            .shadow(color: color.opacity(0.3), radius: 2)
-    }
-}
-
-public struct DishListMealTypeChip: View {
-    let mealType: MealType
-    
-    public var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: ViewHelper.mealTypeIcon(for: mealType))
-                .font(.caption2)
-                .foregroundColor(ViewHelper.mealTypeColor(for: mealType))
-            
-            Text(mealType.name?.localized() ?? "")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .lineLimit(1)
-                .allowsTightening(false)
-                .truncationMode(.tail)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Color.appBackground)
-        .cornerRadius(8)
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(ViewHelper.mealTypeColor(for: mealType).opacity(0.3), lineWidth: 1)
-        )
-    }
-}
+// Legacy chip components were removed in favor of ChipView with ChipStyle
 
 struct EmptyDishListView: View {
     let onAddDish: () -> Void

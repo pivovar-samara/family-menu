@@ -140,13 +140,9 @@ struct UnitSelectionCard: View {
                     ForEach(viewModel.units, id: \.self) { unit in
                         ChipView(
                             text: (unit.name ?? "").localized(),
-                            isSelected: viewModel.selectedUnit == unit,
-                            background: viewModel.selectedUnit == unit ? Color.accent : Color.appChipBackground,
-                            foregroundColor: viewModel.selectedUnit == unit ? .white : .primary,
-                            font: .body.weight(viewModel.selectedUnit == unit ? .semibold : .medium),
-                            horizontalPadding: 16,
-                            verticalPadding: 12,
-                            cornerRadius: 12,
+                            style: viewModel.selectedUnit == unit ? .filled : .outline,
+                            tint: Color.accent,
+                            font: .caption,
                             onTap: {
                                 viewModel.selectedUnit = unit
                                 viewModel.updateProductUnit(unit)
@@ -170,34 +166,4 @@ struct UnitSelectionCard: View {
     }
 }
 
-// MARK: - Unit Chip Component
-struct UnitChip: View {
-    let title: String
-    let isSelected: Bool
-    let onTap: () -> Void
-    
-    var body: some View {
-        Button(action: onTap) {
-            Text(title)
-                .font(.body.weight(isSelected ? .semibold : .medium))
-                .foregroundColor(isSelected ? .white : .primary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .frame(maxWidth: .infinity)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(isSelected ? Color.accent : Color.appBackground)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(
-                                    isSelected ? Color.accent : Color.gray.opacity(0.3),
-                                    lineWidth: isSelected ? 2 : 1
-                                )
-                        )
-                )
-        }
-        .buttonStyle(ScaleButtonStyle())
-        .animation(.easeInOut(duration: 0.2), value: isSelected)
-        .accessibilityIdentifier("unit_chip_\(title)")
-    }
-}
+// Legacy UnitChip removed in favor of ChipView with ChipStyle

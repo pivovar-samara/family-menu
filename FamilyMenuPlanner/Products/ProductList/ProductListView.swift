@@ -171,12 +171,9 @@ struct ProductCardView: View {
                 if let unitName = product.unit?.name?.localized(), !unitName.isEmpty {
                     ChipView(
                         text: unitName,
-                        background: Color.accent,
-                        foregroundColor: .white,
-                        font: .caption.weight(.medium),
-                        horizontalPadding: UIConstants.chipHorizontalPadding,
-                        verticalPadding: UIConstants.chipVerticalPadding,
-                        cornerRadius: UIConstants.chipCornerRadius
+                        style: .filled,
+                        tint: Color.accent,
+                        font: .caption
                     )
                 }
 

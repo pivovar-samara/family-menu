@@ -50,10 +50,14 @@ extension StylingHelper {
     static func mealTypeColor(for mealTypeName: String) -> Color {
         let name = mealTypeName.lowercased()
         switch name {
-        case "breakfast": return Color.appWarning
-        case "lunch": return .yellow
-        case "dinner": return .purple
-        default: return Color.accent
+        case "breakfast":
+            return Color("MealBreakfast")
+        case "lunch":
+            return Color("MealLunch")
+        case "dinner":
+            return Color("MealDinner")
+        default:
+            return Color.accent
         }
     }
 }

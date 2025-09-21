@@ -117,25 +117,26 @@ struct IngredientsHeaderCard: View {
 
                 VStack(alignment: .leading, spacing: 12) {
                     if let category = selectedCategory?.name?.localized(), !category.isEmpty {
-                        HStack(spacing: 6) {
-                            Image(systemName: "tag")
-                                .font(.caption)
-                                .foregroundColor(Color.accent)
-                            Text(category)
-                                .font(.caption.weight(.medium))
-                                .foregroundColor(.primary)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.accent.opacity(0.1))
-                                .cornerRadius(8)
-                        }
+                        ChipView(
+                            text: category,
+                            icon: "tag",
+                            style: .outline,
+                            tint: Color.accent,
+                            font: .caption
+                        )
                     }
 
                     if !selectedMealTypes.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
                                 ForEach(Array(selectedMealTypes), id: \.self) { mealType in
-                                    MealTypeSmallChip(mealType: mealType)
+                                    ChipView(
+                                        text: mealType.name?.localized() ?? "",
+                                        icon: ViewHelper.mealTypeIcon(for: mealType),
+                                        style: .outline,
+                                        tint: StylingHelper.mealTypeColor(for: mealType),
+                                        font: .caption
+                                    )
                                 }
                             }
                         }
@@ -621,28 +622,4 @@ struct EmptyIngredientsCard: View {
     }
 }
 
-// MARK: - Small Meal-Type Chip (Ingredients header)
-struct MealTypeSmallChip: View {
-    let mealType: MealType
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: ViewHelper.mealTypeIcon(for: mealType))
-                .font(.caption2)
-                .foregroundColor(ViewHelper.mealTypeColor(for: mealType))
-            Text(mealType.name?.localized() ?? "")
-                .font(.caption2)
-                .foregroundColor(.secondary)
-                .lineLimit(1)
-                .allowsTightening(false)
-                .truncationMode(.tail)
-        }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 4)
-        .background(Color.appChipBackground)
-        .cornerRadius(6)
-        .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(ViewHelper.mealTypeColor(for: mealType).opacity(0.3), lineWidth: 1)
-        )
-    }
-} 
+// Replaced by ChipView with ChipStyle

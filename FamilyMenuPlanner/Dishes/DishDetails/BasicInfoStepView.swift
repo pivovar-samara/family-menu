@@ -121,11 +121,9 @@ struct DescriptionCard: View {
                 
                 ChipView(
                     text: "Optional".localized(),
-                    background: Color.gray.opacity(0.2),
-                    font: .caption,
-                    horizontalPadding: 8,
-                    verticalPadding: 4,
-                    cornerRadius: 8
+                    style: .outline,
+                    tint: .secondary,
+                    font: .caption
                 )
             }
             
@@ -180,26 +178,18 @@ struct CategorySelectionCard: View {
                 // No Category Option
                 ChipView(
                     text: "No Category".localized(),
-                    isSelected: selectedCategory == nil,
-                        background: selectedCategory == nil ? Color.accent : Color.appChipBackground,
-                    foregroundColor: selectedCategory == nil ? .white : .primary,
-                    font: .body.weight(selectedCategory == nil ? .semibold : .medium),
-                    horizontalPadding: 16,
-                    verticalPadding: 10,
-                    cornerRadius: 20,
+                    style: selectedCategory == nil ? .filled : .outline,
+                    tint: Color.accent,
+                    font: .caption,
                     onTap: { onCategorySelected(nil) }
                 )
                 
                 ForEach(categories, id: \.self) { category in
                     ChipView(
                         text: category.name?.localized() ?? "",
-                        isSelected: selectedCategory == category,
-                        background: selectedCategory == category ? Color.accent : Color.appChipBackground,
-                        foregroundColor: selectedCategory == category ? .white : .primary,
-                        font: .body.weight(selectedCategory == category ? .semibold : .medium),
-                        horizontalPadding: 16,
-                        verticalPadding: 10,
-                        cornerRadius: 20,
+                        style: selectedCategory == category ? .filled : .outline,
+                        tint: Color.accent,
+                        font: .caption,
                         onTap: { onCategorySelected(category) }
                     )
                 }

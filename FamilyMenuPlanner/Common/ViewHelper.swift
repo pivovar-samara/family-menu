@@ -36,6 +36,14 @@ struct UIConstants {
     static let buttonVerticalPadding: CGFloat = 14
 }
 
+// MARK: - Chip Style
+enum ChipStyle {
+    case filled
+    case outline
+    case warning
+    case disabled
+}
+
 // MARK: - View Extensions
 extension View {
     /// Prevents CoreGraphics NaN errors by validating frame dimensions
@@ -115,23 +123,31 @@ extension View {
 
 /// Reusable chip/tag component for displaying categories, units, and other metadata
 struct ChipView: View {
+    // Content
     let text: String
     var icon: String? = nil
+
+    // New unified styling API
+    var style: ChipStyle? = nil
+    var tint: Color? = nil
+    var isEnabled: Bool = true
+
+    // Backward compatibility / fine-tune options (prefer using style)
     var isSelected: Bool = false
     var background: Color? = nil
     var foregroundColor: Color? = nil
     var borderColor: Color? = nil
-    var font: Font = .body.weight(.medium)
+
+    // Layout
+    var font: Font = .caption.weight(.medium)
     var horizontalPadding: CGFloat = UIConstants.chipHorizontalPadding
     var verticalPadding: CGFloat = UIConstants.chipVerticalPadding
     var cornerRadius: CGFloat = UIConstants.chipCornerRadius
     var onTap: (() -> Void)? = nil
 
     var body: some View {
-        let bg = background ?? (isSelected ? Color.accent : Color.appChipBackground)
-        let fg = foregroundColor ?? (isSelected ? Color.white : Color.appChipText)
-        let border = borderColor ?? (isSelected ? Color.clear : Color.appBorder)
-        
+        let computed = computeColors()
+
         let content = HStack(spacing: 6) {
             if let icon = icon {
                 Image(systemName: icon)
@@ -142,17 +158,18 @@ struct ChipView: View {
                 .truncationMode(.tail)
         }
         .font(font)
-        .foregroundColor(fg)
+        .foregroundColor(computed.foreground)
         .padding(.horizontal, horizontalPadding)
         .padding(.vertical, verticalPadding)
         .background(
             RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(bg)
+                .fill(computed.background)
                 .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius)
-                        .stroke(border, lineWidth: isSelected ? 0 : 1)
+                        .stroke(computed.border, lineWidth: computed.borderLineWidth)
                 )
         )
+        .opacity(isEnabled ? 1.0 : 0.6)
         .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
 
         if let onTap = onTap {
@@ -160,9 +177,36 @@ struct ChipView: View {
                 content
             }
             .buttonStyle(ScaleButtonStyle())
+            .disabled(!isEnabled)
         } else {
             content
         }
+    }
+
+    private func computeColors() -> (background: Color, foreground: Color, border: Color, borderLineWidth: CGFloat) {
+        // Prefer new style-based design when provided
+        if let style = style {
+            let baseTint = tint ?? Color.accent
+            switch style {
+            case .filled:
+                return (baseTint, Color.white, Color.clear, 0)
+            case .outline:
+                return (Color.appChipBackground, baseTint, baseTint.opacity(0.35), 1)
+            case .warning:
+                // Use warning color if available, fall back to orange
+                let warning = (Color.appWarning)
+                return (warning, Color.white, Color.clear, 0)
+            case .disabled:
+                return (Color.appChipBackground, Color.secondary, Color.appBorder, 1)
+            }
+        }
+
+        // Backward compatibility path preserving prior behavior
+        let bg = background ?? (isSelected ? Color.accent : Color.appChipBackground)
+        let fg = foregroundColor ?? (isSelected ? Color.white : Color.appChipText)
+        let border = borderColor ?? (isSelected ? Color.clear : Color.appBorder)
+        let line: CGFloat = (border == .clear) ? 0 : 1
+        return (bg, fg, border, line)
     }
 }
 

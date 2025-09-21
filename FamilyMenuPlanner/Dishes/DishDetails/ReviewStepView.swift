@@ -100,7 +100,13 @@ struct DishSummaryCard: View {
                     if !viewModel.selectedMealTypes.isEmpty {
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                             ForEach(Array(viewModel.selectedMealTypes), id: \.self) { mealType in
-                                MealTypeChip(mealType: mealType)
+                                ChipView(
+                                    text: mealType.name?.localized() ?? "",
+                                    icon: ViewHelper.mealTypeIcon(for: mealType),
+                                    style: .outline,
+                                    tint: StylingHelper.mealTypeColor(for: mealType),
+                                    font: .caption
+                                )
                             }
                         }
                     } else {
@@ -219,39 +225,7 @@ struct SummaryRow: View {
     }
 }
 
-// MARK: - Meal Type Chip for Review
-struct MealTypeChip: View {
-    let mealType: MealType
-    
-    private var mealTypeColor: Color {
-        guard let name = mealType.name?.lowercased() else { return Color.accent }
-        switch name {
-        case "breakfast": return Color.appWarning
-        case "lunch": return .yellow
-        case "dinner": return .purple
-        default: return Color.accent
-        }
-    }
-    
-    var body: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(mealTypeColor)
-                .frame(width: 8, height: 8)
-            
-            Text(mealType.name?.localized() ?? "")
-                .font(.caption.weight(.medium))
-                .foregroundColor(.primary)
-                .lineLimit(1)
-                .allowsTightening(false)
-                .truncationMode(.tail)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(mealTypeColor.opacity(0.1))
-        .cornerRadius(12)
-    }
-}
+// Replaced by ChipView with ChipStyle
 
 // MARK: - Ingredient Summary Row
 struct IngredientSummaryRow: View {

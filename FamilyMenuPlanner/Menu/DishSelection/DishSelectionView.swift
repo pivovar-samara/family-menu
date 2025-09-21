@@ -207,16 +207,24 @@ struct DishSelectionCardView: View {
                 }
                 // Category chip
                 if let categoryName = dish.category?.name {
-                    DishListCategoryChip(
-                        title: categoryName.localized(),
-                        color: categoryColor(for: categoryName)
+                    ChipView(
+                        text: categoryName.localized(),
+                        style: .filled,
+                        tint: categoryColor(for: categoryName),
+                        font: .caption
                     )
                 }
                 // Meal type chips
                 if let mealTypes = dish.mealTypes?.allObjects as? [MealType], !mealTypes.isEmpty {
                     HStack(spacing: 8) {
                         ForEach(mealTypes, id: \.self) { mealType in
-                            DishListMealTypeChip(mealType: mealType)
+                            ChipView(
+                                text: mealType.name?.localized() ?? "",
+                                icon: ViewHelper.mealTypeIcon(for: mealType),
+                                style: .outline,
+                                tint: StylingHelper.mealTypeColor(for: mealType),
+                                font: .caption
+                            )
                         }
                     }
                 }
