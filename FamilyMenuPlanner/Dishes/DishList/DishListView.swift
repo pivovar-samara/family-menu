@@ -98,10 +98,6 @@ struct DishListView: View {
                 } else {
                     DishListRows(dishes: filteredDishes, onEdit: onEdit, onDelete: onDelete)
                 }
-                Color.clear
-                    .frame(height: 80)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
@@ -117,6 +113,10 @@ struct DishListView: View {
             ForEach(dishes, id: \.self) { dish in
                 dishCard(for: dish)
             }
+            Color.clear
+                .frame(height: 80)
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
         }
         @ViewBuilder
         private func dishCard(for dish: Dish) -> some View {

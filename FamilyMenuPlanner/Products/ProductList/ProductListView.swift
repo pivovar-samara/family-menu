@@ -101,10 +101,6 @@ struct ProductListView: View {
                 } else {
                     ProductListRows(products: filteredProducts, onEdit: onEdit, onDelete: onDelete)
                 }
-                Color.clear
-                    .frame(height: 80)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
             }
             .accessibilityIdentifier("ProductList")
             .listStyle(.plain)
@@ -121,6 +117,10 @@ struct ProductListView: View {
             ForEach(products, id: \.self) { product in
                 productCard(for: product)
             }
+            Color.clear
+                .frame(height: 80)
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
         }
         @ViewBuilder
         private func productCard(for product: Product) -> some View {

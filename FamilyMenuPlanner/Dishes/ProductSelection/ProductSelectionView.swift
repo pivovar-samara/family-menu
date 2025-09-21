@@ -42,7 +42,7 @@ struct ProductSelectionView: View {
 
             // Spacer to keep content above any bottom elements
             Color.clear
-                .frame(height: 20)
+                .frame(height: 80)
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
         }
