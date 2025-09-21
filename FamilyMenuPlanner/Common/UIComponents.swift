@@ -207,7 +207,7 @@ struct ErrorView: View {
         VStack(spacing: 20) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 48, weight: .light))
-                .foregroundColor(.orange)
+                .foregroundColor(.appWarning)
             
             VStack(spacing: 8) {
                 Text(title)

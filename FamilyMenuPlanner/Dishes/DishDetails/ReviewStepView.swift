@@ -262,7 +262,7 @@ struct IngredientSummaryRow: View {
                 if showWarning {
                     Text("Large quantity".localized())
                         .font(.caption)
-                        .foregroundColor(.orange)
+                        .foregroundColor(.appWarning)
                 }
             }
             

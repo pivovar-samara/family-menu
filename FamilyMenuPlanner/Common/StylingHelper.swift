@@ -27,7 +27,7 @@ extension StylingHelper {
     /// - Parameter mealType: The meal type object
     /// - Returns: Color for the meal type
     static func mealTypeColor(for mealType: MealType) -> Color {
-        guard let name = mealType.name?.lowercased() else { return .orange }
+        guard let name = mealType.name?.lowercased() else { return .mealLunch }
         return mealTypeColor(for: name)
     }
     

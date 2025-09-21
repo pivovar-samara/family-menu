@@ -193,9 +193,7 @@ struct ChipView: View {
             case .outline:
                 return (Color.appChipBackground, baseTint, baseTint.opacity(0.35), 1)
             case .warning:
-                // Use warning color if available, fall back to orange
-                let warning = (Color.appWarning)
-                return (warning, Color.white, Color.clear, 0)
+                return (Color.appWarning, Color.white, Color.clear, 0)
             case .disabled:
                 return (Color.appChipBackground, Color.secondary, Color.appBorder, 1)
             }

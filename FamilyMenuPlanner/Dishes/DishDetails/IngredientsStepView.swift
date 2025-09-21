@@ -420,12 +420,12 @@ struct SmartIngredientRow: View {
                         // Product Icon
                         ZStack {
                             Circle()
-                                .fill(showWarning ? Color.orange.opacity(0.1) : Color.accent.opacity(0.1))
+                                .fill(showWarning ? Color.appWarning.opacity(0.1) : Color.accent.opacity(0.1))
                                 .frame(width: 40, height: 40)
                             
                             Image(systemName: showWarning ? "exclamationmark" : (ingredient.product != nil ? "checkmark" : "questionmark"))
                                 .font(.body.weight(.medium))
-                                .foregroundColor(showWarning ? .orange : (ingredient.product != nil ? Color.accent : .secondary))
+                                .foregroundColor(showWarning ? .appWarning : (ingredient.product != nil ? Color.accent : .secondary))
                         }
                         
                         VStack(alignment: .leading, spacing: 4) {
@@ -475,22 +475,26 @@ struct SmartIngredientRow: View {
                     // Quantity Adjustment Controls
                     if !isEditing {
                         HStack(spacing: 8) {
-                            Button(action: { 
-                                adjustQuantity(-1) 
+                            Button(action: {
+                                adjustQuantity(-1)
                             }) {
                                 Image(systemName: "minus.circle.fill")
                                     .font(.title3)
-                                .foregroundColor(Color.appError)
+                                    .foregroundColor(Color.appError)
                             }
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                             .buttonStyle(PlainButtonStyle())
                             
-                            Button(action: { 
-                                adjustQuantity(1) 
+                            Button(action: {
+                                adjustQuantity(1)
                             }) {
                                 Image(systemName: "plus.circle.fill")
                                     .font(.title3)
                                     .foregroundColor(Color.accent)
                             }
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                             .buttonStyle(PlainButtonStyle())
                         }
                     }

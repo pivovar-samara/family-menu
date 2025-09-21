@@ -21,8 +21,8 @@ struct ValidationIssue {
         
         var color: Color {
             switch self {
-            case .error: return .red
-            case .warning: return .orange
+            case .error: return .appError
+            case .warning: return .appWarning
             }
         }
         
