@@ -23,6 +23,31 @@ final class DataValidationTests: XCTestCase {
         // Clear any existing UserDefaults from previous tests
         UserDefaults.standard.removeObject(forKey: "PreloadDataVersion")
     }
+    func testUnusualQuantityMessageForGrams() throws {
+        let testFactory = TestDataFactory(context: context)
+        let unitG = testFactory.createUnit(name: "g", sortOrder: 1)
+        let product = testFactory.createProduct(name: "Beef", unit: unitG)
+        let dish = testFactory.createDish(name: "Beef Dish")
+        let ingredient = testFactory.createIngredientDetail(dish: dish, product: product, quantity: 6000, unit: unitG)
+
+        let info = DataValidationHelper.unusualQuantityMessage(for: ingredient)
+        XCTAssertNotNil(info)
+        XCTAssertTrue(info?.message.contains("Beef") == true)
+        let expectedQty = DataValidationHelper.formatQuantity(6000)
+        XCTAssertTrue(info?.message.contains(expectedQty) == true)
+        XCTAssertTrue(info?.message.contains("Typical range") == true)
+    }
+
+    func testNoMessageWithinTypicalRange() throws {
+        let testFactory = TestDataFactory(context: context)
+        let unitG = testFactory.createUnit(name: "g", sortOrder: 1)
+        let product = testFactory.createProduct(name: "Beef", unit: unitG)
+        let dish = testFactory.createDish(name: "Beef Dish")
+        let ingredient = testFactory.createIngredientDetail(dish: dish, product: product, quantity: 600, unit: unitG)
+
+        let info = DataValidationHelper.unusualQuantityMessage(for: ingredient)
+        XCTAssertNil(info)
+    }
     
     override func tearDownWithError() throws {
         // Clean up UserDefaults

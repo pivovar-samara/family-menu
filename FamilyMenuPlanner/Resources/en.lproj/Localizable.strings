@@ -151,6 +151,8 @@
 "Some quantities seem unusually large" = "Some quantities seem unusually large";
 "Double-check ingredient quantities" = "Double-check ingredient quantities";
 "Need to make changes?" = "Need to make changes?";
+"ingredient_unusual_quantity_message" = "%@ quantity may be unusual (%@ %@). Typical range: %@–%@ %@";
+"ingredient_unusual_quantity_suggestion" = "Double-check this ingredient amount";
 "Use the Back button or swipe to return to previous steps and make any necessary changes." = "Use the Back button or swipe to return to previous steps and make any necessary changes.";
 
 // Error Handling and Recovery

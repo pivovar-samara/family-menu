@@ -135,7 +135,7 @@ struct DishSummaryCard: View {
                                 ForEach(viewModel.selectedIngredients, id: \.objectID) { ingredient in
                                     IngredientSummaryRow(
                                         ingredient: ingredient,
-                                        showWarning: hasUnusualQuantity(ingredient)
+                                        showWarning: ViewHelper.hasUnusualQuantity(ingredient)
                                     )
                                     .id("\(ingredient.objectID)-\(ingredient.quantity)-\(ingredient.product?.objectID.description ?? "")")
                                 }
@@ -160,17 +160,7 @@ struct DishSummaryCard: View {
     }
     
     private func hasUnusualQuantity(_ ingredient: IngredientDetail) -> Bool {
-        guard let unit = ingredient.product?.unit?.name?.lowercased() else { return false }
-        let quantity = ingredient.quantity
-        
-        switch unit {
-        case "kg": return quantity > 5.0
-        case "g": return quantity > 2000
-        case "l": return quantity > 3.0
-        case "ml": return quantity > 2000
-        case "pcs", "pieces", "piece": return quantity > 20
-        default: return false
-        }
+        return ViewHelper.hasUnusualQuantity(ingredient)
     }
 }
 
@@ -260,9 +250,16 @@ struct IngredientSummaryRow: View {
                     .foregroundColor(.primary)
                 
                 if showWarning {
-                    Text("Large quantity".localized())
-                        .font(.caption)
-                        .foregroundColor(.appWarning)
+                    if let info = DataValidationHelper.unusualQuantityMessage(for: ingredient) {
+                        Text(info.message)
+                            .font(.caption)
+                            .foregroundColor(.appWarning)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        Text("Large quantity".localized())
+                            .font(.caption)
+                            .foregroundColor(.appWarning)
+                    }
                 }
             }
             
@@ -322,17 +319,15 @@ struct ValidationCard: View {
             ))
         }
         
-        // Check for unusual quantities
-        let unusualQuantities = viewModel.selectedIngredients.filter { ingredient in
-            hasUnusualQuantity(ingredient)
-        }
-        
-        if !unusualQuantities.isEmpty {
-            issues.append(ValidationIssue(
-                type: .warning,
-                message: "Some quantities seem unusually large".localized(),
-                suggestion: "Double-check ingredient quantities".localized()
-            ))
+        // Per-ingredient unusual quantity details
+        for ingredient in viewModel.selectedIngredients {
+            if let info = DataValidationHelper.unusualQuantityMessage(for: ingredient) {
+                issues.append(ValidationIssue(
+                    type: .warning,
+                    message: info.message,
+                    suggestion: info.suggestion
+                ))
+            }
         }
         
         return issues

@@ -290,7 +290,7 @@ struct IngredientsListCard: View {
                                 onDelete(IndexSet(integer: originalIndex))
                             }
                         },
-                        showWarning: hasUnusualQuantity(sortedIngredients[index]),
+                        showWarning: ViewHelper.hasUnusualQuantity(sortedIngredients[index]),
                         shouldDismissFocus: $shouldDismissFocus
                     )
                     .transition(.asymmetric(
@@ -307,17 +307,7 @@ struct IngredientsListCard: View {
     }
     
     private func hasUnusualQuantity(_ ingredient: IngredientDetail) -> Bool {
-        guard let unit = ingredient.product?.unit?.name?.lowercased() else { return false }
-        let quantity = ingredient.quantity
-        
-        switch unit {
-        case "kg": return quantity > 5.0
-        case "g": return quantity > 2000
-        case "l": return quantity > 3.0
-        case "ml": return quantity > 2000
-        case "pcs", "pieces", "piece": return quantity > 20
-        default: return false
-        }
+        return ViewHelper.hasUnusualQuantity(ingredient)
     }
 }
 
@@ -503,12 +493,27 @@ struct SmartIngredientRow: View {
             
             // Warning message at the bottom
             if showWarning {
-                HStack {
-                    Text("Large quantity".localized())
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
                         .font(.caption)
                         .foregroundColor(Color.appWarning)
                     
-                    Spacer()
+                    VStack(alignment: .leading, spacing: 2) {
+                        if let info = DataValidationHelper.unusualQuantityMessage(for: ingredient) {
+                            Text(info.message)
+                                .font(.caption)
+                                .foregroundColor(Color.appWarning)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(info.suggestion)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text("Large quantity".localized())
+                                .font(.caption)
+                                .foregroundColor(Color.appWarning)
+                        }
+                    }
+                    Spacer(minLength: 0)
                 }
                 .padding(.top, 4)
             }
