@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct IngredientsStepView: View {
     @ObservedObject var viewModel: DishDetailsViewModel
@@ -75,7 +76,7 @@ struct IngredientsHeaderCard: View {
             // Icon with Badge
             ZStack {
                 Image(systemName: icon)
-                    .font(.system(size: 48, weight: .light))
+                    .font(Font(UIFont.preferredFont(forTextStyle: .largeTitle)).weight(.light))
                     .foregroundColor(Color.accent)
                 
                 if ingredientCount > 0 {
@@ -356,7 +357,7 @@ struct SmartIngredientRow: View {
             })
             .keyboardType(.decimalPad)
             .focused($isQuantityFieldFocused)
-            .font(.title3.weight(.semibold).monospacedDigit())
+            .font(Font(UIFont.preferredFont(forTextStyle: .title3)).weight(.semibold).monospacedDigit())
             .multilineTextAlignment(.center)
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
@@ -445,7 +446,7 @@ struct SmartIngredientRow: View {
                         Button(action: { startEditing() }) {
                             HStack(spacing: 4) {
                                 Text(formattedQuantity)
-                                    .font(.title3.weight(.semibold).monospacedDigit())
+                                    .font(Font(UIFont.preferredFont(forTextStyle: .title3)).weight(.semibold).monospacedDigit())
                                     .foregroundColor(.primary)
                                 
                                 if let unit = ingredient.product?.unit?.name {

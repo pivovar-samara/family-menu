@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 // MARK: - Reusable UI Components
 
@@ -213,7 +214,7 @@ struct ErrorView: View {
     var body: some View {
         VStack(spacing: 20) {
             Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 48, weight: .light))
+                .font(Font(UIFont.preferredFont(forTextStyle: .largeTitle)).weight(.light))
                 .foregroundColor(.appWarning)
             
             VStack(spacing: 8) {
@@ -272,7 +273,7 @@ struct EmptyStateView: View {
                 .frame(width: 120, height: 120)
                 .overlay(
                     Image(systemName: icon)
-                        .font(.system(size: 60, weight: .light))
+                        .font(Font(UIFont.preferredFont(forTextStyle: .largeTitle)).weight(.light))
                     .foregroundColor(Color.accent.opacity(0.6))
                 )
             

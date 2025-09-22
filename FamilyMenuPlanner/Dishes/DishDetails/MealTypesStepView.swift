@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct MealTypesStepView: View {
     @ObservedObject var viewModel: DishDetailsViewModel
@@ -46,7 +47,7 @@ struct HeaderCard: View {
         VStack(spacing: 16) {
             // Icon
             Image(systemName: icon)
-                .font(.system(size: 48, weight: .light))
+                .font(Font(UIFont.preferredFont(forTextStyle: .largeTitle)).weight(.light))
                 .foregroundColor(Color.accent)
             
             // Text Content

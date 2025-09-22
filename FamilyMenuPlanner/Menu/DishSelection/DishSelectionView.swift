@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct DishSelectionView: View {
     @Environment(\.dismiss) private var dismiss
@@ -269,7 +270,7 @@ struct EmptyDishSelectionView: View {
                 .frame(width: 120, height: 120)
                 .overlay(
                     Image(systemName: "fork.knife")
-                        .font(.system(size: 60, weight: .light))
+                        .font(Font(UIFont.preferredFont(forTextStyle: .largeTitle)).weight(.light))
                         .foregroundColor(Color.accent.opacity(0.6))
                 )
             VStack(spacing: 12) {
