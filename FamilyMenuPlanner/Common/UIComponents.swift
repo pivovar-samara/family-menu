@@ -30,8 +30,7 @@ struct FloatingActionButton: View {
 
 /// Progress indicator for multi-step forms
 struct ProgressIndicatorView: View {
-    let currentStep: Int
-    let totalSteps: Int
+    @Binding var selectedStep: DishFormStep
     let steps: [DishFormStep]
     
     var body: some View {
@@ -58,21 +57,28 @@ struct ProgressIndicatorView: View {
             // Step labels
             HStack {
                 ForEach(Array(steps.enumerated()), id: \.element) { index, step in
-                    VStack(spacing: 4) {
-                        Circle()
-                            .fill(index < currentStep ? Color.accent : Color.gray.opacity(0.3))
-                            .frame(width: 24, height: 24)
-                            .overlay(
-                                Text("\(index + 1)")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundColor(index < currentStep ? .white : .gray)
-                            )
-                        
-                        Text(step.displayName)
-                            .font(.caption2)
-                            .foregroundColor(index < currentStep ? .primary : .secondary)
-                            .multilineTextAlignment(.center)
+                    Button(action: {
+                        withAnimation {
+                            selectedStep = step
+                        }
+                    }) {
+                        VStack(spacing: 4) {
+                            Circle()
+                                .fill(index <= selectedStep.rawValue ? Color.accent : Color.gray.opacity(0.3))
+                                .frame(width: 24, height: 24)
+                                .overlay(
+                                    Text("\(index + 1)")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundColor(index <= selectedStep.rawValue ? .white : .gray)
+                                )
+                            
+                            Text(step.displayName)
+                                .font(.caption2)
+                                .foregroundColor(index <= selectedStep.rawValue ? .primary : .secondary)
+                                .multilineTextAlignment(.center)
+                        }
                     }
+                    .buttonStyle(PlainButtonStyle())
                     
                     if index < steps.count - 1 {
                         Spacer()
@@ -84,8 +90,9 @@ struct ProgressIndicatorView: View {
     }
     
     private var progress: Double {
+        let totalSteps = steps.count
         guard totalSteps > 1 else { return 1.0 }
-        return Double(currentStep - 1) / Double(totalSteps - 1)
+        return Double(selectedStep.rawValue) / Double(totalSteps - 1)
     }
 }
 
