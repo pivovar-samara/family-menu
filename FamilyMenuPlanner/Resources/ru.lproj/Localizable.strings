@@ -247,3 +247,6 @@
 "Select Products" = "Выберите продукты";
 "Add Product" = "Добавить продукт";
 "Syncing with iCloud…" = "Синхронизация с iCloud…";
+
+// Shopping List Progress
+"%d of %d purchased" = "%d из %d куплено";

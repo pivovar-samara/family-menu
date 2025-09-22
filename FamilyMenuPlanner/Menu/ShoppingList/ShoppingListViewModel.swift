@@ -56,6 +56,17 @@ class ShoppingListViewModel: ObservableObject {
     @Published var sortOption: ShoppingListSortOption = .nameAscending
     @Published var currentAlert: AlertItem?
     
+    // MARK: - Progress
+    /// Number of purchased (selected) items across the whole list
+    var purchasedCount: Int {
+        shoppingItems.filter { $0.isSelected }.count
+    }
+    
+    /// Total number of items in the shopping list
+    var totalCount: Int {
+        shoppingItems.count
+    }
+    
     private let alertManager = AlertQueueManager()
     private static let sortPreferenceKey = "ShoppingListSortPreference"
     private static let selectionKey = "ShoppingListSelection"

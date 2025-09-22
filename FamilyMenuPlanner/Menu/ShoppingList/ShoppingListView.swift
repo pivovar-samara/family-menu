@@ -18,6 +18,20 @@ struct ShoppingListView: View {
     
     var body: some View {
         List {
+            // Progress header
+            if !viewModel.shoppingItems.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    ProgressView(value: Double(viewModel.purchasedCount), total: Double(max(viewModel.totalCount, 1)))
+                        .tint(Color.accent)
+                    Text(String(format: "%d of %d purchased".localized(), viewModel.purchasedCount, viewModel.totalCount))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .accessibilityIdentifier("shopping_list_progress_label")
+                }
+                .padding(.vertical, 8)
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
             listContent
         }
         .listStyle(.plain)

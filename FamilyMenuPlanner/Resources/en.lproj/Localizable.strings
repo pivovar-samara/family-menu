@@ -244,3 +244,6 @@
 "Select Products" = "Select Products";
 "Add Product" = "Add Product";
 "Syncing with iCloud…" = "Syncing with iCloud…";
+
+// Shopping List Progress
+"%d of %d purchased" = "%d of %d purchased";
