@@ -334,57 +334,33 @@ struct ValidationCard: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Image(systemName: validationIssues.isEmpty ? "checkmark.shield" : "exclamationmark.shield")
-                    .foregroundColor(validationIssues.isEmpty ? Color.appSuccess : Color.appWarning)
-                    .font(.title3)
-                
-                Text("Validation".localized())
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                
-                Spacer()
-                
-                if validationIssues.isEmpty {
-                    Text("All good!".localized())
-                        .font(.caption.weight(.medium))
-                        .foregroundColor(Color.appSuccess)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.appSuccess.opacity(0.1))
-                        .cornerRadius(8)
-                }
-            }
-            
-            if validationIssues.isEmpty {
+        if validationIssues.isEmpty {
+            EmptyView()
+        } else {
+            VStack(alignment: .leading, spacing: 16) {
                 HStack {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(Color.appSuccess)
+                    Image(systemName: "exclamationmark.shield")
+                        .foregroundColor(Color.appWarning)
+                        .font(.title3)
                     
-                    Text("Your dish is ready to save!".localized())
-                        .font(.body)
+                    Text("Validation".localized())
+                        .font(.headline)
                         .foregroundColor(.primary)
+                    
+                    Spacer()
                 }
-                .padding(16)
-                .background(Color.appSuccess.opacity(0.05))
-                .cornerRadius(12)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.appSuccess.opacity(0.3), lineWidth: 1)
-                )
-            } else {
+                
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(validationIssues, id: \.message) { issue in
                         ValidationIssueRow(issue: issue)
                     }
                 }
             }
+            .padding(20)
+            .background(Color.appSecondaryBackground)
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.04), radius: 8)
         }
-        .padding(20)
-        .background(Color.appSecondaryBackground)
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.04), radius: 8)
     }
     
     private func hasUnusualQuantity(_ ingredient: IngredientDetail) -> Bool {
