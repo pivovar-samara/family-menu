@@ -286,6 +286,7 @@ class ViewHelper {
         }
         .foregroundColor(Color.accent)
         .tint(Color.accent)
+        .contentShape(Rectangle())
     }
 
     /// Applies empty state styling to a view

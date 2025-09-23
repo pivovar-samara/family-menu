@@ -26,6 +26,7 @@ struct FloatingActionButton: View {
                 .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
         }
         .buttonStyle(ScaleButtonStyle())
+        .contentShape(Rectangle())
     }
 }
 
@@ -80,6 +81,7 @@ struct ProgressIndicatorView: View {
                         }
                     }
                     .buttonStyle(PlainButtonStyle())
+                    .contentShape(Rectangle())
                     
                     if index < steps.count - 1 {
                         Spacer()
@@ -125,6 +127,7 @@ struct NavigationControlsView: View {
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 .disabled(!canProceed)
+                .contentShape(Rectangle())
             } else {
                 Button("Next".localized()) {
                     withAnimation {
@@ -133,6 +136,7 @@ struct NavigationControlsView: View {
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 .disabled(!canProceed)
+                .contentShape(Rectangle())
             }
         }
         .padding(.horizontal)
@@ -304,6 +308,7 @@ struct EmptyStateView: View {
                     .shadow(color: .black.opacity(0.1), radius: 4)
                 }
                 .buttonStyle(ScaleButtonStyle())
+                .contentShape(Rectangle())
             }
         }
         .padding(40)

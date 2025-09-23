@@ -199,6 +199,7 @@ struct ProductCardView: View {
                 }
                 .accessibilityIdentifier("EditProductButton")
                 .accessibilityLabel("Edit product")
+                .contentShape(Rectangle())
             }
 
             // Product name
@@ -218,6 +219,7 @@ struct ProductCardView: View {
             borderWidth: UIConstants.cardBorderWidth,
             padding: UIConstants.cardPadding
         )
+        .contentShape(Rectangle())
         .onTapGesture {
             onEdit()
         }

@@ -196,6 +196,7 @@ struct DishCardView: View {
                 }
                 .accessibilityIdentifier("edit_dish_button_\(dish.name ?? "unnamed")")
                 .accessibilityLabel("Edit dish")
+                .contentShape(Rectangle())
             }
             
             // Main Content
@@ -263,6 +264,7 @@ struct DishCardView: View {
             borderWidth: UIConstants.cardBorderWidth,
             padding: UIConstants.cardPadding
         )
+        .contentShape(Rectangle())
         .onTapGesture {
             onEdit()
         }
