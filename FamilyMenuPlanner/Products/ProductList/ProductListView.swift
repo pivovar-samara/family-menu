@@ -28,12 +28,15 @@ struct ProductListView: View {
         .searchable(text: $viewModel.searchText, prompt: "Search products...".localized())
         .navigationTitle("Products".localized())
         .overlay(alignment: .bottomTrailing) {
-            FloatingActionButton(sfSymbolName: "plus") {
+            FloatingActionButton(
+                sfSymbolName: "plus",
+                accessibilityLabel: "Add Product".localized(),
+                accessibilityIdentifier: "add_product_button"
+            ) {
                 viewModel.isAddingNewProduct = true
             }
             .padding(.trailing, 20)
             .padding(.bottom, 20)
-            .accessibilityIdentifier("add_product_button")
         }
         .modifier(productListToolbar)
         .modifier(productListAddSheet)
@@ -101,15 +104,11 @@ struct ProductListView: View {
                 } else {
                     ProductListRows(products: filteredProducts, onEdit: onEdit, onDelete: onDelete)
                 }
-                Color.clear
-                    .frame(height: 80)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
             }
             .accessibilityIdentifier("ProductList")
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(Color("BackgroundColor"))
+            .background(Color.appBackground)
         }
     }
 
@@ -121,6 +120,10 @@ struct ProductListView: View {
             ForEach(products, id: \.self) { product in
                 productCard(for: product)
             }
+            Color.clear
+                .frame(height: 80)
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
         }
         @ViewBuilder
         private func productCard(for product: Product) -> some View {
@@ -134,6 +137,7 @@ struct ProductListView: View {
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
             .accessibilityIdentifier("product_list_item_\(product.name ?? "unnamed")")
+            .accessibilityHint("Tap to edit this product".localized())
         }
     }
 
@@ -171,42 +175,35 @@ struct ProductCardView: View {
                 if let unitName = product.unit?.name?.localized(), !unitName.isEmpty {
                     ChipView(
                         text: unitName,
-                        backgroundColor: Color("AccentColor"),
-                        foregroundColor: .white,
-                        font: .caption.weight(.medium),
-                        horizontalPadding: UIConstants.chipHorizontalPadding,
-                        verticalPadding: UIConstants.chipVerticalPadding,
-                        cornerRadius: UIConstants.chipCornerRadius
+                        buttonStateStyle: .chip,
+                        isSelected: true,
+                        font: .caption
                     )
                 }
 
                 Spacer()
 
-                HStack(spacing: 12) {
+                // Visible Edit menu trigger
+                SwiftUI.Menu {
                     Button(action: onEdit) {
-                        Image(systemName: "pencil")
-                            .font(.title3)
-                            .foregroundColor(Color("AccentColor"))
-                            .frame(width: 32, height: 32)
-                            .background(Color("AccentColor").opacity(0.1))
-                            .cornerRadius(8)
+                        Label("Edit".localized(), systemImage: "pencil")
                     }
-                    .buttonStyle(ScaleButtonStyle())
-                    .accessibilityIdentifier("EditProductButton")
-                    .accessibilityLabel("Edit product")
-
-                    Button(action: { showDeleteConfirmation = true }) {
-                        Image(systemName: "trash")
-                            .font(.title3)
-                            .foregroundColor(.red)
-                            .frame(width: 32, height: 32)
-                            .background(Color.red.opacity(0.1))
-                            .cornerRadius(8)
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
+                    } label: {
+                        Label("Delete".localized(), systemImage: "trash")
                     }
-                    .buttonStyle(ScaleButtonStyle())
-                    .accessibilityIdentifier("DeleteProductButton")
-                    .accessibilityLabel("Delete product")
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.title3)
+                        .foregroundColor(Color.accent)
+                        .frame(width: 32, height: 32)
+                        .background(Color.accent.opacity(0.1))
+                        .cornerRadius(8)
                 }
+                .accessibilityIdentifier("EditProductButton")
+                .accessibilityLabel("Edit product".localized())
+                .contentShape(Rectangle())
             }
 
             // Product name
@@ -217,18 +214,20 @@ struct ProductCardView: View {
                 .multilineTextAlignment(.leading)
                 .accessibilityIdentifier("ProductNameLabel")
         }
-        .cardStyle(
+        .appCardStyle(
             cornerRadius: UIConstants.cardCornerRadius,
-            backgroundColor: Color("SecondaryBackgroundColor"),
+            background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.06),
             shadowRadius: UIConstants.cardShadowRadius,
-            borderColor: Color.gray.opacity(0.1),
+            borderColor: Color.appBorder,
             borderWidth: UIConstants.cardBorderWidth,
             padding: UIConstants.cardPadding
         )
+        .contentShape(Rectangle())
         .onTapGesture {
             onEdit()
         }
+        .accessibilityElement(children: .contain)
         .confirmationDialog(
             "Delete Product".localized(),
             isPresented: $showDeleteConfirmation,
@@ -241,7 +240,6 @@ struct ProductCardView: View {
         } message: {
             Text("Are you sure you want to delete this product?".localized())
         }
-        .accessibilityElement(children: .contain)
     }
 }
 

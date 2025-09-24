@@ -27,7 +27,7 @@ extension StylingHelper {
     /// - Parameter mealType: The meal type object
     /// - Returns: Color for the meal type
     static func mealTypeColor(for mealType: MealType) -> Color {
-        guard let name = mealType.name?.lowercased() else { return .orange }
+        guard let name = mealType.name?.lowercased() else { return .mealLunch }
         return mealTypeColor(for: name)
     }
     
@@ -50,10 +50,14 @@ extension StylingHelper {
     static func mealTypeColor(for mealTypeName: String) -> Color {
         let name = mealTypeName.lowercased()
         switch name {
-        case "breakfast": return .orange
-        case "lunch": return .yellow
-        case "dinner": return .purple
-        default: return Color("AccentColor")
+        case "breakfast":
+            return Color("MealBreakfast")
+        case "lunch":
+            return Color("MealLunch")
+        case "dinner":
+            return Color("MealDinner")
+        default:
+            return Color.accent
         }
     }
 }
@@ -129,7 +133,7 @@ extension StylingHelper {
         case "cup", "cups":
             return .purple
         default:
-            return Color("AccentColor")
+            return Color.accent
         }
     }
     
@@ -163,9 +167,9 @@ extension StylingHelper {
     /// - Returns: Tuple with color and icon
     static func validationStatus(isValid: Bool) -> (color: Color, icon: String) {
         if isValid {
-            return (.green, "checkmark.circle.fill")
+            return (Color.appSuccess, "checkmark.circle.fill")
         } else {
-            return (.red, "xmark.circle.fill")
+            return (Color.appError, "xmark.circle.fill")
         }
     }
     
@@ -174,7 +178,7 @@ extension StylingHelper {
     /// - Returns: Tuple with color and icon
     static func completionStatus(isCompleted: Bool) -> (color: Color, icon: String) {
         if isCompleted {
-            return (.green, "checkmark.circle.fill")
+            return (Color.appSuccess, "checkmark.circle.fill")
         } else {
             return (.gray, "circle")
         }

@@ -42,29 +42,32 @@ struct ProductSelectionView: View {
 
             // Spacer to keep content above any bottom elements
             Color.clear
-                .frame(height: 20)
+                .frame(height: 80)
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .background(Color("BackgroundColor"))
+        .background(Color.appBackground)
         .navigationTitle("Select Product".localized())
         .searchable(text: $viewModel.searchText, prompt: "Search products...".localized())
         .overlay(alignment: .bottomTrailing) {
-            FloatingActionButton(sfSymbolName: "plus") {
+            FloatingActionButton(
+                sfSymbolName: "plus",
+                accessibilityLabel: "Add Product".localized(),
+                accessibilityIdentifier: "add_product_button"
+            ) {
                 viewModel.isAddingNewProduct = true
             }
             .padding(.trailing, 20)
             .padding(.bottom, 20)
-            .accessibilityIdentifier("add_product_button")
         }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel".localized()) {
                     dismiss()
                 }
-                .foregroundColor(Color("AccentColor"))
+                .foregroundColor(Color.accent)
             }
             if viewModel.selectionMode == .multiple {
                 ToolbarItem(placement: .confirmationAction) {
@@ -73,7 +76,7 @@ struct ProductSelectionView: View {
                         dismiss()
                     }
                     .disabled(viewModel.selectedProducts.isEmpty)
-                    .foregroundColor(Color("AccentColor"))
+                    .foregroundColor(Color.accent)
                     .accessibilityIdentifier("product_selection_done_button")
                 }
             }
@@ -108,7 +111,7 @@ struct ProductSelectionCardView: View {
                 // Product Icon with Selection State
                 ZStack {
                     Circle()
-                        .fill(isSelected ? Color("AccentColor") : Color("AccentColor").opacity(0.1))
+                        .fill(isSelected ? Color.accent : Color.accent.opacity(0.1))
                         .frame(width: 44, height: 44)
                     
                     if isSelected {
@@ -118,7 +121,7 @@ struct ProductSelectionCardView: View {
                     } else {
                         Image(systemName: "cube.box")
                             .font(.title3)
-                            .foregroundColor(Color("AccentColor"))
+                            .foregroundColor(Color.accent)
                     }
                 }
                 
@@ -151,7 +154,7 @@ struct ProductSelectionCardView: View {
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.title2)
-                        .foregroundColor(Color("AccentColor"))
+                        .foregroundColor(Color.accent)
                 } else {
                     Image(systemName: "circle")
                         .font(.title2)
@@ -161,11 +164,11 @@ struct ProductSelectionCardView: View {
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(isSelected ? Color("AccentColor").opacity(0.05) : Color("SecondaryBackgroundColor"))
+                    .fill(isSelected ? Color.accent.opacity(0.05) : Color.appSecondaryBackground)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(
-                                isSelected ? Color("AccentColor") : Color.gray.opacity(0.2),
+                                isSelected ? Color.accent : Color.appBorder,
                                 lineWidth: isSelected ? 2 : 1
                             )
                     )

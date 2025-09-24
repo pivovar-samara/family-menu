@@ -15,7 +15,7 @@ struct ContentView: View {
     var body: some View {
         if appStateManager.isLoading {
             ZStack {
-                Color("BackgroundColor")
+                Color.appBackground
                     .ignoresSafeArea()
                 VStack(spacing: 16) {
                     ProgressView("Loading...".localized())
@@ -90,13 +90,13 @@ struct ErrorRecoveryView: View {
 
     var body: some View {
         ZStack {
-            Color("BackgroundColor")
+            Color.appBackground
                 .ignoresSafeArea()
             
             VStack(spacing: 20) {
                 Image(systemName: "exclamationmark.triangle")
                     .font(.largeTitle)
-                    .foregroundColor(.orange)
+                    .foregroundColor(Color.appWarning)
                 
                 Text("App Initialization Error".localized())
                     .font(.title2)

@@ -21,8 +21,7 @@ struct DishDetailsView: View {
         VStack(spacing: 0) {
             // Progress Indicator
             ProgressIndicatorView(
-                currentStep: currentStep.rawValue + 1,
-                totalSteps: DishFormStep.allCases.count,
+                selectedStep: $currentStep,
                 steps: DishFormStep.allCases
             )
             .padding(.top, 24)
@@ -62,7 +61,7 @@ struct DishDetailsView: View {
             .padding(.horizontal)
             .padding(.bottom)
         }
-        .background(Color("BackgroundColor"))
+        .background(Color.appBackground)
         .onAppear {
             viewModel.loadDish()
             viewModel.loadIngredients()

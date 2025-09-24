@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct MealTypesStepView: View {
     @ObservedObject var viewModel: DishDetailsViewModel
@@ -32,7 +33,7 @@ struct MealTypesStepView: View {
             .padding(.horizontal, 20)
             .padding(.top, 20)
         }
-        .background(Color("BackgroundColor"))
+        .background(Color.appBackground)
     }
 }
 
@@ -46,8 +47,8 @@ struct HeaderCard: View {
         VStack(spacing: 16) {
             // Icon
             Image(systemName: icon)
-                .font(.system(size: 48, weight: .light))
-                .foregroundColor(Color("AccentColor"))
+                .font(Font(UIFont.preferredFont(forTextStyle: .largeTitle)).weight(.light))
+                .foregroundColor(Color.accent)
             
             // Text Content
             VStack(spacing: 8) {
@@ -62,9 +63,9 @@ struct HeaderCard: View {
                     .multilineTextAlignment(.center)
             }
         }
-        .cardStyle(
+        .appCardStyle(
             cornerRadius: 20,
-            backgroundColor: Color("SecondaryBackgroundColor"),
+            background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.04),
             shadowRadius: 8,
             borderColor: Color.clear,
@@ -89,7 +90,7 @@ struct MealTypesGridCard: View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
                 Image(systemName: "square.grid.2x2")
-                    .foregroundColor(Color("AccentColor"))
+                    .foregroundColor(Color.accent)
                     .font(.title3)
                 
                 Text("Meal Types".localized())
@@ -100,7 +101,8 @@ struct MealTypesGridCard: View {
                 
                 ChipView(
                     text: String.localizedStringWithFormat("%d selected".localized(), selectedMealTypes.count),
-                    backgroundColor: Color("AccentColor").opacity(0.1),
+                    buttonStateStyle: .chip,
+                    isSelected: false,
                     font: .caption,
                     horizontalPadding: 8,
                     verticalPadding: 4,
@@ -118,9 +120,9 @@ struct MealTypesGridCard: View {
                 }
             }
         }
-        .cardStyle(
+        .appCardStyle(
             cornerRadius: 16,
-            backgroundColor: Color("SecondaryBackgroundColor"),
+            background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.04),
             shadowRadius: 8,
             borderColor: Color.clear,
@@ -147,13 +149,8 @@ struct MealTypeCard: View {
     }
     
     private var mealTypeColor: Color {
-        guard let name = mealType.name?.lowercased() else { return .orange }
-        switch name {
-        case "breakfast": return .orange
-        case "lunch": return .yellow
-        case "dinner": return .purple
-        default: return Color("AccentColor")
-        }
+        guard let name = mealType.name else { return Color.accent }
+        return StylingHelper.mealTypeColor(for: name)
     }
     
     var body: some View {
@@ -175,27 +172,33 @@ struct MealTypeCard: View {
                     .font(.body.weight(isSelected ? .semibold : .medium))
                     .foregroundColor(isSelected ? .primary : .secondary)
                     .multilineTextAlignment(.center)
+                    .lineLimit(1)
+                    .allowsTightening(false)
+                    .truncationMode(.tail)
                     .frame(minWidth: 100)
                 
                 // Selection Indicator
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.title3)
-                        .foregroundColor(Color("AccentColor"))
+                        .foregroundColor(Color.accent)
                 }
             }
-            .cardStyle(
+            .appCardStyle(
                 cornerRadius: 16,
-                backgroundColor: isSelected ? Color("AccentColor").opacity(0.05) : Color("BackgroundColor"),
+                background: isSelected ? Color.accent.opacity(0.05) : Color.appChipBackground,
                 shadowColor: Color.clear,
                 shadowRadius: 0,
-                borderColor: isSelected ? Color("AccentColor") : Color.gray.opacity(0.3),
+                borderColor: isSelected ? Color.accent : Color.appBorder,
                 borderWidth: isSelected ? 2 : 1,
                 padding: 16
             )
         }
         .buttonStyle(ScaleButtonStyle())
         .accessibilityIdentifier("mealType" + (mealType.name?.replacingOccurrences(of: " ", with: "") ?? ""))
+        .accessibilityLabel(mealType.name?.localized() ?? "")
+        .accessibilityHint(isSelected ? "Currently selected".localized() : "Tap to select this meal type".localized())
+        .accessibilityAddTraits(.isButton)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
     }
 } 

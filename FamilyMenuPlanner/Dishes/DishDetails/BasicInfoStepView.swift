@@ -54,7 +54,7 @@ struct BasicInfoStepView: View {
             .padding(.horizontal, 20)
             .padding(.top, 20)
         }
-        .background(Color("BackgroundColor"))
+        .background(Color.appBackground)
         .onAppear {
             viewModel.descriptionText = viewModel.dish?.details ?? ""
         }
@@ -73,7 +73,7 @@ struct HeroInfoCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Image(systemName: "textformat")
-                        .foregroundColor(Color("AccentColor"))
+                        .foregroundColor(Color.accent)
                         .font(.title3)
                     
                     Text("Dish Name".localized())
@@ -86,11 +86,13 @@ struct HeroInfoCard: View {
                     .focused(focusState, equals: focusValue)
                     .autocorrectionDisabled(true)
                     .textInputAutocapitalization(.words)
+                    .accessibilityLabel(Text("Dish Name".localized()))
+                    .accessibilityHint(Text("Enter dish name".localized()))
             }
         }
-        .cardStyle(
+        .appCardStyle(
             cornerRadius: 20,
-            backgroundColor: Color("SecondaryBackgroundColor"),
+            background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.06),
             shadowRadius: 12,
             borderColor: Color.clear,
@@ -110,7 +112,7 @@ struct DescriptionCard: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "text.alignleft")
-                    .foregroundColor(Color("AccentColor"))
+                    .foregroundColor(Color.accent)
                     .font(.title3)
                 
                 Text("Recipe".localized())
@@ -121,17 +123,15 @@ struct DescriptionCard: View {
                 
                 ChipView(
                     text: "Optional".localized(),
-                    backgroundColor: Color.gray.opacity(0.2),
-                    font: .caption,
-                    horizontalPadding: 8,
-                    verticalPadding: 4,
-                    cornerRadius: 8
+                    buttonStateStyle: .chip,
+                    isSelected: false,
+                    font: .caption
                 )
             }
             
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                    .stroke(Color.appBorder, lineWidth: 1)
                     .background(Color.clear)
                 
                 TextEditor(text: $description)
@@ -141,12 +141,14 @@ struct DescriptionCard: View {
                     .focused(focusState, equals: focusValue)
                     .autocorrectionDisabled(true)
                     .textInputAutocapitalization(.sentences)
+                    .accessibilityLabel(Text("Recipe".localized()))
+                    .accessibilityHint(Text("Optional".localized()))
             }
             .frame(minHeight: 100)
         }
-        .cardStyle(
+        .appCardStyle(
             cornerRadius: 16,
-            backgroundColor: Color("SecondaryBackgroundColor"),
+            background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.04),
             shadowRadius: 8,
             borderColor: Color.clear,
@@ -166,7 +168,7 @@ struct CategorySelectionCard: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "tag")
-                    .foregroundColor(Color("AccentColor"))
+                    .foregroundColor(Color.accent)
                     .font(.title3)
                 
                 Text("Category".localized())
@@ -180,34 +182,26 @@ struct CategorySelectionCard: View {
                 // No Category Option
                 ChipView(
                     text: "No Category".localized(),
+                    buttonStateStyle: .chip,
                     isSelected: selectedCategory == nil,
-                    backgroundColor: selectedCategory == nil ? Color("AccentColor") : Color("BackgroundColor"),
-                    foregroundColor: selectedCategory == nil ? .white : .primary,
-                    font: .body.weight(selectedCategory == nil ? .semibold : .medium),
-                    horizontalPadding: 16,
-                    verticalPadding: 10,
-                    cornerRadius: 20,
+                    font: .caption,
                     onTap: { onCategorySelected(nil) }
                 )
                 
                 ForEach(categories, id: \.self) { category in
                     ChipView(
                         text: category.name?.localized() ?? "",
+                        buttonStateStyle: .chip,
                         isSelected: selectedCategory == category,
-                        backgroundColor: selectedCategory == category ? Color("AccentColor") : Color("BackgroundColor"),
-                        foregroundColor: selectedCategory == category ? .white : .primary,
-                        font: .body.weight(selectedCategory == category ? .semibold : .medium),
-                        horizontalPadding: 16,
-                        verticalPadding: 10,
-                        cornerRadius: 20,
+                        font: .caption,
                         onTap: { onCategorySelected(category) }
                     )
                 }
             }
         }
-        .cardStyle(
+        .appCardStyle(
             cornerRadius: 16,
-            backgroundColor: Color("SecondaryBackgroundColor"),
+            background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.04),
             shadowRadius: 8,
             borderColor: Color.clear,

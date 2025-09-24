@@ -29,12 +29,15 @@ struct DishListView: View {
         .modifier(dishListEditSheet)
         .modifier(dishListAlert)
         .overlay(alignment: .bottomTrailing) {
-            FloatingActionButton(sfSymbolName: "plus") {
+            FloatingActionButton(
+                sfSymbolName: "plus",
+                accessibilityLabel: "Add New Dish".localized(),
+                accessibilityIdentifier: "add_dish_button"
+            ) {
                 viewModel.isAddingNewDish = true
             }
             .padding(.trailing, 20)
             .padding(.bottom, 20)
-            .accessibilityIdentifier("add_dish_button")
         }
         .onAppear {
             viewModel.loadDishes()
@@ -98,14 +101,10 @@ struct DishListView: View {
                 } else {
                     DishListRows(dishes: filteredDishes, onEdit: onEdit, onDelete: onDelete)
                 }
-                Color.clear
-                    .frame(height: 80)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(Color("BackgroundColor"))
+            .background(Color.appBackground)
         }
     }
 
@@ -117,6 +116,10 @@ struct DishListView: View {
             ForEach(dishes, id: \.self) { dish in
                 dishCard(for: dish)
             }
+            Color.clear
+                .frame(height: 80)
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
         }
         @ViewBuilder
         private func dishCard(for dish: Dish) -> some View {
@@ -168,45 +171,35 @@ struct DishCardView: View {
                 if let categoryName = dish.category?.name {
                     ChipView(
                         text: categoryName.localized(),
-                        backgroundColor: categoryColor(for: categoryName),
-                        foregroundColor: .white,
-                        font: .caption.weight(.medium),
-                        horizontalPadding: UIConstants.chipHorizontalPadding,
-                        verticalPadding: UIConstants.chipVerticalPadding,
-                        cornerRadius: UIConstants.chipCornerRadius
+                        buttonStateStyle: .chipTint(StylingHelper.categoryColor(for: categoryName)),
+                        isSelected: true,
+                        font: .caption
                     )
                 }
                 
                 Spacer()
                 
-                // Action buttons
-                HStack(spacing: 12) {
+                // Visible Edit menu trigger
+                SwiftUI.Menu {
                     Button(action: onEdit) {
-                        Image(systemName: "pencil")
-                            .font(.title3)
-                            .foregroundColor(Color("AccentColor"))
-                            .frame(width: 32, height: 32)
-                            .background(Color("AccentColor").opacity(0.1))
-                            .cornerRadius(8)
+                        Label("Edit".localized(), systemImage: "pencil")
                     }
-                    .buttonStyle(ScaleButtonStyle())
-                    .accessibilityIdentifier("edit_dish_button_\(dish.name ?? "unnamed")")
-                    .accessibilityLabel("Edit dish")
-                    
-                    Button(action: {
+                    Button(role: .destructive) {
                         showDeleteConfirmation = true
-                    }) {
-                        Image(systemName: "trash")
-                            .font(.title3)
-                            .foregroundColor(.red)
-                            .frame(width: 32, height: 32)
-                            .background(Color.red.opacity(0.1))
-                            .cornerRadius(8)
+                    } label: {
+                        Label("Delete".localized(), systemImage: "trash")
                     }
-                    .buttonStyle(ScaleButtonStyle())
-                    .accessibilityIdentifier("delete_dish_button_\(dish.name ?? "unnamed")")
-                    .accessibilityLabel("Delete dish")
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.title3)
+                        .foregroundColor(Color.accent)
+                        .frame(width: 32, height: 32)
+                        .background(Color.accent.opacity(0.1))
+                        .cornerRadius(8)
                 }
+                .accessibilityIdentifier("edit_dish_button_\(dish.name ?? "unnamed")")
+                .accessibilityLabel("Edit dish".localized())
+                .contentShape(Rectangle())
             }
             
             // Main Content
@@ -214,7 +207,7 @@ struct DishCardView: View {
                 // Dish name with icon
                 HStack(spacing: 12) {
                     Image(systemName: "fork.knife")
-                        .foregroundColor(Color("AccentColor"))
+                        .foregroundColor(Color.accent)
                         .font(.title2)
                         .frame(width: 24, height: 24)
                     
@@ -254,13 +247,9 @@ struct DishCardView: View {
                                 ChipView(
                                     text: mealType.name?.localized() ?? "",
                                     icon: ViewHelper.mealTypeIcon(for: mealType),
-                                    backgroundColor: Color("BackgroundColor"),
-                                    foregroundColor: .secondary,
-                                    borderColor: ViewHelper.mealTypeColor(for: mealType).opacity(0.3),
-                                    font: .caption,
-                                    horizontalPadding: 8,
-                                    verticalPadding: 4,
-                                    cornerRadius: 8
+                                    buttonStateStyle: .chipTint(StylingHelper.mealTypeColor(for: mealType)),
+                                    isSelected: false,
+                                    font: .caption
                                 )
                             }
                         }
@@ -269,15 +258,16 @@ struct DishCardView: View {
                 }
             }
         }
-        .cardStyle(
+        .appCardStyle(
             cornerRadius: UIConstants.cardCornerRadius,
-            backgroundColor: Color("SecondaryBackgroundColor"),
+            background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.06),
             shadowRadius: UIConstants.cardShadowRadius,
-            borderColor: Color.gray.opacity(0.1),
+            borderColor: Color.appBorder,
             borderWidth: UIConstants.cardBorderWidth,
             padding: UIConstants.cardPadding
         )
+        .contentShape(Rectangle())
         .onTapGesture {
             onEdit()
         }
@@ -302,53 +292,7 @@ struct DishCardView: View {
     }
 }
 
-// MARK: - Supporting Components
-
-public struct DishListCategoryChip: View {
-    let title: String
-    let color: Color
-    
-    public var body: some View {
-        Text(title)
-            .font(.caption.weight(.medium))
-            .foregroundColor(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                LinearGradient(
-                    colors: [color, color.opacity(0.8)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .cornerRadius(12)
-            .shadow(color: color.opacity(0.3), radius: 2)
-    }
-}
-
-public struct DishListMealTypeChip: View {
-    let mealType: MealType
-    
-    public var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: ViewHelper.mealTypeIcon(for: mealType))
-                .font(.caption2)
-                .foregroundColor(ViewHelper.mealTypeColor(for: mealType))
-            
-            Text(mealType.name?.localized() ?? "")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(Color("BackgroundColor"))
-        .cornerRadius(8)
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(ViewHelper.mealTypeColor(for: mealType).opacity(0.3), lineWidth: 1)
-        )
-    }
-}
+// Legacy chip components were removed in favor of ChipView with ChipStyle
 
 struct EmptyDishListView: View {
     let onAddDish: () -> Void

@@ -138,8 +138,6 @@
 "No ingredients added" = "Ингредиенты не добавлены";
 "Unknown Product" = "Неизвестный продукт";
 "Validation" = "Проверка";
-"All good!" = "Всё в порядке!";
-"Your dish is ready to save!" = "Ваше блюдо готово к сохранению!";
 "Dish name is required" = "Название блюда обязательно";
 "Add a descriptive name for your dish" = "Добавьте описательное название для вашего блюда";
 "At least one meal type is required" = "Требуется хотя бы один тип приёма пищи";
@@ -151,6 +149,8 @@
 "Some quantities seem unusually large" = "Некоторые количества кажутся необычно большими";
 "Double-check ingredient quantities" = "Проверьте количества ингредиентов";
 "Need to make changes?" = "Нужно внести изменения?";
+"ingredient_unusual_quantity_message" = "%@ количество может быть необычным (%@ %@). Типичный диапазон: %@–%@ %@";
+"ingredient_unusual_quantity_suggestion" = "Проверьте количество этого ингредиента";
 "Use the Back button or swipe to return to previous steps and make any necessary changes." = "Используйте кнопку Назад или смахивание, чтобы вернуться к предыдущим шагам и внести необходимые изменения.";
 
 // Error Handling and Recovery
@@ -204,6 +204,14 @@
 "no unit" = "без единицы";
 "Currently selected" = "В настоящее время выбрано";
 "Tap to select this product" = "Нажмите, чтобы выбрать этот продукт";
+"Tap to edit this dish" = "Нажмите, чтобы редактировать это блюдо";
+"Tap to edit this product" = "Нажмите, чтобы редактировать этот продукт";
+"Edit dish" = "Редактировать блюдо";
+"Edit product" = "Редактировать продукт";
+"Tap to select this meal type" = "Нажмите, чтобы выбрать это время";
+"Tap to edit quantity" = "Нажмите, чтобы изменить количество";
+"Decrease quantity" = "Уменьшить количество";
+"Increase quantity" = "Увеличить количество";
 
 // Shopping List
 "Search items..." = "Поиск товаров...";
@@ -246,3 +254,7 @@
 "Add Selected" = "Добавить выбранные";
 "Select Products" = "Выберите продукты";
 "Add Product" = "Добавить продукт";
+"Syncing with iCloud…" = "Синхронизация с iCloud…";
+
+// Shopping List Progress
+"%d of %d purchased" = "%d из %d куплено";

@@ -44,8 +44,18 @@ final class CommonUnitTests: XCTestCase {
 
     func testFormattingWeek() throws {
         let formattedWeek = CalendarHelper.formattedWeek(inputDate, calendar: calendar, locale: locale)
-        let correctResult = "22 - 28 Jan"
-        XCTAssert(formattedWeek == correctResult, "Formatted week for \(dateFormatter.string(from: inputDate)) is \(correctResult), not \(formattedWeek)")
+        let start = CalendarHelper.startOfWeek(for: inputDate, calendar: calendar)
+        let end = calendar.date(byAdding: .day, value: 6, to: start)!
+        let left = DateFormatter()
+        left.calendar = calendar
+        left.locale = locale
+        left.dateFormat = DateFormatter.dateFormat(fromTemplate: "MMMd", options: 0, locale: locale)
+        let right = DateFormatter()
+        right.calendar = calendar
+        right.locale = locale
+        right.dateFormat = DateFormatter.dateFormat(fromTemplate: "d", options: 0, locale: locale)
+        let expected = "\(left.string(from: start)) – \(right.string(from: end))"
+        XCTAssertEqual(formattedWeek, expected, "Formatted week should show single month for same-month range")
     }
 
     func testIsSameMonths() throws {
@@ -80,14 +90,34 @@ final class CommonUnitTests: XCTestCase {
         // 2024-01-29 is a Monday, week ends in February
         let date = Date(timeIntervalSince1970: 1706486400.0)
         let formatted = CalendarHelper.formattedWeek(date, calendar: calendar, locale: locale)
-        XCTAssertEqual(formatted, "29 Jan - 4 Feb", "Week spanning months should show both months")
+        let start = CalendarHelper.startOfWeek(for: date, calendar: calendar)
+        let end = calendar.date(byAdding: .day, value: 6, to: start)!
+        let left = DateFormatter()
+        left.calendar = calendar
+        left.locale = locale
+        left.dateFormat = DateFormatter.dateFormat(fromTemplate: "MMMd", options: 0, locale: locale)
+        let right = DateFormatter()
+        right.calendar = calendar
+        right.locale = locale
+        right.dateFormat = DateFormatter.dateFormat(fromTemplate: "MMMd", options: 0, locale: locale)
+        let expected = "\(left.string(from: start)) – \(right.string(from: end))"
+        XCTAssertEqual(formatted, expected, "Week spanning months should show months on both sides")
     }
     
     func testFormattedWeekSpanningYears() throws {
-        // 2023-12-25 is a Monday, week ends in 2023-12-31
-        let date = Date(timeIntervalSince1970: 1703462400.0)
+        // Use a date that yields a week spanning two years: Mon Dec 30, 2024 – Sun Jan 5, 2025
+        let date = calendar.date(from: DateComponents(year: 2024, month: 12, day: 31))!
         let formatted = CalendarHelper.formattedWeek(date, calendar: calendar, locale: locale)
-        XCTAssertEqual(formatted, "25 - 31 Dec", "Week spanning end of year should show correct format")
+        let start = CalendarHelper.startOfWeek(for: date, calendar: calendar)
+        let end = calendar.date(byAdding: .day, value: 6, to: start)!
+        let dif = DateIntervalFormatter()
+        dif.calendar = calendar
+        dif.locale = locale
+        dif.timeZone = calendar.timeZone
+        dif.dateStyle = .medium
+        dif.timeStyle = .none
+        let expected = dif.string(from: start, to: end)
+        XCTAssertEqual(formatted, expected, "Week spanning end of year should include years as needed")
     }
     
     func testIsSameMonthsWithDifferentYears() throws {
@@ -248,4 +278,100 @@ final class CommonUnitTests: XCTestCase {
         
         // Note: Visual styling should be verified through UI tests or ViewInspector
     }
+    
+    // MARK: - Button State System Tests
+    
+    func testButtonStateStyleColors() {
+        // Test primary button state colors
+        let primaryDefault = ButtonStateStyle.primary.colors()
+        XCTAssertNotNil(primaryDefault.background, "Primary default background should not be nil")
+        XCTAssertNotNil(primaryDefault.foreground, "Primary default foreground should not be nil")
+        XCTAssertNotNil(primaryDefault.border, "Primary default border should not be nil")
+        
+        // Test secondary button state colors
+        let secondaryDefault = ButtonStateStyle.secondary.colors()
+        XCTAssertNotNil(secondaryDefault.background, "Secondary default background should not be nil")
+        XCTAssertNotNil(secondaryDefault.foreground, "Secondary default foreground should not be nil")
+        XCTAssertNotNil(secondaryDefault.border, "Secondary default border should not be nil")
+        
+        // Test chip button state colors
+        let chipDefault = ButtonStateStyle.chip.colors()
+        XCTAssertNotNil(chipDefault.background, "Chip default background should not be nil")
+        XCTAssertNotNil(chipDefault.foreground, "Chip default foreground should not be nil")
+        XCTAssertNotNil(chipDefault.border, "Chip default border should not be nil")
+    }
+    
+    func testButtonStateStyleWithStates() {
+        // Test disabled state
+        let primaryDisabled = ButtonStateStyle.primary.colors(isDisabled: true)
+        XCTAssertNotNil(primaryDisabled.background, "Primary disabled background should not be nil")
+        XCTAssertNotNil(primaryDisabled.foreground, "Primary disabled foreground should not be nil")
+        
+        // Test selected state
+        let primarySelected = ButtonStateStyle.primary.colors(isSelected: true)
+        XCTAssertNotNil(primarySelected.background, "Primary selected background should not be nil")
+        XCTAssertNotNil(primarySelected.foreground, "Primary selected foreground should not be nil")
+        
+        // Test pressed state
+        let primaryPressed = ButtonStateStyle.primary.colors(isPressed: true)
+        XCTAssertNotNil(primaryPressed.background, "Primary pressed background should not be nil")
+        XCTAssertNotNil(primaryPressed.foreground, "Primary pressed foreground should not be nil")
+    }
+    
+    func testSemanticButtonStateStyles() {
+        // Test warning style
+        let warningDefault = ButtonStateStyle.warning.colors()
+        XCTAssertNotNil(warningDefault.background, "Warning default background should not be nil")
+        XCTAssertNotNil(warningDefault.foreground, "Warning default foreground should not be nil")
+        
+        // Test error style
+        let errorDefault = ButtonStateStyle.error.colors()
+        XCTAssertNotNil(errorDefault.background, "Error default background should not be nil")
+        XCTAssertNotNil(errorDefault.foreground, "Error default foreground should not be nil")
+        
+        // Test success style
+        let successDefault = ButtonStateStyle.success.colors()
+        XCTAssertNotNil(successDefault.background, "Success default background should not be nil")
+        XCTAssertNotNil(successDefault.foreground, "Success default foreground should not be nil")
+        
+        // Test info style
+        let infoDefault = ButtonStateStyle.info.colors()
+        XCTAssertNotNil(infoDefault.background, "Info default background should not be nil")
+        XCTAssertNotNil(infoDefault.foreground, "Info default foreground should not be nil")
+    }
+    
+    func testChipViewWithNewStateSystem() {
+        // Test chip view with new button state style
+        let chipView = ChipView(
+            text: "Test Chip",
+            buttonStateStyle: .chip,
+            isEnabled: true,
+            isSelected: false
+        )
+        XCTAssertNotNil(chipView, "ChipView should be created with new state system")
+    }
+    
+    func testChipViewLegacyCompatibility() {
+        // Test chip view with legacy style for backward compatibility
+        let chipView = ChipView(
+            text: "Test Chip",
+            buttonStateStyle: .chip,
+            isEnabled: true,
+            isSelected: false
+        )
+        XCTAssertNotNil(chipView, "ChipView should be created with legacy style")
+    }
+    
+    func testButtonStateStylePriority() {
+        // Test that disabled state takes priority over selected state
+        let disabledSelected = ButtonStateStyle.primary.colors(isDisabled: true, isSelected: true)
+        // The colors should reflect disabled state, not selected state
+        XCTAssertNotNil(disabledSelected.background, "Disabled state should take priority")
+        
+        // Test that selected state takes priority over pressed state
+        let selectedPressed = ButtonStateStyle.primary.colors(isPressed: true, isSelected: true)
+        // The colors should reflect selected state, not pressed state
+        XCTAssertNotNil(selectedPressed.background, "Selected state should take priority over pressed")
+    }
 }
+

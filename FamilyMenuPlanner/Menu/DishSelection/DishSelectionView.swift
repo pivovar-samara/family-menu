@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct DishSelectionView: View {
     @Environment(\.dismiss) private var dismiss
@@ -39,9 +40,9 @@ struct DishSelectionView: View {
                         .padding(.vertical, 12)
                         .padding(.horizontal, 20)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color("BackgroundColor"))
+                        .background(Color.appBackground)
                         .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color("BackgroundColor"))
+                        .listRowBackground(Color.appBackground)
                         .listRowSeparator(.hidden)
                     ForEach(dishesForMealType, id: \.self) { dish in
                         DishSelectionCardView(
@@ -70,9 +71,9 @@ struct DishSelectionView: View {
                         .padding(.vertical, 12)
                         .padding(.horizontal, 20)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color("BackgroundColor"))
+                        .background(Color.appBackground)
                         .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color("BackgroundColor"))
+                        .listRowBackground(Color.appBackground)
                         .listRowSeparator(.hidden)
                     ForEach(otherDishes, id: \.self) { dish in
                         DishSelectionCardView(
@@ -102,7 +103,7 @@ struct DishSelectionView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .background(Color("BackgroundColor"))
+        .background(Color.appBackground)
         .navigationTitle("Select Dish".localized())
         .searchable(text: $viewModel.searchText, prompt: "Search dishes...".localized())
         .toolbar {
@@ -110,7 +111,7 @@ struct DishSelectionView: View {
                 Button("Done".localized()) {
                     dismiss()
                 }
-                .foregroundColor(Color("AccentColor"))
+                .foregroundColor(Color.accent)
                 .accessibilityIdentifier("dish_selection_done_button")
             }
         }
@@ -139,10 +140,10 @@ struct DishSelectionView: View {
             Spacer()
             if viewModel.selectedDishes.contains(dish) {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(Color("AccentColor"))
+                    .foregroundColor(Color.accent)
             }
         }
-        .listRowBackground(Color("SecondaryBackgroundColor"))
+        .listRowBackground(Color.appSecondaryBackground)
         .contentShape(Rectangle())
         .onTapGesture {
             if !viewModel.selectedDishes.contains(dish) {
@@ -186,7 +187,7 @@ struct DishSelectionCardView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: "fork.knife")
-                        .foregroundColor(Color("AccentColor"))
+                        .foregroundColor(Color.accent)
                         .font(.title2)
                         .frame(width: 24, height: 24)
                     Text(dish.name ?? "Unnamed Dish".localized())
@@ -198,7 +199,7 @@ struct DishSelectionCardView: View {
                     if isSelected {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.title2)
-                            .foregroundColor(Color("AccentColor"))
+                            .foregroundColor(Color.accent)
                     } else {
                         Image(systemName: "circle")
                             .font(.title2)
@@ -207,16 +208,24 @@ struct DishSelectionCardView: View {
                 }
                 // Category chip
                 if let categoryName = dish.category?.name {
-                    DishListCategoryChip(
-                        title: categoryName.localized(),
-                        color: categoryColor(for: categoryName)
+                    ChipView(
+                        text: categoryName.localized(),
+                        buttonStateStyle: .chipTint(StylingHelper.categoryColor(for: categoryName)),
+                        isSelected: true,
+                        font: .caption
                     )
                 }
                 // Meal type chips
                 if let mealTypes = dish.mealTypes?.allObjects as? [MealType], !mealTypes.isEmpty {
                     HStack(spacing: 8) {
                         ForEach(mealTypes, id: \.self) { mealType in
-                            DishListMealTypeChip(mealType: mealType)
+                            ChipView(
+                                text: mealType.name?.localized() ?? "",
+                                icon: ViewHelper.mealTypeIcon(for: mealType),
+                                buttonStateStyle: .chipTint(StylingHelper.mealTypeColor(for: mealType)),
+                                isSelected: false,
+                                font: .caption
+                            )
                         }
                     }
                 }
@@ -224,11 +233,11 @@ struct DishSelectionCardView: View {
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(isSelected ? Color("AccentColor").opacity(0.05) : Color("SecondaryBackgroundColor"))
+                    .fill(isSelected ? Color.accent.opacity(0.05) : Color.appSecondaryBackground)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(
-                                isSelected ? Color("AccentColor") : Color.gray.opacity(0.2),
+                                isSelected ? Color.accent : Color.appBorder,
                                 lineWidth: isSelected ? 2 : 1
                             )
                     )
@@ -253,7 +262,7 @@ struct EmptyDishSelectionView: View {
             RoundedRectangle(cornerRadius: 20)
                 .fill(
                     LinearGradient(
-                        colors: [Color("AccentColor").opacity(0.1), Color("AccentColor").opacity(0.05)],
+                        colors: [Color.accent.opacity(0.1), Color.accent.opacity(0.05)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -261,8 +270,8 @@ struct EmptyDishSelectionView: View {
                 .frame(width: 120, height: 120)
                 .overlay(
                     Image(systemName: "fork.knife")
-                        .font(.system(size: 60, weight: .light))
-                        .foregroundColor(Color("AccentColor").opacity(0.6))
+                        .font(Font(UIFont.preferredFont(forTextStyle: .largeTitle)).weight(.light))
+                        .foregroundColor(Color.accent.opacity(0.6))
                 )
             VStack(spacing: 12) {
                 Text("No Dishes Available".localized())
@@ -279,3 +288,4 @@ struct EmptyDishSelectionView: View {
         .frame(maxWidth: .infinity)
     }
 }
+

@@ -19,22 +19,27 @@ struct ReviewStepView: View {
                     subtitle: "Review your dish details".localized(),
                     icon: "checkmark.circle"
                 )
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text("Review".localized()))
                 
                 // Dish Summary Card
                 DishSummaryCard(viewModel: viewModel)
+                    .accessibilityElement(children: .contain)
                 
                 // Validation Card
                 ValidationCard(viewModel: viewModel)
+                    .accessibilityElement(children: .contain)
                 
                 // Quick Edit Actions
                 QuickEditActionsCard()
+                    .accessibilityElement(children: .contain)
                 
                 Spacer(minLength: 20) // Space for navigation controls
             }
             .padding(.horizontal, 20)
             .padding(.top, 20)
         }
-        .background(Color("BackgroundColor"))
+        .background(Color.appBackground)
     }
 }
 
@@ -49,7 +54,7 @@ struct DishSummaryCard: View {
             // Header
             HStack {
                 Image(systemName: "doc.text")
-                    .foregroundColor(Color("AccentColor"))
+                    .foregroundColor(Color.accent)
                     .font(.title3)
                 
                 Text("Dish Summary".localized())
@@ -100,14 +105,20 @@ struct DishSummaryCard: View {
                     if !viewModel.selectedMealTypes.isEmpty {
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                             ForEach(Array(viewModel.selectedMealTypes), id: \.self) { mealType in
-                                MealTypeChip(mealType: mealType)
+                                ChipView(
+                                    text: mealType.name?.localized() ?? "",
+                                    icon: ViewHelper.mealTypeIcon(for: mealType),
+                                    buttonStateStyle: .chip,
+                                    isSelected: false,
+                                    font: .caption
+                                )
                             }
                         }
                     } else {
                         HStack {
                             Spacer(minLength: 4)
                             Text("No meal types selected".localized())
-                                .foregroundColor(.red)
+                                .foregroundColor(Color.appError)
                                 .font(.body)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
@@ -129,7 +140,7 @@ struct DishSummaryCard: View {
                                 ForEach(viewModel.selectedIngredients, id: \.objectID) { ingredient in
                                     IngredientSummaryRow(
                                         ingredient: ingredient,
-                                        showWarning: hasUnusualQuantity(ingredient)
+                                        showWarning: ViewHelper.hasUnusualQuantity(ingredient)
                                     )
                                     .id("\(ingredient.objectID)-\(ingredient.quantity)-\(ingredient.product?.objectID.description ?? "")")
                                 }
@@ -139,7 +150,7 @@ struct DishSummaryCard: View {
                         HStack {
                             Spacer(minLength: 4)
                             Text("No ingredients added".localized())
-                                .foregroundColor(.red)
+                                .foregroundColor(Color.appError)
                                 .font(.body)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
@@ -148,23 +159,13 @@ struct DishSummaryCard: View {
             }
         }
         .padding(20)
-        .background(Color("SecondaryBackgroundColor"))
+        .background(Color.appSecondaryBackground)
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.04), radius: 8)
     }
     
     private func hasUnusualQuantity(_ ingredient: IngredientDetail) -> Bool {
-        guard let unit = ingredient.product?.unit?.name?.lowercased() else { return false }
-        let quantity = ingredient.quantity
-        
-        switch unit {
-        case "kg": return quantity > 5.0
-        case "g": return quantity > 2000
-        case "l": return quantity > 3.0
-        case "ml": return quantity > 2000
-        case "pcs", "pieces", "piece": return quantity > 20
-        default: return false
-        }
+        return ViewHelper.hasUnusualQuantity(ingredient)
     }
 }
 
@@ -178,7 +179,7 @@ struct SummarySection<Content: View>: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: icon)
-                    .foregroundColor(Color("AccentColor"))
+                    .foregroundColor(Color.accent)
                     .font(.body)
                 
                 Text(title)
@@ -208,47 +209,18 @@ struct SummaryRow: View {
             if isMultiline {
                 Text(value)
                     .font(.body)
-                    .foregroundColor(isValid ? .primary : .red)
+                    .foregroundColor(isValid ? .primary : Color.appError)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 Text(value)
                     .font(.body)
-                    .foregroundColor(isValid ? .primary : .red)
+                    .foregroundColor(isValid ? .primary : Color.appError)
             }
         }
     }
 }
 
-// MARK: - Meal Type Chip for Review
-struct MealTypeChip: View {
-    let mealType: MealType
-    
-    private var mealTypeColor: Color {
-        guard let name = mealType.name?.lowercased() else { return Color("AccentColor") }
-        switch name {
-        case "breakfast": return .orange
-        case "lunch": return .yellow
-        case "dinner": return .purple
-        default: return Color("AccentColor")
-        }
-    }
-    
-    var body: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(mealTypeColor)
-                .frame(width: 8, height: 8)
-            
-            Text(mealType.name?.localized() ?? "")
-                .font(.caption.weight(.medium))
-                .foregroundColor(.primary)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(mealTypeColor.opacity(0.1))
-        .cornerRadius(12)
-    }
-}
+// Replaced by ChipView with ChipStyle
 
 // MARK: - Ingredient Summary Row
 struct IngredientSummaryRow: View {
@@ -269,11 +241,11 @@ struct IngredientSummaryRow: View {
             if showWarning {
                 Image(systemName: "exclamationmark.circle.fill")
                     .font(.caption)
-                    .foregroundColor(.orange)
+                    .foregroundColor(Color.appWarning)
                     .frame(width: 12, height: 12)
             } else {
                 Circle()
-                    .fill(Color("AccentColor").opacity(0.2))
+                    .fill(Color.accent.opacity(0.2))
                     .frame(width: 6, height: 6)
             }
             
@@ -283,9 +255,16 @@ struct IngredientSummaryRow: View {
                     .foregroundColor(.primary)
                 
                 if showWarning {
-                    Text("Large quantity".localized())
-                        .font(.caption)
-                        .foregroundColor(.orange)
+                    if let info = DataValidationHelper.unusualQuantityMessage(for: ingredient) {
+                        Text(info.message)
+                            .font(.caption)
+                            .foregroundColor(.appWarning)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        Text("Large quantity".localized())
+                            .font(.caption)
+                            .foregroundColor(.appWarning)
+                    }
                 }
             }
             
@@ -294,7 +273,7 @@ struct IngredientSummaryRow: View {
             HStack(spacing: 4) {
                 Text(formattedQuantity)
                     .font(.body.weight(.medium).monospacedDigit())
-                    .foregroundColor(showWarning ? .orange : .primary)
+                    .foregroundColor(showWarning ? Color.appWarning : .primary)
                 
                 Text(ingredient.product?.unit?.name?.localized() ?? "")
                     .font(.caption)
@@ -345,74 +324,48 @@ struct ValidationCard: View {
             ))
         }
         
-        // Check for unusual quantities
-        let unusualQuantities = viewModel.selectedIngredients.filter { ingredient in
-            hasUnusualQuantity(ingredient)
-        }
-        
-        if !unusualQuantities.isEmpty {
-            issues.append(ValidationIssue(
-                type: .warning,
-                message: "Some quantities seem unusually large".localized(),
-                suggestion: "Double-check ingredient quantities".localized()
-            ))
+        // Per-ingredient unusual quantity details
+        for ingredient in viewModel.selectedIngredients {
+            if let info = DataValidationHelper.unusualQuantityMessage(for: ingredient) {
+                issues.append(ValidationIssue(
+                    type: .warning,
+                    message: info.message,
+                    suggestion: info.suggestion
+                ))
+            }
         }
         
         return issues
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Image(systemName: validationIssues.isEmpty ? "checkmark.shield" : "exclamationmark.shield")
-                    .foregroundColor(validationIssues.isEmpty ? .green : .orange)
-                    .font(.title3)
-                
-                Text("Validation".localized())
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                
-                Spacer()
-                
-                if validationIssues.isEmpty {
-                    Text("All good!".localized())
-                        .font(.caption.weight(.medium))
-                        .foregroundColor(.green)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.green.opacity(0.1))
-                        .cornerRadius(8)
-                }
-            }
-            
-            if validationIssues.isEmpty {
+        if validationIssues.isEmpty {
+            EmptyView()
+        } else {
+            VStack(alignment: .leading, spacing: 16) {
                 HStack {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
+                    Image(systemName: "exclamationmark.shield")
+                        .foregroundColor(Color.appWarning)
+                        .font(.title3)
                     
-                    Text("Your dish is ready to save!".localized())
-                        .font(.body)
+                    Text("Validation".localized())
+                        .font(.headline)
                         .foregroundColor(.primary)
+                    
+                    Spacer()
                 }
-                .padding(16)
-                .background(Color.green.opacity(0.05))
-                .cornerRadius(12)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.green.opacity(0.3), lineWidth: 1)
-                )
-            } else {
+                
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(validationIssues, id: \.message) { issue in
                         ValidationIssueRow(issue: issue)
                     }
                 }
             }
+            .padding(20)
+            .background(Color.appSecondaryBackground)
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.04), radius: 8)
         }
-        .padding(20)
-        .background(Color("SecondaryBackgroundColor"))
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.04), radius: 8)
     }
     
     private func hasUnusualQuantity(_ ingredient: IngredientDetail) -> Bool {
@@ -467,7 +420,7 @@ struct QuickEditActionsCard: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Image(systemName: "pencil.circle")
-                    .foregroundColor(Color("AccentColor"))
+                    .foregroundColor(Color.accent)
                     .font(.title3)
                 
                 Text("Need to make changes?".localized())
@@ -483,7 +436,7 @@ struct QuickEditActionsCard: View {
         .padding(20)
         .background(
             LinearGradient(
-                colors: [Color("AccentColor").opacity(0.05), Color("AccentColor").opacity(0.02)],
+                colors: [Color.accent.opacity(0.05), Color.accent.opacity(0.02)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -491,8 +444,9 @@ struct QuickEditActionsCard: View {
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color("AccentColor").opacity(0.2), lineWidth: 1)
+                .stroke(Color.accent.opacity(0.2), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.02), radius: 4)
     }
 } 
+

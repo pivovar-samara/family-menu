@@ -21,8 +21,8 @@ struct ValidationIssue {
         
         var color: Color {
             switch self {
-            case .error: return .red
-            case .warning: return .orange
+            case .error: return .appError
+            case .warning: return .appWarning
             }
         }
         
@@ -41,21 +41,48 @@ struct ValidationIssue {
 
 // MARK: - Ingredient Validation
 extension DataValidationHelper {
+    /// Centralized thresholds for quantity validation to avoid duplicated constants across helpers
+    private struct UnitQuantityThresholds {
+        let canonicalUnit: String
+        let typicalMin: Double
+        let typicalMax: Double
+        let unusualMax: Double
+        let absoluteMax: Double
+    }
+
+    /// Maps a unit string to its consolidated quantity thresholds
+    /// - Parameter unit: Raw unit string (any case, may include synonyms)
+    /// - Returns: Thresholds for the canonicalized unit, or nil if unknown
+    private static func thresholds(for unit: String) -> UnitQuantityThresholds? {
+        let u = unit.lowercased()
+        switch u {
+        case "kg", "kilogram", "kilograms":
+            // Typical 0.5–5.0 kg, unusual >= 5.0 kg, absolute max 50 kg
+            return UnitQuantityThresholds(canonicalUnit: "kg", typicalMin: 0.5, typicalMax: 5.0, unusualMax: 5.0, absoluteMax: 50)
+        case "g", "gram", "grams":
+            // Typical 10–2000 g, unusual >= 2000 g, absolute max 10000 g
+            return UnitQuantityThresholds(canonicalUnit: "g", typicalMin: 10, typicalMax: 2000, unusualMax: 2000, absoluteMax: 10000)
+        case "l", "liter", "liters", "litre", "litres":
+            // Typical 0.2–3.0 l, unusual >= 3.0 l, absolute max 20 l
+            return UnitQuantityThresholds(canonicalUnit: "l", typicalMin: 0.2, typicalMax: 3.0, unusualMax: 3.0, absoluteMax: 20)
+        case "ml", "milliliter", "milliliters", "millilitre", "millilitres":
+            // Typical 10–2000 ml, unusual >= 2000 ml, absolute max 10000 ml
+            return UnitQuantityThresholds(canonicalUnit: "ml", typicalMin: 10, typicalMax: 2000, unusualMax: 2000, absoluteMax: 10000)
+        case "pcs", "pieces", "piece":
+            // Typical 1–20 pcs, unusual >= 20 pcs, absolute max 100 pcs
+            return UnitQuantityThresholds(canonicalUnit: "pcs", typicalMin: 1, typicalMax: 20, unusualMax: 20, absoluteMax: 100)
+        default:
+            return nil
+        }
+    }
     /// Checks if an ingredient quantity seems unusually large based on its unit
     /// - Parameter ingredient: The ingredient to validate
     /// - Returns: True if the quantity is unusually large for the given unit
     static func hasUnusualQuantity(_ ingredient: IngredientDetail) -> Bool {
-        guard let unit = ingredient.product?.unit?.name?.lowercased() else { return false }
+        guard let unit = ingredient.product?.unit?.name,
+              let unitThresholds = thresholds(for: unit) else { return false }
         let quantity = ingredient.quantity
-        
-        switch unit {
-        case "kg": return quantity > 5.0
-        case "g": return quantity > 2000
-        case "l": return quantity > 3.0
-        case "ml": return quantity > 2000
-        case "pcs", "pieces", "piece": return quantity > 20
-        default: return false
-        }
+        return quantity > unitThresholds.unusualMax || quantity <= 0
     }
     
     /// Validates if a dish has all required fields
@@ -141,29 +168,6 @@ extension DataValidationHelper {
 
 // MARK: - Quantity Validation
 extension DataValidationHelper {
-    /// Validates if a quantity is within reasonable bounds for a given unit
-    /// - Parameters:
-    ///   - quantity: The quantity to validate
-    ///   - unit: The unit of measurement
-    /// - Returns: True if the quantity is reasonable
-    static func isReasonableQuantity(_ quantity: Double, for unit: String) -> Bool {
-        let unitLower = unit.lowercased()
-        
-        switch unitLower {
-        case "kg":
-            return quantity > 0 && quantity <= 50
-        case "g":
-            return quantity > 0 && quantity <= 10000
-        case "l":
-            return quantity > 0 && quantity <= 20
-        case "ml":
-            return quantity > 0 && quantity <= 10000
-        case "pcs", "pieces", "piece":
-            return quantity > 0 && quantity <= 100
-        default:
-            return quantity > 0
-        }
-    }
     
     /// Formats ingredient quantity for display (removes decimal if whole number)
     /// - Parameter quantity: The quantity to format
@@ -187,3 +191,40 @@ extension DataValidationHelper {
         }
     }
 } 
+
+// MARK: - Detailed Ingredient Quantity Explanation
+extension DataValidationHelper {
+    /// Provides a typical range for a unit to help users calibrate quantities
+    /// - Parameter unit: Unit name (case-insensitive), e.g. "g", "kg", "ml", "l", "pcs"
+    /// - Returns: (min, max, displayUnit) typical range; nil if unknown
+    static func typicalRange(for unit: String) -> (min: Double, max: Double, unit: String)? {
+        guard let unitThresholds = thresholds(for: unit) else { return nil }
+        return (unitThresholds.typicalMin, unitThresholds.typicalMax, unitThresholds.canonicalUnit)
+    }
+
+    /// Builds a specific validation message when quantity seems unusual
+    /// - Parameter ingredient: Ingredient to evaluate
+    /// - Returns: Localized message and suggestion if unusual; otherwise nil
+    static func unusualQuantityMessage(for ingredient: IngredientDetail) -> (message: String, suggestion: String)? {
+        guard let productName = ingredient.product?.name,
+              let unitName = ingredient.product?.unit?.name else { return nil }
+
+        let quantity = ingredient.quantity
+        let unitLower = unitName.lowercased()
+        guard let range = typicalRange(for: unitLower) else { return nil }
+        guard hasUnusualQuantity(ingredient) else { return nil }
+
+        let qtyText = formatQuantity(quantity)
+        let minText = formatQuantity(range.min)
+        let maxText = formatQuantity(range.max)
+
+        // "Beef quantity unusually high (600 kg). Typical range: 500–800 g"
+        let message = String(
+            format: "ingredient_unusual_quantity_message".localized(),
+            productName.localized(), qtyText, unitName.localized(), minText, maxText, range.unit.localized()
+        )
+        let suggestion = "ingredient_unusual_quantity_suggestion".localized()
+        return (message, suggestion)
+    }
+}
+

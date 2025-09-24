@@ -217,47 +217,16 @@ final class DishManagementUITests: XCTestCase {
         }
 
         // Try multiple strategies to find and tap the edit button
+        // Tap the visible Edit menu button for the dish, then choose Edit from the menu
+        let editMenuButton = app.buttons["edit_dish_button_\(dishName)"]
         var editButtonFound = false
-        
-        // Strategy 1: Direct edit button with accessibility identifier
-        let editButton = app.buttons["edit_dish_button_\(dishName)"]
-        if editButton.waitAndScrollToElement(timeout: 3.0) {
-            editButton.tap()
-            editButtonFound = true
-            print("✅ Found edit button using direct accessibility identifier")
-        } else {
-            // Strategy 2: Look for edit button within the dish card
-            let card = app.otherElements["dish_list_item_\(dishName)"]
-            if card.exists {
-                let cardEditButton = card.buttons["edit_dish_button_\(dishName)"]
-                if cardEditButton.waitAndScrollToElement(timeout: 2.0) {
-                    cardEditButton.tap()
-                    editButtonFound = true
-                    print("✅ Found edit button within dish card")
-                }
-            }
-            
-            // Strategy 3: Look for any edit button in the current view
-            if !editButtonFound {
-                let editButtons = app.buttons.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "edit_dish_button_"))
-                if editButtons.count > 0 {
-                    let firstEditButton = editButtons.firstMatch
-                    if firstEditButton.waitAndScrollToElement(timeout: 2.0) {
-                        firstEditButton.tap()
-                        editButtonFound = true
-                        print("✅ Found edit button using generic search")
-                    }
-                }
-            }
-            
-            // Strategy 4: Tap the dish card itself to open details
-            if !editButtonFound {
-                let card = app.otherElements["dish_list_item_\(dishName)"]
-                if card.exists && card.waitAndScrollToElement(timeout: 2.0) {
-                    card.tap()
-                    editButtonFound = true
-                    print("✅ Opened dish by tapping the card")
-                }
+        if editMenuButton.waitAndScrollToElement(timeout: 3.0) {
+            editMenuButton.tap()
+            let editMenuItem = app.buttons["Edit"].firstMatch
+            if editMenuItem.waitForExistence(timeout: 3) {
+                editMenuItem.tap()
+                editButtonFound = true
+                print("✅ Opened edit via menu on the dish card")
             }
         }
 
@@ -455,19 +424,13 @@ final class DishManagementUITests: XCTestCase {
         // Ensure the card is visible (findDishInList will have scrolled/search already)
         _ = findDishInCurrentView(dishName: dishNameToDeleteUnwrapped)
 
-        var deleteButton = app.buttons["delete_dish_button_\(dishNameToDeleteUnwrapped)"]
-        if !deleteButton.waitAndScrollToElement(timeout: 4.0) {
-            // Fallback: search within the specific dish card
-            let dishCard = app.otherElements["dish_list_item_\(dishNameToDeleteUnwrapped)"]
-            if dishCard.exists {
-                deleteButton = dishCard.buttons["delete_dish_button_\(dishNameToDeleteUnwrapped)"].firstMatch
-                _ = deleteButton.waitAndScrollToElement(timeout: 2.0)
-            }
-        }
-
-        XCTAssertTrue(deleteButton.exists, "Delete button should exist for dish \(dishNameToDeleteUnwrapped)")
-
-        deleteButton.tap()
+        // Open Edit menu via edit button and choose Delete
+        let editMenuButton = app.buttons["edit_dish_button_\(dishNameToDeleteUnwrapped)"]
+        XCTAssertTrue(editMenuButton.waitAndScrollToElement(timeout: 4.0), "Edit menu button should be visible for dish \(dishNameToDeleteUnwrapped)")
+        editMenuButton.tap()
+        let deleteMenuItem = app.buttons["Delete"]
+        XCTAssertTrue(deleteMenuItem.waitForExistence(timeout: 3), "Delete action should appear in the Edit menu")
+        deleteMenuItem.tap()
 
         // Confirm deletion if dialog appears
         let confirmButton = app.buttons["Delete"].firstMatch
@@ -477,7 +440,8 @@ final class DishManagementUITests: XCTestCase {
 
         // Wait for delete button to disappear indicating the card is gone
         let deletePredicate = NSPredicate(format: "exists == false")
-        let deleteExpectation = XCTNSPredicateExpectation(predicate: deletePredicate, object: deleteButton)
+        let dishCard = app.otherElements["dish_list_item_\(dishNameToDeleteUnwrapped)"]
+        let deleteExpectation = XCTNSPredicateExpectation(predicate: deletePredicate, object: dishCard)
         let deleteWaiter = XCTWaiter()
         let deleteResult = deleteWaiter.wait(for: [deleteExpectation], timeout: 5.0)
         let stillExists = deleteResult != .completed

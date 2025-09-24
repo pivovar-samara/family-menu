@@ -515,6 +515,47 @@ final class ShoppingListUnitTests: XCTestCase {
         // Verify sort option is restored from UserDefaults
         XCTAssertEqual(newViewModel.sortOption, .quantityHighToLow)
     }
+
+    // MARK: - Progress Tests
+    func testProgressCountsInitial() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Eggs": ["pcs": 6.0],
+            "Flour": ["g": 250.0]
+        ]
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        
+        XCTAssertEqual(viewModel.totalCount, 3)
+        XCTAssertEqual(viewModel.purchasedCount, 0)
+    }
+    
+    func testProgressCountsAfterSelections() {
+        let rawShoppingList: [String: [String: Double]] = [
+            "Milk": ["ml": 500.0],
+            "Eggs": ["pcs": 6.0],
+            "Flour": ["g": 250.0]
+        ]
+        let weekDate = createTestWeekDate()
+        viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
+        
+        // Select two items
+        if let milk = viewModel.shoppingItems.first(where: { $0.productName == "Milk" }) {
+            viewModel.toggleSelection(for: milk)
+        }
+        if let eggs = viewModel.shoppingItems.first(where: { $0.productName == "Eggs" }) {
+            viewModel.toggleSelection(for: eggs)
+        }
+        
+        XCTAssertEqual(viewModel.totalCount, 3)
+        XCTAssertEqual(viewModel.purchasedCount, 2)
+        
+        // Deselect one
+        if let eggs = viewModel.shoppingItems.first(where: { $0.productName == "Eggs" }) {
+            viewModel.toggleSelection(for: eggs)
+        }
+        XCTAssertEqual(viewModel.purchasedCount, 1)
+    }
     
     func testSelectionStatePersistence() {
         let rawShoppingList: [String: [String: Double]] = [

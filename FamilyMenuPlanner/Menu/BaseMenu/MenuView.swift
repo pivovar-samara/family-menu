@@ -23,7 +23,7 @@ struct MenuView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .background(Color("BackgroundColor"))
+        .background(Color.appBackground)
         .navigationTitle("Menu".localized())
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -89,15 +89,15 @@ struct MenuView: View {
         } message: {
             Text("You are editing a past date.".localized())
         }
-        .alert("Generate New Menu", isPresented: $viewModel.showGenerateMenuAlert) {
-            Button("Cancel", role: .cancel) {
+        .alert("Generate New Menu".localized(), isPresented: $viewModel.showGenerateMenuAlert) {
+            Button("Cancel".localized(), role: .cancel) {
                 viewModel.showGenerateMenuAlert = false
             }
-            Button("Generate", role: .destructive) {
+            Button("Generate".localized(), role: .destructive) {
                 viewModel.generateMenu()
             }
         } message: {
-            Text("This will overwrite the current menu. Are you sure?")
+            Text("This will overwrite the current menu. Are you sure?".localized())
         }
     }
     
@@ -127,7 +127,7 @@ struct MenuView: View {
     private var editingWeekBanner: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "calendar.badge.exclamationmark")
-                .foregroundColor(Color("AccentColor"))
+                .foregroundColor(Color.accent)
                 .font(.title3)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 4) {
@@ -141,11 +141,11 @@ struct MenuView: View {
             Spacer(minLength: 0)
         }
         .padding(12)
-        .background(Color("SecondaryBackgroundColor"))
+        .background(Color.appSecondaryBackground)
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.gray.opacity(0.08), lineWidth: 1)
+                    .stroke(Color.appBorder, lineWidth: 1)
         )
         .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
         .listRowBackground(Color.clear)
@@ -196,7 +196,10 @@ struct MenuView: View {
 extension MenuView {
     static let weekDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
+        formatter.locale = .current
+        formatter.calendar = .current
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
         return formatter
     }()
 }
@@ -228,8 +231,8 @@ struct DailyMenuCardView: View {
                     ChipView(
                         text: "Today".localized(),
                         icon: "circle.fill",
-                        backgroundColor: Color("AccentColor").opacity(0.1),
-                        foregroundColor: Color("AccentColor"),
+                        buttonStateStyle: .chip,
+                        isSelected: true,
                         font: .caption.weight(.medium),
                         horizontalPadding: 12,
                         verticalPadding: 6,
@@ -254,12 +257,12 @@ struct DailyMenuCardView: View {
                 }
             }
         }
-        .cardStyle(
+        .appCardStyle(
             cornerRadius: UIConstants.cardCornerRadius,
-            backgroundColor: Color("SecondaryBackgroundColor"),
+            background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.06),
             shadowRadius: UIConstants.cardShadowRadius,
-            borderColor: Color.gray.opacity(0.1),
+            borderColor: Color.appBorder,
             borderWidth: UIConstants.cardBorderWidth,
             padding: UIConstants.cardPadding
         )
@@ -307,7 +310,11 @@ struct DailyMenuCardView: View {
 extension DailyMenuCardView {
     static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMM d"
+        formatter.locale = .current
+        formatter.calendar = .current
+        let locale = formatter.locale
+        let template = "d MMMM" // e.g., 15 September / 15 сентября
+        formatter.dateFormat = DateFormatter.dateFormat(fromTemplate: template, options: 0, locale: locale)
         return formatter
     }()
 }
@@ -321,50 +328,13 @@ struct MealTypeRowView: View {
     
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 12) {
-                // Meal type icon and name
-                HStack(spacing: 8) {
-                    Image(systemName: mealTypeIcon)
-                        .font(.title3)
-                        .foregroundColor(mealTypeColor)
-                        .frame(width: 24, height: 24)
-                    
-                    Text(mealType.localized())
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                }
-                
-                Spacer()
-                
-                // Dishes or placeholder
-                VStack(alignment: .trailing, spacing: 4) {
-                    if !dishes.isEmpty {
-                        ForEach(dishes, id: \.self) { dish in
-                            Text(dish.name ?? "Unnamed Dish".localized())
-                                .font(.subheadline)
-                                .foregroundColor(.primary)
-                                .lineLimit(2)
-                                .truncationMode(.tail)
-                                .multilineTextAlignment(.trailing)
-                        }
-                    } else {
-                        Text("Choose a dish".localized())
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .italic()
-                    }
-                }
-                
-                // Edit icon
-                Image(systemName: "pencil")
-                    .font(.caption)
-                    .foregroundColor(Color("AccentColor"))
-                    .frame(width: 28, height: 28)
-                    .background(Color("AccentColor").opacity(0.1))
-                    .cornerRadius(6)
+            VStack(alignment: .leading, spacing: 8) {
+                headerRow
+                dishesContent
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(16)
-            .background(Color("BackgroundColor"))
+            .background(Color.appBackground)
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
@@ -374,6 +344,7 @@ struct MealTypeRowView: View {
         .buttonStyle(ScaleButtonStyle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(mealType.localized()))
+        .accessibilityHint(Text(dishes.isEmpty ? "Choose a dish".localized() : String(format: "%d selected".localized(), dishes.count)))
         .accessibilityAddTraits(.isButton)
         .contextMenu {
             Button(role: .destructive) {
@@ -381,6 +352,56 @@ struct MealTypeRowView: View {
             } label: {
                 Label(String(format: "Clear %@".localized(), mealType.localized()), systemImage: "trash")
             }
+        }
+    }
+    
+    @ViewBuilder
+    private var dishesContent: some View {
+        if !dishes.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(dishes, id: \.self) { dish in
+                    Text("• \(dish.name ?? "Unnamed Dish".localized())")
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+                        .lineLimit(2)
+                        .truncationMode(.tail)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(.top, 4)
+        } else {
+            Text("Choose a dish".localized())
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .italic()
+                .padding(.top, 4)
+        }
+    }
+
+    private var headerRow: some View {
+        HStack(spacing: 8) {
+            Image(systemName: mealTypeIcon)
+                .font(.title3)
+                .foregroundColor(mealTypeColor)
+                .frame(width: 24, height: 24)
+
+            Text(mealType.localized())
+                .font(.headline)
+                .foregroundColor(.primary)
+                .lineLimit(1)
+                .allowsTightening(false)
+                .fixedSize(horizontal: true, vertical: false)
+                .layoutPriority(1)
+
+            Spacer()
+
+            Image(systemName: "pencil")
+                .font(.caption)
+                .foregroundColor(Color.accent)
+                .frame(width: 28, height: 28)
+                .background(Color.accent.opacity(0.1))
+                .cornerRadius(6)
         }
     }
     
@@ -415,15 +436,16 @@ struct ShoppingListIncorrectView: View {
                 .accessibilityIdentifier("product_selection_no_results_state")
         }
         .scrollContentBackground(.hidden)
-        .background(Color("BackgroundColor"))
+                .background(Color.appBackground)
         .navigationTitle("Shopping List".localized())
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Close".localized()) {
                     onDismiss?()
                 }
-                .foregroundColor(Color("AccentColor"))
+                .foregroundColor(Color.accent)
             }
         }
     }
 }
+

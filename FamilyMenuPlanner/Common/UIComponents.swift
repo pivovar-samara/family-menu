@@ -6,13 +6,28 @@
 //
 
 import SwiftUI
+import UIKit
 
 // MARK: - Reusable UI Components
 
 /// Floating action button component for adding new items
 struct FloatingActionButton: View {
     let sfSymbolName: String
+    let accessibilityLabel: String
+    let accessibilityIdentifier: String?
     let action: () -> Void
+    
+    init(
+        sfSymbolName: String,
+        accessibilityLabel: String,
+        accessibilityIdentifier: String? = nil,
+        action: @escaping () -> Void
+    ) {
+        self.sfSymbolName = sfSymbolName
+        self.accessibilityLabel = accessibilityLabel
+        self.accessibilityIdentifier = accessibilityIdentifier
+        self.action = action
+    }
     
     var body: some View {
         Button(action: action) {
@@ -20,18 +35,21 @@ struct FloatingActionButton: View {
                 .font(.title2.weight(.semibold))
                 .foregroundColor(.white)
                 .frame(width: 56, height: 56)
-                .background(Color("AccentColor"))
+                .background(Color.accent)
                 .clipShape(Circle())
                 .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
         }
         .buttonStyle(ScaleButtonStyle())
+        .contentShape(Rectangle())
+        .accessibilityLabel(Text(accessibilityLabel))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier(accessibilityIdentifier ?? "")
     }
 }
 
 /// Progress indicator for multi-step forms
 struct ProgressIndicatorView: View {
-    let currentStep: Int
-    let totalSteps: Int
+    @Binding var selectedStep: DishFormStep
     let steps: [DishFormStep]
     
     var body: some View {
@@ -47,7 +65,7 @@ struct ProgressIndicatorView: View {
                     
                     // Progress fill
                     Rectangle()
-                        .fill(Color("AccentColor"))
+                        .fill(Color.accent)
                         .frame(width: geometry.size.width * progress, height: 4)
                         .cornerRadius(2)
                         .animation(.easeInOut(duration: 0.3), value: progress)
@@ -58,21 +76,32 @@ struct ProgressIndicatorView: View {
             // Step labels
             HStack {
                 ForEach(Array(steps.enumerated()), id: \.element) { index, step in
-                    VStack(spacing: 4) {
-                        Circle()
-                            .fill(index < currentStep ? Color("AccentColor") : Color.gray.opacity(0.3))
-                            .frame(width: 24, height: 24)
-                            .overlay(
-                                Text("\(index + 1)")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundColor(index < currentStep ? .white : .gray)
-                            )
-                        
-                        Text(step.displayName)
-                            .font(.caption2)
-                            .foregroundColor(index < currentStep ? .primary : .secondary)
-                            .multilineTextAlignment(.center)
+                    Button(action: {
+                        withAnimation {
+                            selectedStep = step
+                        }
+                    }) {
+                        VStack(spacing: 4) {
+                            Circle()
+                                .fill(index <= selectedStep.rawValue ? Color.accent : Color.gray.opacity(0.3))
+                                .frame(width: 24, height: 24)
+                                .overlay(
+                                    Text("\(index + 1)")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundColor(index <= selectedStep.rawValue ? .white : .gray)
+                                )
+                            
+                            Text(step.displayName)
+                                .font(.caption2)
+                                .foregroundColor(index <= selectedStep.rawValue ? .primary : .secondary)
+                                .multilineTextAlignment(.center)
+                        }
                     }
+                    .buttonStyle(PlainButtonStyle())
+                    .contentShape(Rectangle())
+                    .accessibilityLabel(
+                        Text(String(format: "Step %d of %d".localized(), index + 1, steps.count) + ", " + step.displayName)
+                    )
                     
                     if index < steps.count - 1 {
                         Spacer()
@@ -84,8 +113,9 @@ struct ProgressIndicatorView: View {
     }
     
     private var progress: Double {
+        let totalSteps = steps.count
         guard totalSteps > 1 else { return 1.0 }
-        return Double(currentStep - 1) / Double(totalSteps - 1)
+        return Double(selectedStep.rawValue) / Double(totalSteps - 1)
     }
 }
 
@@ -117,6 +147,7 @@ struct NavigationControlsView: View {
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 .disabled(!canProceed)
+                .contentShape(Rectangle())
             } else {
                 Button("Next".localized()) {
                     withAnimation {
@@ -125,6 +156,7 @@ struct NavigationControlsView: View {
                 }
                 .buttonStyle(PrimaryButtonStyle())
                 .disabled(!canProceed)
+                .contentShape(Rectangle())
             }
         }
         .padding(.horizontal)
@@ -153,6 +185,7 @@ struct ModernTextField: View {
                 .onSubmit {
                     onSubmit?()
                 }
+                .accessibilityLabel(Text(title))
         }
     }
 }
@@ -163,11 +196,11 @@ struct ModernTextFieldStyle: TextFieldStyle {
         configuration
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color("BackgroundColor"))
+            .background(Color.appBackground)
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                    .stroke(Color.appBorder, lineWidth: 1)
             )
     }
 }
@@ -193,7 +226,7 @@ struct LoadingView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color("BackgroundColor"))
+        .background(Color.appBackground)
     }
 }
 
@@ -206,8 +239,8 @@ struct ErrorView: View {
     var body: some View {
         VStack(spacing: 20) {
             Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 48, weight: .light))
-                .foregroundColor(.orange)
+                .font(Font(UIFont.preferredFont(forTextStyle: .largeTitle)).weight(.light))
+                .foregroundColor(.appWarning)
             
             VStack(spacing: 8) {
                 Text(title)
@@ -225,7 +258,7 @@ struct ErrorView: View {
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color("BackgroundColor"))
+        .background(Color.appBackground)
     }
 }
 
@@ -257,7 +290,7 @@ struct EmptyStateView: View {
             RoundedRectangle(cornerRadius: 20)
                 .fill(
                     LinearGradient(
-                        colors: [Color("AccentColor").opacity(0.1), Color("AccentColor").opacity(0.05)],
+                        colors: [Color.accent.opacity(0.1), Color.accent.opacity(0.05)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -265,8 +298,8 @@ struct EmptyStateView: View {
                 .frame(width: 120, height: 120)
                 .overlay(
                     Image(systemName: icon)
-                        .font(.system(size: 60, weight: .light))
-                        .foregroundColor(Color("AccentColor").opacity(0.6))
+                        .font(Font(UIFont.preferredFont(forTextStyle: .largeTitle)).weight(.light))
+                    .foregroundColor(Color.accent.opacity(0.6))
                 )
             
             VStack(spacing: 12) {
@@ -291,11 +324,14 @@ struct EmptyStateView: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 14)
-                    .background(Color("AccentColor"))
+                    .background(Color.accent)
                     .cornerRadius(12)
                     .shadow(color: .black.opacity(0.1), radius: 4)
                 }
                 .buttonStyle(ScaleButtonStyle())
+                .contentShape(Rectangle())
+                .accessibilityLabel(Text(actionTitle))
+                .accessibilityAddTraits(.isButton)
             }
         }
         .padding(40)

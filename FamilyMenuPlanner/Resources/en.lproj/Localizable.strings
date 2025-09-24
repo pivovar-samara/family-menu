@@ -138,8 +138,6 @@
 "No ingredients added" = "No ingredients added";
 "Unknown Product" = "Unknown Product";
 "Validation" = "Validation";
-"All good!" = "All good!";
-"Your dish is ready to save!" = "Your dish is ready to save!";
 "Dish name is required" = "Dish name is required";
 "Add a descriptive name for your dish" = "Add a descriptive name for your dish";
 "At least one meal type is required" = "At least one meal type is required";
@@ -151,6 +149,8 @@
 "Some quantities seem unusually large" = "Some quantities seem unusually large";
 "Double-check ingredient quantities" = "Double-check ingredient quantities";
 "Need to make changes?" = "Need to make changes?";
+"ingredient_unusual_quantity_message" = "%@ quantity may be unusual (%@ %@). Typical range: %@–%@ %@";
+"ingredient_unusual_quantity_suggestion" = "Double-check this ingredient amount";
 "Use the Back button or swipe to return to previous steps and make any necessary changes." = "Use the Back button or swipe to return to previous steps and make any necessary changes.";
 
 // Error Handling and Recovery
@@ -215,6 +215,14 @@
 "Selected" = "Selected";
 "Tap to select this item" = "Tap to select this item";
 "Tap to select this product" = "Tap to select this product";
+"Tap to edit this dish" = "Tap to edit this dish";
+"Tap to edit this product" = "Tap to edit this product";
+"Edit dish" = "Edit dish";
+"Edit product" = "Edit product";
+"Tap to select this meal type" = "Tap to select this meal type";
+"Tap to edit quantity" = "Tap to edit quantity";
+"Decrease quantity" = "Decrease quantity";
+"Increase quantity" = "Increase quantity";
 "InvalidWeekSelectionMessage" = "Invalid week selection. Please try again.";
 "Editing current week" = "Editing current week";
 "Editing next week" = "Editing next week";
@@ -243,3 +251,7 @@
 "Add Selected" = "Add Selected";
 "Select Products" = "Select Products";
 "Add Product" = "Add Product";
+"Syncing with iCloud…" = "Syncing with iCloud…";
+
+// Shopping List Progress
+"%d of %d purchased" = "%d of %d purchased";
