@@ -215,6 +215,14 @@
 "Selected" = "Selected";
 "Tap to select this item" = "Tap to select this item";
 "Tap to select this product" = "Tap to select this product";
+"Tap to edit this dish" = "Tap to edit this dish";
+"Tap to edit this product" = "Tap to edit this product";
+"Edit dish" = "Edit dish";
+"Edit product" = "Edit product";
+"Tap to select this meal type" = "Tap to select this meal type";
+"Tap to edit quantity" = "Tap to edit quantity";
+"Decrease quantity" = "Decrease quantity";
+"Increase quantity" = "Increase quantity";
 "InvalidWeekSelectionMessage" = "Invalid week selection. Please try again.";
 "Editing current week" = "Editing current week";
 "Editing next week" = "Editing next week";

@@ -86,6 +86,8 @@ struct HeroInfoCard: View {
                     .focused(focusState, equals: focusValue)
                     .autocorrectionDisabled(true)
                     .textInputAutocapitalization(.words)
+                    .accessibilityLabel(Text("Dish Name".localized()))
+                    .accessibilityHint(Text("Enter dish name".localized()))
             }
         }
         .cardStyle(
@@ -139,6 +141,8 @@ struct DescriptionCard: View {
                     .focused(focusState, equals: focusValue)
                     .autocorrectionDisabled(true)
                     .textInputAutocapitalization(.sentences)
+                    .accessibilityLabel(Text("Recipe".localized()))
+                    .accessibilityHint(Text("Optional".localized()))
             }
             .frame(minHeight: 100)
         }

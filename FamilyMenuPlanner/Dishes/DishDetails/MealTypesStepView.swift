@@ -195,6 +195,9 @@ struct MealTypeCard: View {
         }
         .buttonStyle(ScaleButtonStyle())
         .accessibilityIdentifier("mealType" + (mealType.name?.replacingOccurrences(of: " ", with: "") ?? ""))
+        .accessibilityLabel(mealType.name?.localized() ?? "")
+        .accessibilityHint(isSelected ? "Currently selected".localized() : "Tap to select this meal type".localized())
+        .accessibilityAddTraits(.isButton)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
     }
 } 

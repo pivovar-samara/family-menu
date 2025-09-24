@@ -13,7 +13,21 @@ import UIKit
 /// Floating action button component for adding new items
 struct FloatingActionButton: View {
     let sfSymbolName: String
+    let accessibilityLabel: String
+    let accessibilityIdentifier: String?
     let action: () -> Void
+    
+    init(
+        sfSymbolName: String,
+        accessibilityLabel: String,
+        accessibilityIdentifier: String? = nil,
+        action: @escaping () -> Void
+    ) {
+        self.sfSymbolName = sfSymbolName
+        self.accessibilityLabel = accessibilityLabel
+        self.accessibilityIdentifier = accessibilityIdentifier
+        self.action = action
+    }
     
     var body: some View {
         Button(action: action) {
@@ -27,6 +41,9 @@ struct FloatingActionButton: View {
         }
         .buttonStyle(ScaleButtonStyle())
         .contentShape(Rectangle())
+        .accessibilityLabel(Text(accessibilityLabel))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier(accessibilityIdentifier ?? "")
     }
 }
 
@@ -82,6 +99,9 @@ struct ProgressIndicatorView: View {
                     }
                     .buttonStyle(PlainButtonStyle())
                     .contentShape(Rectangle())
+                    .accessibilityLabel(
+                        Text(String(format: "Step %d of %d".localized(), index + 1, steps.count) + ", " + step.displayName)
+                    )
                     
                     if index < steps.count - 1 {
                         Spacer()
@@ -165,6 +185,7 @@ struct ModernTextField: View {
                 .onSubmit {
                     onSubmit?()
                 }
+                .accessibilityLabel(Text(title))
         }
     }
 }
@@ -309,6 +330,8 @@ struct EmptyStateView: View {
                 }
                 .buttonStyle(ScaleButtonStyle())
                 .contentShape(Rectangle())
+                .accessibilityLabel(Text(actionTitle))
+                .accessibilityAddTraits(.isButton)
             }
         }
         .padding(40)

@@ -287,6 +287,8 @@ class ViewHelper {
         .foregroundColor(Color.accent)
         .tint(Color.accent)
         .contentShape(Rectangle())
+        .accessibilityLabel(Text(title))
+        .accessibilityAddTraits(.isButton)
     }
 
     /// Applies empty state styling to a view

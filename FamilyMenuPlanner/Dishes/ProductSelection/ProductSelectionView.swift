@@ -52,12 +52,15 @@ struct ProductSelectionView: View {
         .navigationTitle("Select Product".localized())
         .searchable(text: $viewModel.searchText, prompt: "Search products...".localized())
         .overlay(alignment: .bottomTrailing) {
-            FloatingActionButton(sfSymbolName: "plus") {
+            FloatingActionButton(
+                sfSymbolName: "plus",
+                accessibilityLabel: "Add Product".localized(),
+                accessibilityIdentifier: "add_product_button"
+            ) {
                 viewModel.isAddingNewProduct = true
             }
             .padding(.trailing, 20)
             .padding(.bottom, 20)
-            .accessibilityIdentifier("add_product_button")
         }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {

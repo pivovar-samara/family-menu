@@ -29,12 +29,15 @@ struct DishListView: View {
         .modifier(dishListEditSheet)
         .modifier(dishListAlert)
         .overlay(alignment: .bottomTrailing) {
-            FloatingActionButton(sfSymbolName: "plus") {
+            FloatingActionButton(
+                sfSymbolName: "plus",
+                accessibilityLabel: "Add New Dish".localized(),
+                accessibilityIdentifier: "add_dish_button"
+            ) {
                 viewModel.isAddingNewDish = true
             }
             .padding(.trailing, 20)
             .padding(.bottom, 20)
-            .accessibilityIdentifier("add_dish_button")
         }
         .onAppear {
             viewModel.loadDishes()
@@ -195,7 +198,7 @@ struct DishCardView: View {
                         .cornerRadius(8)
                 }
                 .accessibilityIdentifier("edit_dish_button_\(dish.name ?? "unnamed")")
-                .accessibilityLabel("Edit dish")
+                .accessibilityLabel("Edit dish".localized())
                 .contentShape(Rectangle())
             }
             

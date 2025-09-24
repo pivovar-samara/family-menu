@@ -204,6 +204,14 @@
 "no unit" = "без единицы";
 "Currently selected" = "В настоящее время выбрано";
 "Tap to select this product" = "Нажмите, чтобы выбрать этот продукт";
+"Tap to edit this dish" = "Нажмите, чтобы редактировать это блюдо";
+"Tap to edit this product" = "Нажмите, чтобы редактировать этот продукт";
+"Edit dish" = "Редактировать блюдо";
+"Edit product" = "Редактировать продукт";
+"Tap to select this meal type" = "Нажмите, чтобы выбрать это время";
+"Tap to edit quantity" = "Нажмите, чтобы изменить количество";
+"Decrease quantity" = "Уменьшить количество";
+"Increase quantity" = "Увеличить количество";
 
 // Shopping List
 "Search items..." = "Поиск товаров...";

@@ -28,12 +28,15 @@ struct ProductListView: View {
         .searchable(text: $viewModel.searchText, prompt: "Search products...".localized())
         .navigationTitle("Products".localized())
         .overlay(alignment: .bottomTrailing) {
-            FloatingActionButton(sfSymbolName: "plus") {
+            FloatingActionButton(
+                sfSymbolName: "plus",
+                accessibilityLabel: "Add Product".localized(),
+                accessibilityIdentifier: "add_product_button"
+            ) {
                 viewModel.isAddingNewProduct = true
             }
             .padding(.trailing, 20)
             .padding(.bottom, 20)
-            .accessibilityIdentifier("add_product_button")
         }
         .modifier(productListToolbar)
         .modifier(productListAddSheet)
@@ -134,6 +137,7 @@ struct ProductListView: View {
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
             .accessibilityIdentifier("product_list_item_\(product.name ?? "unnamed")")
+            .accessibilityHint("Tap to edit this product".localized())
         }
     }
 
@@ -198,7 +202,7 @@ struct ProductCardView: View {
                         .cornerRadius(8)
                 }
                 .accessibilityIdentifier("EditProductButton")
-                .accessibilityLabel("Edit product")
+                .accessibilityLabel("Edit product".localized())
                 .contentShape(Rectangle())
             }
 
@@ -223,6 +227,7 @@ struct ProductCardView: View {
         .onTapGesture {
             onEdit()
         }
+        .accessibilityElement(children: .contain)
         .confirmationDialog(
             "Delete Product".localized(),
             isPresented: $showDeleteConfirmation,
@@ -235,7 +240,6 @@ struct ProductCardView: View {
         } message: {
             Text("Are you sure you want to delete this product?".localized())
         }
-        .accessibilityElement(children: .contain)
     }
 }
 

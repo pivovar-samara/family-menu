@@ -436,6 +436,8 @@ struct SmartIngredientRow: View {
                     }
                 }
                 .buttonStyle(PlainButtonStyle())
+                .accessibilityLabel(Text(ingredient.product?.name ?? "Select Product".localized()))
+                .accessibilityHint(Text("Tap to select this product".localized()))
                 
                 // Quantity Controls
                 VStack(spacing: 8) {
@@ -461,6 +463,8 @@ struct SmartIngredientRow: View {
                             .cornerRadius(8)
                         }
                         .buttonStyle(PlainButtonStyle())
+                        .accessibilityLabel(Text(String(format: "%@ %@", formattedQuantity, (ingredient.product?.unit?.name?.localized() ?? "").trimmingCharacters(in: .whitespaces))))
+                        .accessibilityHint(Text("Tap to edit quantity".localized()))
                     }
                     
                     // Quantity Adjustment Controls
@@ -476,6 +480,7 @@ struct SmartIngredientRow: View {
                             .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
                             .buttonStyle(PlainButtonStyle())
+                            .accessibilityLabel(Text("Decrease quantity".localized()))
                             
                             Button(action: {
                                 adjustQuantity(1)
@@ -487,6 +492,7 @@ struct SmartIngredientRow: View {
                             .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
                             .buttonStyle(PlainButtonStyle())
+                            .accessibilityLabel(Text("Increase quantity".localized()))
                         }
                     }
                 }

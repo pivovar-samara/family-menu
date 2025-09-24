@@ -344,6 +344,7 @@ struct MealTypeRowView: View {
         .buttonStyle(ScaleButtonStyle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(mealType.localized()))
+        .accessibilityHint(Text(dishes.isEmpty ? "Choose a dish".localized() : String(format: "%d selected".localized(), dishes.count)))
         .accessibilityAddTraits(.isButton)
         .contextMenu {
             Button(role: .destructive) {

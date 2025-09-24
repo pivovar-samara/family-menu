@@ -19,15 +19,20 @@ struct ReviewStepView: View {
                     subtitle: "Review your dish details".localized(),
                     icon: "checkmark.circle"
                 )
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text("Review".localized()))
                 
                 // Dish Summary Card
                 DishSummaryCard(viewModel: viewModel)
+                    .accessibilityElement(children: .contain)
                 
                 // Validation Card
                 ValidationCard(viewModel: viewModel)
+                    .accessibilityElement(children: .contain)
                 
                 // Quick Edit Actions
                 QuickEditActionsCard()
+                    .accessibilityElement(children: .contain)
                 
                 Spacer(minLength: 20) // Space for navigation controls
             }
