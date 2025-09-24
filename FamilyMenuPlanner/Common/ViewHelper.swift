@@ -36,7 +36,153 @@ struct UIConstants {
     static let buttonVerticalPadding: CGFloat = 14
 }
 
-// MARK: - Chip Style
+// MARK: - Button State Style
+/// Unified button state management for consistent styling across buttons and chips
+enum ButtonStateStyle {
+    case primary
+    case secondary
+    case chip
+    case warning
+    case error
+    case success
+    case info
+    
+    /// Returns the appropriate colors for a button state
+    /// - Parameters:
+    ///   - isPressed: Whether the button is currently pressed
+    ///   - isDisabled: Whether the button is disabled
+    ///   - isSelected: Whether the button is selected
+    /// - Returns: Tuple containing (background, foreground, border) colors
+    func colors(isPressed: Bool = false, isDisabled: Bool = false, isSelected: Bool = false) -> (background: Color, foreground: Color, border: Color) {
+        let state: ButtonState = {
+            if isDisabled { return .disabled }
+            if isSelected { return .selected }
+            if isPressed { return .pressed }
+            return .default
+        }()
+        
+        switch self {
+        case .primary:
+            return primaryColors(for: state)
+        case .secondary:
+            return secondaryColors(for: state)
+        case .chip:
+            return chipColors(for: state)
+        case .warning:
+            return warningColors(for: state)
+        case .error:
+            return errorColors(for: state)
+        case .success:
+            return successColors(for: state)
+        case .info:
+            return infoColors(for: state)
+        }
+    }
+    
+    private enum ButtonState {
+        case `default`
+        case pressed
+        case disabled
+        case selected
+    }
+    
+    private func primaryColors(for state: ButtonState) -> (background: Color, foreground: Color, border: Color) {
+        switch state {
+        case .default:
+            return (Color.ButtonState.primaryDefault, Color.ButtonState.textSelected, Color.ButtonState.borderSelected)
+        case .pressed:
+            return (Color.ButtonState.primaryPressed, Color.ButtonState.textSelected, Color.ButtonState.borderSelected)
+        case .disabled:
+            return (Color.ButtonState.primaryDisabled, Color.ButtonState.textDisabled, Color.ButtonState.borderDisabled)
+        case .selected:
+            return (Color.ButtonState.primarySelected, Color.ButtonState.textSelected, Color.ButtonState.borderSelected)
+        }
+    }
+    
+    private func secondaryColors(for state: ButtonState) -> (background: Color, foreground: Color, border: Color) {
+        switch state {
+        case .default:
+            return (Color.ButtonState.secondaryDefault, Color.accent, Color.ButtonState.borderDefault)
+        case .pressed:
+            return (Color.ButtonState.secondaryPressed, Color.accent, Color.ButtonState.borderPressed)
+        case .disabled:
+            return (Color.ButtonState.secondaryDisabled, Color.ButtonState.textDisabled, Color.ButtonState.borderDisabled)
+        case .selected:
+            return (Color.ButtonState.secondarySelected, Color.accent, Color.ButtonState.borderSelected)
+        }
+    }
+    
+    private func chipColors(for state: ButtonState) -> (background: Color, foreground: Color, border: Color) {
+        switch state {
+        case .default:
+            return (Color.ButtonState.chipDefault, Color.ButtonState.textDefault, Color.ButtonState.borderDefault)
+        case .pressed:
+            return (Color.ButtonState.chipPressed, Color.ButtonState.textPressed, Color.ButtonState.borderPressed)
+        case .disabled:
+            return (Color.ButtonState.chipDisabled, Color.ButtonState.textDisabled, Color.ButtonState.borderDisabled)
+        case .selected:
+            return (Color.ButtonState.chipSelected, Color.ButtonState.textSelected, Color.ButtonState.borderSelected)
+        }
+    }
+    
+    private func warningColors(for state: ButtonState) -> (background: Color, foreground: Color, border: Color) {
+        let baseColor = Color.appWarning
+        switch state {
+        case .default:
+            return (baseColor, Color.white, Color.clear)
+        case .pressed:
+            return (baseColor.opacity(0.8), Color.white, Color.clear)
+        case .disabled:
+            return (Color.gray.opacity(0.1), Color.ButtonState.textDisabled, Color.ButtonState.borderDisabled)
+        case .selected:
+            return (baseColor, Color.white, Color.clear)
+        }
+    }
+    
+    private func errorColors(for state: ButtonState) -> (background: Color, foreground: Color, border: Color) {
+        let baseColor = Color.appError
+        switch state {
+        case .default:
+            return (baseColor, Color.white, Color.clear)
+        case .pressed:
+            return (baseColor.opacity(0.8), Color.white, Color.clear)
+        case .disabled:
+            return (Color.gray.opacity(0.1), Color.ButtonState.textDisabled, Color.ButtonState.borderDisabled)
+        case .selected:
+            return (baseColor, Color.white, Color.clear)
+        }
+    }
+    
+    private func successColors(for state: ButtonState) -> (background: Color, foreground: Color, border: Color) {
+        let baseColor = Color.appSuccess
+        switch state {
+        case .default:
+            return (baseColor, Color.white, Color.clear)
+        case .pressed:
+            return (baseColor.opacity(0.8), Color.white, Color.clear)
+        case .disabled:
+            return (Color.gray.opacity(0.1), Color.ButtonState.textDisabled, Color.ButtonState.borderDisabled)
+        case .selected:
+            return (baseColor, Color.white, Color.clear)
+        }
+    }
+    
+    private func infoColors(for state: ButtonState) -> (background: Color, foreground: Color, border: Color) {
+        let baseColor = Color.appInfo
+        switch state {
+        case .default:
+            return (baseColor, Color.white, Color.clear)
+        case .pressed:
+            return (baseColor.opacity(0.8), Color.white, Color.clear)
+        case .disabled:
+            return (Color.gray.opacity(0.1), Color.ButtonState.textDisabled, Color.ButtonState.borderDisabled)
+        case .selected:
+            return (baseColor, Color.white, Color.clear)
+        }
+    }
+}
+
+// MARK: - Chip Style (Legacy - kept for backward compatibility)
 enum ChipStyle {
     case filled
     case outline
@@ -128,12 +274,13 @@ struct ChipView: View {
     var icon: String? = nil
 
     // New unified styling API
+    var buttonStateStyle: ButtonStateStyle = .chip
+    var isEnabled: Bool = true
+    var isSelected: Bool = false
+
+    // Legacy API (deprecated - use buttonStateStyle instead)
     var style: ChipStyle? = nil
     var tint: Color? = nil
-    var isEnabled: Bool = true
-
-    // Backward compatibility / fine-tune options (prefer using style)
-    var isSelected: Bool = false
     var background: Color? = nil
     var foregroundColor: Color? = nil
     var borderColor: Color? = nil
@@ -184,10 +331,17 @@ struct ChipView: View {
     }
 
     private func computeColors() -> (background: Color, foreground: Color, border: Color, borderLineWidth: CGFloat) {
-        // Prefer new style-based design when provided
-        if let style = style {
+        // Use new unified button state system
+        let colors = buttonStateStyle.colors(
+            isPressed: false, // Chips don't have pressed state in this implementation
+            isDisabled: !isEnabled,
+            isSelected: isSelected
+        )
+        
+        // Legacy style support for backward compatibility
+        if let legacyStyle = style {
             let baseTint = tint ?? Color.accent
-            switch style {
+            switch legacyStyle {
             case .filled:
                 return (baseTint, Color.white, Color.clear, 0)
             case .outline:
@@ -199,10 +353,10 @@ struct ChipView: View {
             }
         }
 
-        // Backward compatibility path preserving prior behavior
-        let bg = background ?? (isSelected ? Color.accent : Color.appChipBackground)
-        let fg = foregroundColor ?? (isSelected ? Color.white : Color.appChipText)
-        let border = borderColor ?? (isSelected ? Color.clear : Color.appBorder)
+        // Override with custom colors if provided (legacy support)
+        let bg = background ?? colors.background
+        let fg = foregroundColor ?? colors.foreground
+        let border = borderColor ?? colors.border
         let line: CGFloat = (border == .clear) ? 0 : 1
         return (bg, fg, border, line)
     }
@@ -213,13 +367,22 @@ struct ChipView: View {
 /// Primary button style for main actions
 struct PrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
+        let colors = ButtonStateStyle.primary.colors(
+            isPressed: configuration.isPressed,
+            isDisabled: false // Button styles don't have access to disabled state
+        )
+        
+        return configuration.label
             .font(.body.weight(.semibold))
-            .foregroundColor(.white)
+            .foregroundColor(colors.foreground)
             .padding(.horizontal, UIConstants.buttonHorizontalPadding)
             .padding(.vertical, UIConstants.buttonVerticalPadding)
-            .background(Color.accent)
+            .background(colors.background)
             .cornerRadius(UIConstants.buttonCornerRadius)
+            .overlay(
+                RoundedRectangle(cornerRadius: UIConstants.buttonCornerRadius)
+                    .stroke(colors.border, lineWidth: colors.border == .clear ? 0 : 1)
+            )
             .shadow(color: .black.opacity(0.1), radius: UIConstants.buttonShadowRadius)
             .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
@@ -229,13 +392,22 @@ struct PrimaryButtonStyle: ButtonStyle {
 /// Secondary button style for alternative actions
 struct SecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
+        let colors = ButtonStateStyle.secondary.colors(
+            isPressed: configuration.isPressed,
+            isDisabled: false // Button styles don't have access to disabled state
+        )
+        
+        return configuration.label
             .font(.body.weight(.semibold))
-            .foregroundColor(Color.accent)
+            .foregroundColor(colors.foreground)
             .padding(.horizontal, UIConstants.buttonHorizontalPadding)
             .padding(.vertical, UIConstants.buttonVerticalPadding)
-            .background(Color.accent.opacity(0.1))
+            .background(colors.background)
             .cornerRadius(UIConstants.buttonCornerRadius)
+            .overlay(
+                RoundedRectangle(cornerRadius: UIConstants.buttonCornerRadius)
+                    .stroke(colors.border, lineWidth: colors.border == .clear ? 0 : 1)
+            )
             .shadow(color: .black.opacity(0.05), radius: 2)
             .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
