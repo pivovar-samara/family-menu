@@ -80,9 +80,9 @@ extension DataValidationHelper {
     /// - Returns: True if the quantity is unusually large for the given unit
     static func hasUnusualQuantity(_ ingredient: IngredientDetail) -> Bool {
         guard let unit = ingredient.product?.unit?.name,
-              let t = thresholds(for: unit) else { return false }
+              let unitThresholds = thresholds(for: unit) else { return false }
         let quantity = ingredient.quantity
-        return quantity > t.unusualMax || quantity <= 0
+        return quantity > unitThresholds.unusualMax || quantity <= 0
     }
     
     /// Validates if a dish has all required fields
@@ -198,8 +198,8 @@ extension DataValidationHelper {
     /// - Parameter unit: Unit name (case-insensitive), e.g. "g", "kg", "ml", "l", "pcs"
     /// - Returns: (min, max, displayUnit) typical range; nil if unknown
     static func typicalRange(for unit: String) -> (min: Double, max: Double, unit: String)? {
-        guard let t = thresholds(for: unit) else { return nil }
-        return (t.typicalMin, t.typicalMax, t.canonicalUnit)
+        guard let unitThresholds = thresholds(for: unit) else { return nil }
+        return (unitThresholds.typicalMin, unitThresholds.typicalMax, unitThresholds.canonicalUnit)
     }
 
     /// Builds a specific validation message when quantity seems unusual
@@ -227,3 +227,4 @@ extension DataValidationHelper {
         return (message, suggestion)
     }
 }
+

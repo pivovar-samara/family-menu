@@ -108,8 +108,8 @@ struct DishSummaryCard: View {
                                 ChipView(
                                     text: mealType.name?.localized() ?? "",
                                     icon: ViewHelper.mealTypeIcon(for: mealType),
-                                    style: .outline,
-                                    tint: StylingHelper.mealTypeColor(for: mealType),
+                                    buttonStateStyle: .chip,
+                                    isSelected: false,
                                     font: .caption
                                 )
                             }
@@ -449,3 +449,4 @@ struct QuickEditActionsCard: View {
         .shadow(color: .black.opacity(0.02), radius: 4)
     }
 } 
+

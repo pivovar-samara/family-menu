@@ -140,8 +140,8 @@ struct UnitSelectionCard: View {
                     ForEach(viewModel.units, id: \.self) { unit in
                         ChipView(
                             text: (unit.name ?? "").localized(),
-                            style: viewModel.selectedUnit == unit ? .filled : .outline,
-                            tint: Color.accent,
+                            buttonStateStyle: .chip,
+                            isSelected: viewModel.selectedUnit == unit,
                             font: .caption,
                             onTap: {
                                 viewModel.selectedUnit = unit
@@ -154,7 +154,7 @@ struct UnitSelectionCard: View {
                 }
             }
         }
-        .cardStyle(
+        .appCardStyle(
             cornerRadius: 16,
             background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.06),
@@ -167,3 +167,4 @@ struct UnitSelectionCard: View {
 }
 
 // Legacy UnitChip removed in favor of ChipView with ChipStyle
+

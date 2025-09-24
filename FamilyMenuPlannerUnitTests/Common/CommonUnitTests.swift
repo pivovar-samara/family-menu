@@ -355,8 +355,9 @@ final class CommonUnitTests: XCTestCase {
         // Test chip view with legacy style for backward compatibility
         let chipView = ChipView(
             text: "Test Chip",
-            style: .filled,
-            tint: Color.accent
+            buttonStateStyle: .chip,
+            isEnabled: true,
+            isSelected: false
         )
         XCTAssertNotNil(chipView, "ChipView should be created with legacy style")
     }
@@ -373,3 +374,4 @@ final class CommonUnitTests: XCTestCase {
         XCTAssertNotNil(selectedPressed.background, "Selected state should take priority over pressed")
     }
 }
+

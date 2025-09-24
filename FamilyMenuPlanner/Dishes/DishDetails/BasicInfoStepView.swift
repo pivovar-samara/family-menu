@@ -90,7 +90,7 @@ struct HeroInfoCard: View {
                     .accessibilityHint(Text("Enter dish name".localized()))
             }
         }
-        .cardStyle(
+        .appCardStyle(
             cornerRadius: 20,
             background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.06),
@@ -123,8 +123,8 @@ struct DescriptionCard: View {
                 
                 ChipView(
                     text: "Optional".localized(),
-                    style: .outline,
-                    tint: .secondary,
+                    buttonStateStyle: .chip,
+                    isSelected: false,
                     font: .caption
                 )
             }
@@ -146,7 +146,7 @@ struct DescriptionCard: View {
             }
             .frame(minHeight: 100)
         }
-        .cardStyle(
+        .appCardStyle(
             cornerRadius: 16,
             background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.04),
@@ -182,8 +182,8 @@ struct CategorySelectionCard: View {
                 // No Category Option
                 ChipView(
                     text: "No Category".localized(),
-                    style: selectedCategory == nil ? .filled : .outline,
-                    tint: Color.accent,
+                    buttonStateStyle: .chip,
+                    isSelected: selectedCategory == nil,
                     font: .caption,
                     onTap: { onCategorySelected(nil) }
                 )
@@ -191,15 +191,15 @@ struct CategorySelectionCard: View {
                 ForEach(categories, id: \.self) { category in
                     ChipView(
                         text: category.name?.localized() ?? "",
-                        style: selectedCategory == category ? .filled : .outline,
-                        tint: Color.accent,
+                        buttonStateStyle: .chip,
+                        isSelected: selectedCategory == category,
                         font: .caption,
                         onTap: { onCategorySelected(category) }
                     )
                 }
             }
         }
-        .cardStyle(
+        .appCardStyle(
             cornerRadius: 16,
             background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.04),

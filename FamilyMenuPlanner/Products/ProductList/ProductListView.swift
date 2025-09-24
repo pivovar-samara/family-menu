@@ -175,8 +175,8 @@ struct ProductCardView: View {
                 if let unitName = product.unit?.name?.localized(), !unitName.isEmpty {
                     ChipView(
                         text: unitName,
-                        style: .filled,
-                        tint: Color.accent,
+                        buttonStateStyle: .chip,
+                        isSelected: true,
                         font: .caption
                     )
                 }
@@ -214,7 +214,7 @@ struct ProductCardView: View {
                 .multilineTextAlignment(.leading)
                 .accessibilityIdentifier("ProductNameLabel")
         }
-        .cardStyle(
+        .appCardStyle(
             cornerRadius: UIConstants.cardCornerRadius,
             background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.06),

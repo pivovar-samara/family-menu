@@ -210,8 +210,8 @@ struct DishSelectionCardView: View {
                 if let categoryName = dish.category?.name {
                     ChipView(
                         text: categoryName.localized(),
-                        style: .filled,
-                        tint: categoryColor(for: categoryName),
+                        buttonStateStyle: .chipTint(StylingHelper.categoryColor(for: categoryName)),
+                        isSelected: true,
                         font: .caption
                     )
                 }
@@ -222,8 +222,8 @@ struct DishSelectionCardView: View {
                             ChipView(
                                 text: mealType.name?.localized() ?? "",
                                 icon: ViewHelper.mealTypeIcon(for: mealType),
-                                style: .outline,
-                                tint: StylingHelper.mealTypeColor(for: mealType),
+                                buttonStateStyle: .chipTint(StylingHelper.mealTypeColor(for: mealType)),
+                                isSelected: false,
                                 font: .caption
                             )
                         }
@@ -288,3 +288,4 @@ struct EmptyDishSelectionView: View {
         .frame(maxWidth: .infinity)
     }
 }
+

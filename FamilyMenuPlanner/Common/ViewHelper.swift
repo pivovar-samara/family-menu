@@ -42,6 +42,7 @@ enum ButtonStateStyle {
     case primary
     case secondary
     case chip
+    case chipTint(Color)
     case warning
     case error
     case success
@@ -68,6 +69,8 @@ enum ButtonStateStyle {
             return secondaryColors(for: state)
         case .chip:
             return chipColors(for: state)
+        case .chipTint(let tint):
+            return chipTintColors(for: state, tint: tint)
         case .warning:
             return warningColors(for: state)
         case .error:
@@ -122,6 +125,19 @@ enum ButtonStateStyle {
             return (Color.ButtonState.chipDisabled, Color.ButtonState.textDisabled, Color.ButtonState.borderDisabled)
         case .selected:
             return (Color.ButtonState.chipSelected, Color.ButtonState.textSelected, Color.ButtonState.borderSelected)
+        }
+    }
+    
+    private func chipTintColors(for state: ButtonState, tint: Color) -> (background: Color, foreground: Color, border: Color) {
+        switch state {
+        case .default:
+            return (tint.opacity(0.12), tint, tint.opacity(0.2))
+        case .pressed:
+            return (tint.opacity(0.18), tint, tint.opacity(0.3))
+        case .disabled:
+            return (Color.gray.opacity(0.08), Color.ButtonState.textDisabled, Color.ButtonState.borderDisabled)
+        case .selected:
+            return (tint, Color.white, Color.clear)
         }
     }
     
@@ -182,14 +198,6 @@ enum ButtonStateStyle {
     }
 }
 
-// MARK: - Chip Style (Legacy - kept for backward compatibility)
-enum ChipStyle {
-    case filled
-    case outline
-    case warning
-    case disabled
-}
-
 // MARK: - View Extensions
 extension View {
     /// Prevents CoreGraphics NaN errors by validating frame dimensions
@@ -213,7 +221,7 @@ extension View {
 // MARK: - UI Components
 
 /// Modifier for consistent card styling across the app
-struct CardModifier: ViewModifier {
+struct AppCardModifier: ViewModifier {
     var cornerRadius: CGFloat = UIConstants.cardCornerRadius
     var background: Color = Color.appSecondaryBackground
     var shadowColor: Color = .black.opacity(0.06)
@@ -239,14 +247,14 @@ extension View {
     /// Applies card styling to a view with customizable parameters
     /// - Parameters:
     ///   - cornerRadius: Corner radius for the card (default: 16)
-    ///   - background: Background color (default: Secondarybackground)
+    ///   - background: Background color (default: Secondary background)
     ///   - shadowColor: Shadow color (default: black with 6% opacity)
     ///   - shadowRadius: Shadow radius (default: 8)
     ///   - borderColor: Border color (default: gray with 10% opacity)
     ///   - borderWidth: Border width (default: 1)
     ///   - padding: Internal padding (default: 0)
     /// - Returns: A view with card styling applied
-    func cardStyle(
+    func appCardStyle(
         cornerRadius: CGFloat = UIConstants.cardCornerRadius,
         background: Color = Color.appSecondaryBackground,
         shadowColor: Color = .black.opacity(0.06),
@@ -255,7 +263,7 @@ extension View {
         borderWidth: CGFloat = UIConstants.cardBorderWidth,
         padding: CGFloat = 0
     ) -> some View {
-        self.modifier(CardModifier(
+        self.modifier(AppCardModifier(
             cornerRadius: cornerRadius,
             background: background,
             shadowColor: shadowColor,
@@ -267,7 +275,7 @@ extension View {
     }
 }
 
-/// Reusable chip/tag component for displaying categories, units, and other metadata
+/// Reusable chip/tag component for displaying categories, units, and other metadata. Supports tinted chips via ButtonStateStyle.chipTint(_:). Accepts an optional tint parameter.
 struct ChipView: View {
     // Content
     let text: String
@@ -277,13 +285,7 @@ struct ChipView: View {
     var buttonStateStyle: ButtonStateStyle = .chip
     var isEnabled: Bool = true
     var isSelected: Bool = false
-
-    // Legacy API (deprecated - use buttonStateStyle instead)
-    var style: ChipStyle? = nil
     var tint: Color? = nil
-    var background: Color? = nil
-    var foregroundColor: Color? = nil
-    var borderColor: Color? = nil
 
     // Layout
     var font: Font = .caption.weight(.medium)
@@ -292,9 +294,58 @@ struct ChipView: View {
     var cornerRadius: CGFloat = UIConstants.chipCornerRadius
     var onTap: (() -> Void)? = nil
 
-    var body: some View {
-        let computed = computeColors()
+    // MARK: - Initializers
+    /// Modern initializer using the unified ButtonStateStyle API
+    init(
+        text: String,
+        icon: String? = nil,
+        buttonStateStyle: ButtonStateStyle = .chip,
+        isEnabled: Bool = true,
+        isSelected: Bool = false,
+        tint: Color? = nil,
+        font: Font = .caption.weight(.medium),
+        horizontalPadding: CGFloat = UIConstants.chipHorizontalPadding,
+        verticalPadding: CGFloat = UIConstants.chipVerticalPadding,
+        cornerRadius: CGFloat = UIConstants.chipCornerRadius,
+        onTap: (() -> Void)? = nil
+    ) {
+        // Content
+        self.text = text
+        self.icon = icon
+        self.isEnabled = isEnabled
+        self.isSelected = isSelected
+        // If a tint is provided and style is default chip, promote to chipTint
+        if let tint {
+            if case .chip = buttonStateStyle {
+                self.buttonStateStyle = .chipTint(tint)
+            } else {
+                self.buttonStateStyle = buttonStateStyle
+            }
+        } else {
+            self.buttonStateStyle = buttonStateStyle
+        }
+        // Layout
+        self.font = font
+        self.horizontalPadding = horizontalPadding
+        self.verticalPadding = verticalPadding
+        self.cornerRadius = cornerRadius
+        // Tint
+        self.tint = tint
+        // Action
+        self.onTap = onTap
+    }
 
+    var body: some View {
+        let colors = buttonStateStyle.colors(
+            isPressed: false, // Chips don't have pressed state in this implementation
+            isDisabled: !isEnabled,
+            isSelected: isSelected
+        )
+        
+        let bg = colors.background
+        let fg = colors.foreground
+        let border = colors.border
+        
         let content = HStack(spacing: 6) {
             if let icon = icon {
                 Image(systemName: icon)
@@ -305,60 +356,31 @@ struct ChipView: View {
                 .truncationMode(.tail)
         }
         .font(font)
-        .foregroundColor(computed.foreground)
+        .foregroundColor(fg)
         .padding(.horizontal, horizontalPadding)
         .padding(.vertical, verticalPadding)
         .background(
             RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(computed.background)
+                .fill(bg)
                 .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius)
-                        .stroke(computed.border, lineWidth: computed.borderLineWidth)
+                        .stroke(border, lineWidth: 1)
                 )
         )
         .opacity(isEnabled ? 1.0 : 0.6)
         .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
 
-        if let onTap = onTap {
-            Button(action: onTap) {
+        Group {
+            if let onTap = onTap {
+                Button(action: onTap) {
+                    content
+                }
+                .buttonStyle(ScaleButtonStyle())
+                .disabled(!isEnabled)
+            } else {
                 content
             }
-            .buttonStyle(ScaleButtonStyle())
-            .disabled(!isEnabled)
-        } else {
-            content
         }
-    }
-
-    private func computeColors() -> (background: Color, foreground: Color, border: Color, borderLineWidth: CGFloat) {
-        // Use new unified button state system
-        let colors = buttonStateStyle.colors(
-            isPressed: false, // Chips don't have pressed state in this implementation
-            isDisabled: !isEnabled,
-            isSelected: isSelected
-        )
-        
-        // Legacy style support for backward compatibility
-        if let legacyStyle = style {
-            let baseTint = tint ?? Color.accent
-            switch legacyStyle {
-            case .filled:
-                return (baseTint, Color.white, Color.clear, 0)
-            case .outline:
-                return (Color.appChipBackground, baseTint, baseTint.opacity(0.35), 1)
-            case .warning:
-                return (Color.appWarning, Color.white, Color.clear, 0)
-            case .disabled:
-                return (Color.appChipBackground, Color.secondary, Color.appBorder, 1)
-            }
-        }
-
-        // Override with custom colors if provided (legacy support)
-        let bg = background ?? colors.background
-        let fg = foregroundColor ?? colors.foreground
-        let border = borderColor ?? colors.border
-        let line: CGFloat = (border == .clear) ? 0 : 1
-        return (bg, fg, border, line)
     }
 }
 
@@ -381,7 +403,7 @@ struct PrimaryButtonStyle: ButtonStyle {
             .cornerRadius(UIConstants.buttonCornerRadius)
             .overlay(
                 RoundedRectangle(cornerRadius: UIConstants.buttonCornerRadius)
-                    .stroke(colors.border, lineWidth: colors.border == .clear ? 0 : 1)
+                    .stroke(colors.border, lineWidth: 1)
             )
             .shadow(color: .black.opacity(0.1), radius: UIConstants.buttonShadowRadius)
             .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
@@ -406,7 +428,7 @@ struct SecondaryButtonStyle: ButtonStyle {
             .cornerRadius(UIConstants.buttonCornerRadius)
             .overlay(
                 RoundedRectangle(cornerRadius: UIConstants.buttonCornerRadius)
-                    .stroke(colors.border, lineWidth: colors.border == .clear ? 0 : 1)
+                    .stroke(colors.border, lineWidth: 1)
             )
             .shadow(color: .black.opacity(0.05), radius: 2)
             .scaleEffect(configuration.isPressed ? 0.96 : 1.0)

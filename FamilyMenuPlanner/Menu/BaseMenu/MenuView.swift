@@ -231,8 +231,8 @@ struct DailyMenuCardView: View {
                     ChipView(
                         text: "Today".localized(),
                         icon: "circle.fill",
-                        background: Color.accent.opacity(0.1),
-                        foregroundColor: Color.accent,
+                        buttonStateStyle: .chip,
+                        isSelected: true,
                         font: .caption.weight(.medium),
                         horizontalPadding: 12,
                         verticalPadding: 6,
@@ -257,7 +257,7 @@ struct DailyMenuCardView: View {
                 }
             }
         }
-        .cardStyle(
+        .appCardStyle(
             cornerRadius: UIConstants.cardCornerRadius,
             background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.06),
@@ -448,3 +448,4 @@ struct ShoppingListIncorrectView: View {
         }
     }
 }
+

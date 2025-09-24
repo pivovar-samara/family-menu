@@ -63,7 +63,7 @@ struct HeaderCard: View {
                     .multilineTextAlignment(.center)
             }
         }
-        .cardStyle(
+        .appCardStyle(
             cornerRadius: 20,
             background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.04),
@@ -101,7 +101,8 @@ struct MealTypesGridCard: View {
                 
                 ChipView(
                     text: String.localizedStringWithFormat("%d selected".localized(), selectedMealTypes.count),
-                    background: Color.accent.opacity(0.1),
+                    buttonStateStyle: .chip,
+                    isSelected: false,
                     font: .caption,
                     horizontalPadding: 8,
                     verticalPadding: 4,
@@ -119,7 +120,7 @@ struct MealTypesGridCard: View {
                 }
             }
         }
-        .cardStyle(
+        .appCardStyle(
             cornerRadius: 16,
             background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.04),
@@ -183,7 +184,7 @@ struct MealTypeCard: View {
                         .foregroundColor(Color.accent)
                 }
             }
-            .cardStyle(
+            .appCardStyle(
                 cornerRadius: 16,
                 background: isSelected ? Color.accent.opacity(0.05) : Color.appChipBackground,
                 shadowColor: Color.clear,

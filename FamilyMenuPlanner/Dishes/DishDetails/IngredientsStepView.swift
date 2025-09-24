@@ -121,8 +121,8 @@ struct IngredientsHeaderCard: View {
                         ChipView(
                             text: category,
                             icon: "tag",
-                            style: .outline,
-                            tint: Color.accent,
+                            buttonStateStyle: .chipTint(StylingHelper.categoryColor(for: selectedCategory?.name ?? category)),
+                            isSelected: false,
                             font: .caption
                         )
                     }
@@ -134,8 +134,8 @@ struct IngredientsHeaderCard: View {
                                     ChipView(
                                         text: mealType.name?.localized() ?? "",
                                         icon: ViewHelper.mealTypeIcon(for: mealType),
-                                        style: .outline,
-                                        tint: StylingHelper.mealTypeColor(for: mealType),
+                                        buttonStateStyle: .chipTint(StylingHelper.mealTypeColor(for: mealType)),
+                                        isSelected: false,
                                         font: .caption
                                     )
                                 }
@@ -639,3 +639,4 @@ struct EmptyIngredientsCard: View {
 }
 
 // Replaced by ChipView with ChipStyle
+
