@@ -92,10 +92,17 @@ struct ShoppingListView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
-            Button("Close".localized()) {
-                dismiss()
+            if #available(iOS 26.0, *) {
+                Button(role: .close) {
+                    dismiss()
+                }
+                .tint(Color.accent)
+            } else {
+                Button("Close".localized()) {
+                    dismiss()
+                }
+                .foregroundColor(Color.accent)
             }
-            .foregroundColor(Color.accent)
         }
         ToolbarItem(placement: .navigationBarTrailing) {
             HStack(spacing: 12) {

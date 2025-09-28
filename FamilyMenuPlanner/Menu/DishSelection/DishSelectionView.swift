@@ -108,11 +108,19 @@ struct DishSelectionView: View {
         .searchable(text: $viewModel.searchText, prompt: "Search dishes...".localized())
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("Done".localized()) {
-                    dismiss()
+                if #available(iOS 26.0, *) {
+                    Button(role: .confirm) {
+                        dismiss()
+                    }
+                    .tint(Color.accent)
+                    .accessibilityIdentifier("dish_selection_done_button")
+                } else {
+                    Button("Done".localized()) {
+                        dismiss()
+                    }
+                    .foregroundColor(Color.accent)
+                    .accessibilityIdentifier("dish_selection_done_button")
                 }
-                .foregroundColor(Color.accent)
-                .accessibilityIdentifier("dish_selection_done_button")
             }
         }
     }
