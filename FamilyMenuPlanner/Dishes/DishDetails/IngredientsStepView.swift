@@ -380,17 +380,17 @@ struct SmartIngredientRow: View {
                     }
                 }
             }
-            .onChange(of: shouldDismissFocus) { shouldDismiss in
-                if shouldDismiss && isQuantityFieldFocused && isEditing {
+            .onChange(of: shouldDismissFocus, { oldValue, newValue in
+                if newValue && isQuantityFieldFocused && isEditing {
                     // Add a small delay to allow any ongoing UI updates to complete
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                        if shouldDismiss { // Check again in case it was reset
+                        if newValue { // Check again in case it was reset
                             isQuantityFieldFocused = false
                             commitQuantityChange()
                         }
                     }
                 }
-            }
+            })
             
             if let unit = ingredient.product?.unit?.name {
                 Text(unit.localized())
@@ -545,7 +545,7 @@ struct SmartIngredientRow: View {
             // Sync display quantity with actual ingredient quantity on appear
             displayQuantity = nil
         }
-        .onChange(of: ingredient.quantity) { newQuantity in
+        .onChange(of: ingredient.quantity, { oldValue, newValue in
             // Only sync if we're not in the middle of a local adjustment
             if displayQuantity == nil {
                 displayQuantity = nil // Keep showing actual quantity
@@ -555,7 +555,7 @@ struct SmartIngredientRow: View {
                     displayQuantity = nil
                 }
             }
-        }
+        })
     }
     
     private func startEditing() {

@@ -37,10 +37,10 @@ struct BasicInfoStepView: View {
                     focusState: $focusedField,
                     focusValue: .description
                 )
-                .onChange(of: viewModel.descriptionText) { newValue in
+                .onChange(of: viewModel.descriptionText, { oldValue, newValue in
                     viewModel.dish?.details = newValue
                     viewModel.objectWillChange.send()
-                }
+                })
                 
                 // Category Selection Card
                 CategorySelectionCard(
