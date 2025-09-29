@@ -147,10 +147,15 @@ struct IngredientsHeaderCard: View {
                 .padding(.horizontal, 4)
             }
         }
-        .padding(24)
-        .background(Color.appSecondaryBackground)
-        .cornerRadius(20)
-        .shadow(color: .black.opacity(0.04), radius: 8)
+        .appCardStyle(
+            cornerRadius: UIConstants.cardCornerRadius,
+            background: Color.appSecondaryBackground,
+            shadowColor: .black.opacity(0.06),
+            shadowRadius: UIConstants.cardShadowRadius,
+            borderColor: Color.appBorder,
+            borderWidth: UIConstants.cardBorderWidth,
+            padding: UIConstants.cardPadding
+        )
     }
 }
 
@@ -194,10 +199,15 @@ struct QuickAddIngredientCard: View {
             }
             .buttonStyle(ScaleButtonStyle())
         }
-        .padding(20)
-        .background(Color.appSecondaryBackground)
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.04), radius: 8)
+        .appCardStyle(
+            cornerRadius: UIConstants.cardCornerRadius,
+            background: Color.appSecondaryBackground,
+            shadowColor: .black.opacity(0.06),
+            shadowRadius: UIConstants.cardShadowRadius,
+            borderColor: Color.appBorder,
+            borderWidth: UIConstants.cardBorderWidth,
+            padding: UIConstants.cardPadding
+        )
     }
 }
 
@@ -301,10 +311,15 @@ struct IngredientsListCard: View {
                 }
             }
         }
-        .padding(20)
-        .background(Color.appSecondaryBackground)
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.04), radius: 8)
+        .appCardStyle(
+            cornerRadius: UIConstants.cardCornerRadius,
+            background: Color.appSecondaryBackground,
+            shadowColor: .black.opacity(0.06),
+            shadowRadius: UIConstants.cardShadowRadius,
+            borderColor: Color.appBorder,
+            borderWidth: UIConstants.cardBorderWidth,
+            padding: UIConstants.cardPadding
+        )
     }
     
     private func hasUnusualQuantity(_ ingredient: IngredientDetail) -> Bool {
@@ -632,9 +647,15 @@ struct EmptyIngredientsCard: View {
             actionTitle: "Add First Ingredient".localized(),
             action: onAddFirst
         )
-        .background(Color.appSecondaryBackground)
-        .cornerRadius(20)
-        .shadow(color: .black.opacity(0.04), radius: 8)
+        .appCardStyle(
+            cornerRadius: UIConstants.cardCornerRadius,
+            background: Color.appSecondaryBackground,
+            shadowColor: .black.opacity(0.06),
+            shadowRadius: UIConstants.cardShadowRadius,
+            borderColor: Color.appBorder,
+            borderWidth: UIConstants.cardBorderWidth,
+            padding: UIConstants.cardPadding
+        )
     }
 }
 

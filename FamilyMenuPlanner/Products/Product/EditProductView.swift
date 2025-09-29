@@ -110,10 +110,15 @@ struct ProductDetailsCard: View {
                 .accessibilityIdentifier("product_name_field")
             }
         }
-        .padding(20)
-        .background(Color.appSecondaryBackground)
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+        .appCardStyle(
+            cornerRadius: UIConstants.cardCornerRadius,
+            background: Color.appSecondaryBackground,
+            shadowColor: .black.opacity(0.06),
+            shadowRadius: UIConstants.cardShadowRadius,
+            borderColor: Color.appBorder,
+            borderWidth: UIConstants.cardBorderWidth,
+            padding: UIConstants.cardPadding
+        )
     }
 }
 
@@ -155,16 +160,14 @@ struct UnitSelectionCard: View {
             }
         }
         .appCardStyle(
-            cornerRadius: 16,
+            cornerRadius: UIConstants.cardCornerRadius,
             background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.06),
-            shadowRadius: 8,
-            borderColor: Color.clear,
-            borderWidth: 0,
-            padding: 20
+            shadowRadius: UIConstants.cardShadowRadius,
+            borderColor: Color.appBorder,
+            borderWidth: UIConstants.cardBorderWidth,
+            padding: UIConstants.cardPadding
         )
     }
 }
-
-// Legacy UnitChip removed in favor of ChipView with ChipStyle
 
