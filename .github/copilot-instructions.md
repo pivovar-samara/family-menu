@@ -6,7 +6,7 @@
 
 **Scale**: ~102 Swift files (52 main app + 50 test files), 3.9MB total size, mature codebase with comprehensive testing infrastructure.
 
-**Languages & Technologies**: Swift 5.9+, SwiftUI, Core Data with CloudKit, iOS 16.0+ target, localized (English/Russian).
+**Languages & Technologies**: Swift 5.9+, SwiftUI, Core Data with CloudKit, iOS 17.0+ target, localized (English/Russian).
 
 **Architecture**: MVVM with Coordinators pattern, background operations for performance, card-based modern UI design.
 
@@ -15,7 +15,7 @@
 ### Prerequisites
 - **macOS Environment** (Xcode is macOS-only)
 - **Xcode 16.3+** (Required, earlier versions fail)
-- **iOS 16.0+ Simulator** (iPhone 16 Pro recommended for CI compatibility)
+- **iOS 17.0+ Simulator** (iPhone 17 recommended for CI compatibility)
 - **Swift 5.9+**
 
 **Note**: This is an iOS project that requires Xcode and macOS for building and testing. Linux/Windows environments cannot build or run the project.
@@ -31,7 +31,7 @@ The app automatically detects test/CI environments and disables CloudKit accordi
 
 **Clean Build**:
 ```bash
-xcodebuild -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 16 Pro" clean build
+xcodebuild -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 17" clean build
 ```
 
 **Run Tests** (ALL test suites - takes 3-5 minutes):
@@ -39,7 +39,7 @@ xcodebuild -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=i
 xcodebuild test \
   -scheme FamilyMenuPlanner \
   -project FamilyMenuPlanner.xcodeproj \
-  -destination "platform=iOS Simulator,name=iPhone 16 Pro" \
+  -destination "platform=iOS Simulator,name=iPhone 17" \
   -only-testing:FamilyMenuPlannerUnitTests \
   -only-testing:FamilyMenuPlannerIntegrationTests \
   -only-testing:FamilyMenuPlannerPerformanceTests \
@@ -53,12 +53,12 @@ xcodebuild test \
 ```
 
 **Individual Test Suites**:
-- Unit Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 16 Pro" -only-testing:FamilyMenuPlannerUnitTests`
-- Integration Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 16 Pro" -only-testing:FamilyMenuPlannerIntegrationTests`
-- Performance Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 16 Pro" -only-testing:FamilyMenuPlannerPerformanceTests`
-- UI Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 16 Pro" -only-testing:FamilyMenuPlannerUITests`
+- Unit Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 17" -only-testing:FamilyMenuPlannerUnitTests`
+- Integration Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 17" -only-testing:FamilyMenuPlannerIntegrationTests`
+- Performance Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 17" -only-testing:FamilyMenuPlannerPerformanceTests`
+- UI Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 17" -only-testing:FamilyMenuPlannerUITests`
 
-**Important**: Always use iPhone 16 Pro simulator for consistency with CI. UI tests require persistent storage (not in-memory).
+**Important**: Always use iPhone 17 simulator for consistency with CI. UI tests require persistent storage (not in-memory).
 
 ## Project Layout & Architecture
 
@@ -85,8 +85,7 @@ FamilyMenuPlannerUITests/             # Automated UI testing
 - **FamilyMenuPlanner.xcodeproj/xcshareddata/xcschemes/FamilyMenuPlanner.xcscheme**: Test configuration, environment variables
 - **FamilyMenuPlanner/Info.plist**: App configuration, iOS version requirements
 - **FamilyMenuPlanner/FamilyMenuPlanner.entitlements**: CloudKit and iCloud capabilities (`iCloud.container.menu`)
-- **FamilyMenuPlanner/Resources/en.lproj/Localizable.strings**: English localization
-- **FamilyMenuPlanner/Resources/ru.lproj/Localizable.strings**: Russian localization
+- **FamilyMenuPlanner/Resources/Localizable.xcstrings**: English and Russian localization
 - **FamilyMenuPlanner/Resources/en.lproj/preloadData.json**: Initial app data (units, products, dishes)
 - **FamilyMenuPlanner/Resources/ru.lproj/preloadData.json**: Russian version of initial data
 
@@ -196,7 +195,7 @@ Coordinator ←──────┘
 1. Create MVVM structure in appropriate module directory
 2. Add Coordinator for navigation
 3. Use `BackgroundOperationManager` for Core Data operations
-4. Add localized strings to both `en.lproj` and `ru.lproj`
+4. Add localized strings to `Localizable.xcstrings`
 5. Create unit tests for ViewModels and integration tests for Services
 
 ### Core Data Changes
@@ -205,7 +204,7 @@ Coordinator ←──────┘
 - **Static Data**: Use `StaticDataCacheManager` for reference data
 
 ### Build Failures
-- **Simulator Issues**: Restart simulator, ensure iPhone 16 Pro available
+- **Simulator Issues**: Restart simulator, ensure iPhone 17 available
 - **CloudKit Errors**: Verify CI environment detection is working
 - **Test Timeouts**: Check for infinite loops in Core Data operations
 - **Code Signing**: Ensure `CODE_SIGNING_ALLOWED=NO` for CI builds
