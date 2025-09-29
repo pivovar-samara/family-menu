@@ -29,15 +29,31 @@ struct DishListView: View {
         .modifier(dishListEditSheet)
         .modifier(dishListAlert)
         .overlay(alignment: .bottomTrailing) {
-            FloatingActionButton(
-                sfSymbolName: "plus",
-                accessibilityLabel: "Add New Dish".localized(),
-                accessibilityIdentifier: "add_dish_button"
-            ) {
-                viewModel.isAddingNewDish = true
+            if #unavailable(iOS 26) {
+                FloatingActionButton(
+                    sfSymbolName: "plus",
+                    accessibilityLabel: "Add New Dish".localized(),
+                    accessibilityIdentifier: "add_dish_button"
+                ) {
+                    viewModel.isAddingNewDish = true
+                }
+                .padding(.trailing, 20)
+                .padding(.bottom, 20)
             }
-            .padding(.trailing, 20)
-            .padding(.bottom, 20)
+        }
+        .toolbar {
+            if #available(iOS 26, *) {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        viewModel.isAddingNewDish = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .tint(Color.accent)
+                    .accessibilityLabel("Add New Dish".localized())
+                    .accessibilityIdentifier("add_dish_button")
+                }
+            }
         }
         .onAppear {
             viewModel.loadDishes()
@@ -116,10 +132,12 @@ struct DishListView: View {
             ForEach(dishes, id: \.self) { dish in
                 dishCard(for: dish)
             }
-            Color.clear
-                .frame(height: 80)
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
+            if #unavailable(iOS 26) {
+                Color.clear
+                    .frame(height: 80)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+            }
         }
         @ViewBuilder
         private func dishCard(for dish: Dish) -> some View {

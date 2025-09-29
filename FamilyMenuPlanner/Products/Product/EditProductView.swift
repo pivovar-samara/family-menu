@@ -35,21 +35,40 @@ struct EditProductView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save".localized()) {
-                    viewModel.saveChanges {
-                        dismiss()
+                if #available(iOS 26.0, *) {
+                    Button(role: .confirm) {
+                        viewModel.saveChanges {
+                            dismiss()
+                        }
                     }
+                    .tint(Color.accent)
+                    .font(.body.weight(.semibold))
+                    .accessibilityIdentifier("Save")
+                } else {
+                    Button("Save".localized()) {
+                        viewModel.saveChanges {
+                            dismiss()
+                        }
+                    }
+                    .foregroundColor(Color.accent)
+                    .font(.body.weight(.semibold))
+                    .accessibilityIdentifier("Save")
                 }
-                .foregroundColor(Color.accent)
-                .font(.body.weight(.semibold))
-                .accessibilityIdentifier("Save")
             }
             ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel".localized()) {
-                    viewModel.rollback()
-                    dismiss()
+                if #available(iOS 26.0, *) {
+                    Button(role: .cancel) {
+                        viewModel.rollback()
+                        dismiss()
+                    }
+                    .tint(Color.accent)
+                } else {
+                    Button("Cancel".localized()) {
+                        viewModel.rollback()
+                        dismiss()
+                    }
+                    .foregroundColor(Color.accent)
                 }
-                .foregroundColor(Color.accent)
             }
         }
         .onAppear {

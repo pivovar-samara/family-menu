@@ -39,12 +39,14 @@ struct ProductSelectionView: View {
                     productRow(for: product)
                 }
             }
-
-            // Spacer to keep content above any bottom elements
-            Color.clear
-                .frame(height: 80)
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
+            
+            if #unavailable(iOS 26) {
+                // Spacer to keep content above any bottom elements
+                Color.clear
+                    .frame(height: 80)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+            }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
@@ -52,32 +54,63 @@ struct ProductSelectionView: View {
         .navigationTitle("Select Product".localized())
         .searchable(text: $viewModel.searchText, prompt: "Search products...".localized())
         .overlay(alignment: .bottomTrailing) {
-            FloatingActionButton(
-                sfSymbolName: "plus",
-                accessibilityLabel: "Add Product".localized(),
-                accessibilityIdentifier: "add_product_button"
-            ) {
-                viewModel.isAddingNewProduct = true
+            if #unavailable(iOS 26) {
+                FloatingActionButton(
+                    sfSymbolName: "plus",
+                    accessibilityLabel: "Add Product".localized(),
+                    accessibilityIdentifier: "add_product_button"
+                ) {
+                    viewModel.isAddingNewProduct = true
+                }
+                .padding(.trailing, 20)
+                .padding(.bottom, 20)
             }
-            .padding(.trailing, 20)
-            .padding(.bottom, 20)
         }
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel".localized()) {
-                    dismiss()
+            if #available(iOS 26.0, *) {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        viewModel.isAddingNewProduct = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .tint(Color.accent)
+                    .accessibilityLabel("Add Product".localized())
+                    .accessibilityIdentifier("add_product_button")
                 }
-                .foregroundColor(Color.accent)
+            }
+            ToolbarItem(placement: .cancellationAction) {
+                if #available(iOS 26.0, *) {
+                    Button(role: .cancel) {
+                        dismiss()
+                    }
+                    .tint(Color.accent)
+                } else {
+                    Button("Cancel".localized()) {
+                        dismiss()
+                    }
+                    .foregroundColor(Color.accent)
+                }
             }
             if viewModel.selectionMode == .multiple {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Add Selected".localized()) {
-                        viewModel.onProductsSelected?(Array(viewModel.selectedProducts))
-                        dismiss()
+                    if #available(iOS 26.0, *) {
+                        Button(role: .confirm) {
+                            viewModel.onProductsSelected?(Array(viewModel.selectedProducts))
+                            dismiss()
+                        }
+                        .disabled(viewModel.selectedProducts.isEmpty)
+                        .tint(Color.accent)
+                        .accessibilityIdentifier("product_selection_done_button")
+                    } else {
+                        Button("Add Selected".localized()) {
+                            viewModel.onProductsSelected?(Array(viewModel.selectedProducts))
+                            dismiss()
+                        }
+                        .disabled(viewModel.selectedProducts.isEmpty)
+                        .foregroundColor(Color.accent)
+                        .accessibilityIdentifier("product_selection_done_button")
                     }
-                    .disabled(viewModel.selectedProducts.isEmpty)
-                    .foregroundColor(Color.accent)
-                    .accessibilityIdentifier("product_selection_done_button")
                 }
             }
         }

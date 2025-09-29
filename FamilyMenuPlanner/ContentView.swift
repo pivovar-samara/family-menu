@@ -113,6 +113,7 @@ struct ErrorRecoveryView: View {
                     appStateManager.retryPersistenceSetup()
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(Color.accent)
                 .padding(.top)
             }
             .padding()

@@ -68,6 +68,7 @@ struct FamilyMenuPlannerApp: App {
         
         // Customize Search bar
         UISearchBar.appearance().tintColor = UIColor.accent
+        UINavigationBar.appearance().tintColor = UIColor.accent
         
         UISegmentedControl.appearance().selectedSegmentTintColor = UIColor.appSecondaryBackground
         UISegmentedControl.appearance().backgroundColor = UIColor.appBackground

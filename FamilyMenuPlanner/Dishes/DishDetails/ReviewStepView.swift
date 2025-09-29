@@ -108,7 +108,7 @@ struct DishSummaryCard: View {
                                 ChipView(
                                     text: mealType.name?.localized() ?? "",
                                     icon: ViewHelper.mealTypeIcon(for: mealType),
-                                    buttonStateStyle: .chip,
+                                    buttonStateStyle: .chipTint(StylingHelper.mealTypeColor(for: mealType)),
                                     isSelected: false,
                                     font: .caption
                                 )
