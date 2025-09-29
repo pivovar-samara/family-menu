@@ -961,7 +961,7 @@ final class DishManagementUITests: XCTestCase {
         XCTAssertTrue(sortButton.waitForExistence(timeout: 5), "Sort button should exist")
         sortButton.tap()
         
-        let nameAscOption = app.buttons["Name A-Z"]
+        let nameAscOption = app.buttons["Name A-Z"].firstMatch
         XCTAssertTrue(nameAscOption.waitForExistence(timeout: 3), "Name A-Z option should exist")
         nameAscOption.tap()
         
@@ -1015,7 +1015,7 @@ final class DishManagementUITests: XCTestCase {
         XCTAssertTrue(sortButton.waitForExistence(timeout: 5), "Sort button should exist")
         sortButton.tap()
         
-        let nameDescOption = app.buttons["Name Z-A"]
+        let nameDescOption = app.buttons["Name Z-A"].firstMatch
         XCTAssertTrue(nameDescOption.waitForExistence(timeout: 3), "Name Z-A option should exist")
         nameDescOption.tap()
         
@@ -1058,7 +1058,7 @@ final class DishManagementUITests: XCTestCase {
         XCTAssertTrue(sortButton.waitForExistence(timeout: 5), "Sort button should exist")
         sortButton.tap()
         
-        let categoryOption = app.buttons["Category"]
+        let categoryOption = app.buttons["Category"].firstMatch
         XCTAssertTrue(categoryOption.waitForExistence(timeout: 3), "Category option should exist")
         categoryOption.tap()
         
@@ -1082,7 +1082,7 @@ final class DishManagementUITests: XCTestCase {
         XCTAssertTrue(sortButton.waitForExistence(timeout: 5), "Sort button should exist")
         sortButton.tap()
         
-        let nameDescOption = app.buttons["Name Z-A"]
+        let nameDescOption = app.buttons["Name Z-A"].firstMatch
         XCTAssertTrue(nameDescOption.waitForExistence(timeout: 3), "Name Z-A option should exist")
         nameDescOption.tap()
         
@@ -1111,7 +1111,7 @@ final class DishManagementUITests: XCTestCase {
         XCTAssertTrue(sortButton.waitForExistence(timeout: 5), "Sort button should exist")
         sortButton.tap()
         
-        let nameDescOption = app.buttons["Name Z-A"]
+        let nameDescOption = app.buttons["Name Z-A"].firstMatch
         XCTAssertTrue(nameDescOption.waitForExistence(timeout: 3), "Name Z-A option should exist")
         nameDescOption.tap()
         

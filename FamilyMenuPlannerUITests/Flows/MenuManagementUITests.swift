@@ -774,7 +774,10 @@ final class MenuManagementUITests: XCTestCase {
         }
         
         // Cancel dish selection
-        let cancelButton = app.navigationBars.buttons["Cancel"]
+        var cancelButton = app.navigationBars.buttons["Cancel"].firstMatch
+        if !cancelButton.exists {
+            cancelButton = app.toolbars.buttons["close"].firstMatch
+        }
         XCTAssertTrue(cancelButton.exists, "Cancel button should exist")
         cancelButton.tap()
         

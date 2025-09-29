@@ -536,7 +536,7 @@ final class ProductManagementUITests: XCTestCase {
         XCTAssertTrue(sortButton.waitForExistence(timeout: 5), "Sort button should exist")
         sortButton.tap()
 
-        let option = app.buttons[optionLabel]
+        let option = app.buttons[optionLabel].firstMatch
         XCTAssertTrue(option.waitForExistence(timeout: 3), "Sort option \(optionLabel) should exist")
         option.tap()
     }
