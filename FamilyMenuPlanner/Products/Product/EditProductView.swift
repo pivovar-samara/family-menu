@@ -35,21 +35,40 @@ struct EditProductView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save".localized()) {
-                    viewModel.saveChanges {
-                        dismiss()
+                if #available(iOS 26.0, *) {
+                    Button(role: .confirm) {
+                        viewModel.saveChanges {
+                            dismiss()
+                        }
                     }
+                    .tint(Color.accent)
+                    .font(.body.weight(.semibold))
+                    .accessibilityIdentifier("Save")
+                } else {
+                    Button("Save".localized()) {
+                        viewModel.saveChanges {
+                            dismiss()
+                        }
+                    }
+                    .foregroundColor(Color.accent)
+                    .font(.body.weight(.semibold))
+                    .accessibilityIdentifier("Save")
                 }
-                .foregroundColor(Color.accent)
-                .font(.body.weight(.semibold))
-                .accessibilityIdentifier("Save")
             }
             ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel".localized()) {
-                    viewModel.rollback()
-                    dismiss()
+                if #available(iOS 26.0, *) {
+                    Button(role: .cancel) {
+                        viewModel.rollback()
+                        dismiss()
+                    }
+                    .tint(Color.accent)
+                } else {
+                    Button("Cancel".localized()) {
+                        viewModel.rollback()
+                        dismiss()
+                    }
+                    .foregroundColor(Color.accent)
                 }
-                .foregroundColor(Color.accent)
             }
         }
         .onAppear {
@@ -110,10 +129,15 @@ struct ProductDetailsCard: View {
                 .accessibilityIdentifier("product_name_field")
             }
         }
-        .padding(20)
-        .background(Color.appSecondaryBackground)
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+        .appCardStyle(
+            cornerRadius: UIConstants.cardCornerRadius,
+            background: Color.appSecondaryBackground,
+            shadowColor: .black.opacity(0.06),
+            shadowRadius: UIConstants.cardShadowRadius,
+            borderColor: Color.appBorder,
+            borderWidth: UIConstants.cardBorderWidth,
+            padding: UIConstants.cardPadding
+        )
     }
 }
 
@@ -155,16 +179,14 @@ struct UnitSelectionCard: View {
             }
         }
         .appCardStyle(
-            cornerRadius: 16,
+            cornerRadius: UIConstants.cardCornerRadius,
             background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.06),
-            shadowRadius: 8,
-            borderColor: Color.clear,
-            borderWidth: 0,
-            padding: 20
+            shadowRadius: UIConstants.cardShadowRadius,
+            borderColor: Color.appBorder,
+            borderWidth: UIConstants.cardBorderWidth,
+            padding: UIConstants.cardPadding
         )
     }
 }
-
-// Legacy UnitChip removed in favor of ChipView with ChipStyle
 

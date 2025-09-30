@@ -37,10 +37,10 @@ struct BasicInfoStepView: View {
                     focusState: $focusedField,
                     focusValue: .description
                 )
-                .onChange(of: viewModel.descriptionText) { newValue in
+                .onChange(of: viewModel.descriptionText, { oldValue, newValue in
                     viewModel.dish?.details = newValue
                     viewModel.objectWillChange.send()
-                }
+                })
                 
                 // Category Selection Card
                 CategorySelectionCard(
@@ -91,13 +91,13 @@ struct HeroInfoCard: View {
             }
         }
         .appCardStyle(
-            cornerRadius: 20,
+            cornerRadius: UIConstants.cardCornerRadius,
             background: Color.appSecondaryBackground,
             shadowColor: .black.opacity(0.06),
-            shadowRadius: 12,
-            borderColor: Color.clear,
-            borderWidth: 0,
-            padding: 24
+            shadowRadius: UIConstants.cardShadowRadius,
+            borderColor: Color.appBorder,
+            borderWidth: UIConstants.cardBorderWidth,
+            padding: UIConstants.cardPadding
         )
     }
 }
@@ -147,13 +147,13 @@ struct DescriptionCard: View {
             .frame(minHeight: 100)
         }
         .appCardStyle(
-            cornerRadius: 16,
+            cornerRadius: UIConstants.cardCornerRadius,
             background: Color.appSecondaryBackground,
-            shadowColor: .black.opacity(0.04),
-            shadowRadius: 8,
-            borderColor: Color.clear,
-            borderWidth: 0,
-            padding: 20
+            shadowColor: .black.opacity(0.06),
+            shadowRadius: UIConstants.cardShadowRadius,
+            borderColor: Color.appBorder,
+            borderWidth: UIConstants.cardBorderWidth,
+            padding: UIConstants.cardPadding
         )
     }
 }
@@ -200,13 +200,13 @@ struct CategorySelectionCard: View {
             }
         }
         .appCardStyle(
-            cornerRadius: 16,
+            cornerRadius: UIConstants.cardCornerRadius,
             background: Color.appSecondaryBackground,
-            shadowColor: .black.opacity(0.04),
-            shadowRadius: 8,
-            borderColor: Color.clear,
-            borderWidth: 0,
-            padding: 20
+            shadowColor: .black.opacity(0.06),
+            shadowRadius: UIConstants.cardShadowRadius,
+            borderColor: Color.appBorder,
+            borderWidth: UIConstants.cardBorderWidth,
+            padding: UIConstants.cardPadding
         )
     }
 }

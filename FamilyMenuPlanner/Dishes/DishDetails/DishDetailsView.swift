@@ -44,10 +44,10 @@ struct DishDetailsView: View {
             }
             .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
             .animation(.easeInOut, value: currentStep)
-            .onChange(of: currentStep) { _ in
+            .onChange(of: currentStep, { oldValue, newValue in
                 // Resign focus when step changes via swipe gesture
                 UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-            }
+            })
             .clipped(antialiased: false)
             
             // Navigation Controls

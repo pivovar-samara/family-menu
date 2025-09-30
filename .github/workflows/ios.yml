@@ -55,7 +55,7 @@ jobs:
           xcodebuild test \
             -scheme "$scheme" \
             -"$filetype_parameter" "$file_to_build" \
-            -destination "platform=iOS Simulator,OS=18.5,name=iPhone 16 Pro" \
+            -destination "platform=iOS Simulator,OS=26.0,name=iPhone 17" \
             -only-testing:FamilyMenuPlannerUnitTests \
             -only-testing:FamilyMenuPlannerIntegrationTests \
             -only-testing:FamilyMenuPlannerPerformanceTests \

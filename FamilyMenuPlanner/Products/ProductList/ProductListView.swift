@@ -28,17 +28,33 @@ struct ProductListView: View {
         .searchable(text: $viewModel.searchText, prompt: "Search products...".localized())
         .navigationTitle("Products".localized())
         .overlay(alignment: .bottomTrailing) {
-            FloatingActionButton(
-                sfSymbolName: "plus",
-                accessibilityLabel: "Add Product".localized(),
-                accessibilityIdentifier: "add_product_button"
-            ) {
-                viewModel.isAddingNewProduct = true
+            if #unavailable(iOS 26) {
+                FloatingActionButton(
+                    sfSymbolName: "plus",
+                    accessibilityLabel: "Add Product".localized(),
+                    accessibilityIdentifier: "add_product_button"
+                ) {
+                    viewModel.isAddingNewProduct = true
+                }
+                .padding(.trailing, 20)
+                .padding(.bottom, 20)
             }
-            .padding(.trailing, 20)
-            .padding(.bottom, 20)
         }
         .modifier(productListToolbar)
+        .toolbar {
+            if #available(iOS 26, *) {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        viewModel.isAddingNewProduct = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .tint(Color.accent)
+                    .accessibilityLabel("Add Product".localized())
+                    .accessibilityIdentifier("add_product_button")
+                }
+            }
+        }
         .modifier(productListAddSheet)
         .modifier(productListEditSheet)
         .modifier(productListAlert)
@@ -120,10 +136,12 @@ struct ProductListView: View {
             ForEach(products, id: \.self) { product in
                 productCard(for: product)
             }
-            Color.clear
-                .frame(height: 80)
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
+            if #unavailable(iOS 26) {
+                Color.clear
+                    .frame(height: 80)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+            }
         }
         @ViewBuilder
         private func productCard(for product: Product) -> some View {

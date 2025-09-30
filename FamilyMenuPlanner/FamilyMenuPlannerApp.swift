@@ -58,31 +58,17 @@ struct FamilyMenuPlannerApp: App {
         UITabBar.appearance().standardAppearance = tabBarAppearance
         UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance // For scrollable content
         
-        // Customize UINavigationBarAppearance
-        let navBarAppearance = UINavigationBarAppearance()
-        navBarAppearance.configureWithOpaqueBackground()
-        navBarAppearance.backgroundColor = UIColor.appBackground
-        
-        let buttonAppearance = UIBarButtonItemAppearance()
-        buttonAppearance.normal.titleTextAttributes = [
-            .foregroundColor: UIColor.accent
-        ]
-        buttonAppearance.highlighted.titleTextAttributes = [
-            .foregroundColor: UIColor.accent
-        ]
-
-        navBarAppearance.buttonAppearance = buttonAppearance
-        navBarAppearance.doneButtonAppearance = buttonAppearance
-        
-        let scrollEdgeNavBarAppearance = navBarAppearance.copy()
-        scrollEdgeNavBarAppearance.shadowColor = .clear
-        
-        UINavigationBar.appearance().standardAppearance = navBarAppearance
-        UINavigationBar.appearance().scrollEdgeAppearance = scrollEdgeNavBarAppearance
-        UINavigationBar.appearance().tintColor = UIColor.appBackground
+        if #unavailable (iOS 26.0) {
+            // Customize UINavigationBarAppearance
+            let navBarAppearance = UINavigationBarAppearance()
+            navBarAppearance.configureWithOpaqueBackground()
+            navBarAppearance.backgroundColor = UIColor.appBackground
+            UINavigationBar.appearance().standardAppearance = navBarAppearance
+        }
         
         // Customize Search bar
         UISearchBar.appearance().tintColor = UIColor.accent
+        UINavigationBar.appearance().tintColor = UIColor.accent
         
         UISegmentedControl.appearance().selectedSegmentTintColor = UIColor.appSecondaryBackground
         UISegmentedControl.appearance().backgroundColor = UIColor.appBackground

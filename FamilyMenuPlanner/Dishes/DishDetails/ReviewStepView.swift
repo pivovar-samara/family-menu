@@ -108,7 +108,7 @@ struct DishSummaryCard: View {
                                 ChipView(
                                     text: mealType.name?.localized() ?? "",
                                     icon: ViewHelper.mealTypeIcon(for: mealType),
-                                    buttonStateStyle: .chip,
+                                    buttonStateStyle: .chipTint(StylingHelper.mealTypeColor(for: mealType)),
                                     isSelected: false,
                                     font: .caption
                                 )
@@ -158,10 +158,15 @@ struct DishSummaryCard: View {
                 }
             }
         }
-        .padding(20)
-        .background(Color.appSecondaryBackground)
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.04), radius: 8)
+        .appCardStyle(
+            cornerRadius: UIConstants.cardCornerRadius,
+            background: Color.appSecondaryBackground,
+            shadowColor: .black.opacity(0.06),
+            shadowRadius: UIConstants.cardShadowRadius,
+            borderColor: Color.appBorder,
+            borderWidth: UIConstants.cardBorderWidth,
+            padding: UIConstants.cardPadding
+        )
     }
     
     private func hasUnusualQuantity(_ ingredient: IngredientDetail) -> Bool {
@@ -361,10 +366,15 @@ struct ValidationCard: View {
                     }
                 }
             }
-            .padding(20)
-            .background(Color.appSecondaryBackground)
-            .cornerRadius(16)
-            .shadow(color: .black.opacity(0.04), radius: 8)
+            .appCardStyle(
+                cornerRadius: UIConstants.cardCornerRadius,
+                background: Color.appSecondaryBackground,
+                shadowColor: .black.opacity(0.06),
+                shadowRadius: UIConstants.cardShadowRadius,
+                borderColor: Color.appBorder,
+                borderWidth: UIConstants.cardBorderWidth,
+                padding: UIConstants.cardPadding
+            )
         }
     }
     
@@ -433,7 +443,7 @@ struct QuickEditActionsCard: View {
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(20)
+        .padding(UIConstants.cardPadding)
         .background(
             LinearGradient(
                 colors: [Color.accent.opacity(0.05), Color.accent.opacity(0.02)],
@@ -441,9 +451,9 @@ struct QuickEditActionsCard: View {
                 endPoint: .bottomTrailing
             )
         )
-        .cornerRadius(16)
+        .cornerRadius(UIConstants.cardCornerRadius)
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: UIConstants.cardCornerRadius)
                 .stroke(Color.accent.opacity(0.2), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.02), radius: 4)
