@@ -34,6 +34,7 @@ struct ShoppingListView: View {
             }
             listContent
         }
+        .trackScreenAppear(name: AnalyticsScreenName.ShoppingList)
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(Color.appBackground)

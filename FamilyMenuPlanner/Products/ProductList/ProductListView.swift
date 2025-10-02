@@ -25,6 +25,7 @@ struct ProductListView: View {
             onEdit: { product in viewModel.selectedProduct = product },
             onDelete: { product in viewModel.deleteProduct(product) }
         )
+        .trackScreenAppear(name: AnalyticsScreenName.ProductList)
         .searchable(text: $viewModel.searchText, prompt: "Search products...".localized())
         .navigationTitle("Products".localized())
         .overlay(alignment: .bottomTrailing) {

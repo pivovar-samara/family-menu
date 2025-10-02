@@ -39,6 +39,7 @@ struct ReviewStepView: View {
             .padding(.horizontal, 20)
             .padding(.top, 20)
         }
+        .trackScreenAppear(name: AnalyticsScreenName.DishDetailsReview)
         .background(Color.appBackground)
     }
 }

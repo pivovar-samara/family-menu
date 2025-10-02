@@ -33,6 +33,7 @@ struct MealTypesStepView: View {
             .padding(.horizontal, 20)
             .padding(.top, 20)
         }
+        .trackScreenAppear(name: AnalyticsScreenName.DishDetailsMealTypes)
         .background(Color.appBackground)
     }
 }

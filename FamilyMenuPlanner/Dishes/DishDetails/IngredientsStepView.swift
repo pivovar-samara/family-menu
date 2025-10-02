@@ -58,6 +58,7 @@ struct IngredientsStepView: View {
             .padding(.horizontal, 20)
             .padding(.top, 20)
         }
+        .trackScreenAppear(name: AnalyticsScreenName.DishDetailsIngredients)
         .background(Color.appBackground)
     }
 }

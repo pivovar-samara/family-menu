@@ -23,6 +23,7 @@ struct DishListView: View {
             onEdit: { dish in viewModel.selectedDish = dish },
             onDelete: { dish in viewModel.deleteDish(dish) }
         )
+        .trackScreenAppear(name: AnalyticsScreenName.DishList)
         .searchable(text: $viewModel.searchText, prompt: "Search dishes...".localized())
         .modifier(dishListToolbar)
         .modifier(dishListAddSheet)

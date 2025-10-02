@@ -101,6 +101,7 @@ struct DishSelectionView: View {
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
         }
+        .trackScreenAppear(name: AnalyticsScreenName.DishSelection)
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(Color.appBackground)

@@ -48,6 +48,7 @@ struct ProductSelectionView: View {
                     .listRowBackground(Color.clear)
             }
         }
+        .trackScreenAppear(name: AnalyticsScreenName.ProductSelection)
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(Color.appBackground)

@@ -6,6 +6,10 @@
 	objectVersion = 90;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		486071B92E8BBDC90084E430 /* AmplitudeSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 486071B82E8BBDC90084E430 /* AmplitudeSwift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		484161822DEF52D800A48C49 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -171,6 +175,11 @@
 			path = FamilyMenuPlannerIntegrationTests;
 			sourceTree = "<group>";
 		};
+		486071F92E8E89A80084E430 /* Configs */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Configs;
+			sourceTree = "<group>";
+		};
 		4866AAFF2DF35BCA006942F3 /* FamilyMenuPlannerUnitTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = FamilyMenuPlannerUnitTests;
@@ -214,6 +223,7 @@
 		A004ED722D11DC000081DDC0 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				486071B92E8BBDC90084E430 /* AmplitudeSwift in Frameworks */,
 			);
 		};
 		A004ED882D11DC030081DDC0 /* Frameworks */ = {
@@ -232,6 +242,7 @@
 		A004ED6C2D11DC000081DDC0 = {
 			isa = PBXGroup;
 			children = (
+				486071F92E8E89A80084E430 /* Configs */,
 				4866AB4E2DF35BD0006942F3 /* FamilyMenuPlanner */,
 				4866AAFF2DF35BCA006942F3 /* FamilyMenuPlannerUnitTests */,
 				4841617F2DEF52D800A48C49 /* FamilyMenuPlannerIntegrationTests */,
@@ -314,6 +325,9 @@
 				4866AB4E2DF35BD0006942F3 /* FamilyMenuPlanner */,
 			);
 			name = FamilyMenuPlanner;
+			packageProductDependencies = (
+				486071B82E8BBDC90084E430 /* AmplitudeSwift */,
+			);
 			productName = FamilyMenuPlanner;
 			productReference = A004ED752D11DC000081DDC0 /* FamilyMenuPlanner.app */;
 			productType = "com.apple.product-type.application";
@@ -398,6 +412,9 @@
 				Base,
 			);
 			mainGroup = A004ED6C2D11DC000081DDC0;
+			packageReferences = (
+				486071B72E8BBDC90084E430 /* XCRemoteSwiftPackageReference "Amplitude-Swift" */,
+			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = A004ED762D11DC000081DDC0 /* Products */;
 			projectDirPath = "";
@@ -580,6 +597,8 @@
 		};
 		A004ED9D2D11DC030081DDC0 /* Debug configuration for PBXProject "FamilyMenuPlanner" */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 486071F92E8E89A80084E430 /* Configs */;
+			baseConfigurationReferenceRelativePath = Debug.xcconfig;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -647,6 +666,8 @@
 		};
 		A004ED9E2D11DC030081DDC0 /* Release configuration for PBXProject "FamilyMenuPlanner" */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 486071F92E8E89A80084E430 /* Configs */;
+			baseConfigurationReferenceRelativePath = Release.xcconfig;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -898,6 +919,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		486071B72E8BBDC90084E430 /* XCRemoteSwiftPackageReference "Amplitude-Swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/amplitude/Amplitude-Swift";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		486071B82E8BBDC90084E430 /* AmplitudeSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 486071B72E8BBDC90084E430 /* XCRemoteSwiftPackageReference "Amplitude-Swift" */;
+			productName = AmplitudeSwift;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A004ED6D2D11DC000081DDC0 /* Project object */;
 }

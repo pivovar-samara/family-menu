@@ -1,0 +1,12 @@
+//
+//  Release.xcconfig
+//  FamilyMenuPlanner
+//
+//  Created by Ilia Khokhlov on 02.10.25.
+//
+
+// Configuration settings file format documentation can be found at:
+// https://developer.apple.com/documentation/xcode/adding-a-build-configuration-file-to-your-project
+
+#include "Base.xcconfig"
+AMPLITUDE_API_KEY = $(AMPLITUDE_API_KEY_PROD)

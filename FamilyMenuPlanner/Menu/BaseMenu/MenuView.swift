@@ -21,6 +21,7 @@ struct MenuView: View {
             editingWeekBanner
             menuContent
         }
+        .trackScreenAppear(name: AnalyticsScreenName.Menu)
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(Color.appBackground)

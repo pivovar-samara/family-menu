@@ -30,6 +30,7 @@ struct EditProductView: View {
             .padding(.horizontal, 20)
             .padding(.top, 20)
         }
+        .trackScreenAppear(name: AnalyticsScreenName.EditProduct)
         .background(Color.appBackground)
         .navigationTitle(viewModel.isCreatingNewProduct ? "Add Product".localized() : "Edit Product".localized())
         .navigationBarTitleDisplayMode(.inline)
