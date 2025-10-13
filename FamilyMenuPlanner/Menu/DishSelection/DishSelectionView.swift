@@ -124,6 +124,18 @@ struct DishSelectionView: View {
                 }
             }
         }
+        .onChange(of: viewModel.searchText) { oldValue, newValue in
+            let query = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !query.isEmpty else { return }
+            let totalResults = dishesForMealType.count + otherDishes.count
+            AnalyticsManager.shared.track(
+                name: AnalyticsEventName.dish_selection_search,
+                properties: [
+                    AnalyticsPropertyKey.query: query,
+                    AnalyticsPropertyKey.results: totalResults,
+                ]
+            )
+        }
     }
     
     private func dishRow(dish: Dish) -> some View {
