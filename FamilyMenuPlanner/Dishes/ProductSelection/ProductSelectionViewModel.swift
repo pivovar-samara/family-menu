@@ -101,6 +101,12 @@ class ProductSelectionViewModel: ObservableObject {
         case .multiple:
             selectedProducts.insert(product)
         }
+        AnalyticsManager.shared.track(
+            name: AnalyticsEventName.product_selection_new_product_added,
+            properties: [
+                AnalyticsPropertyKey.count: selectedProducts.count
+            ]
+        )
     }
     
     // MARK: - Selection Handling

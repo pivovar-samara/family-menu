@@ -27,6 +27,18 @@ struct ProductListView: View {
         )
         .trackScreenAppear(name: AnalyticsScreenName.ProductList)
         .searchable(text: $viewModel.searchText, prompt: "Search products...".localized())
+        .onChange(of: viewModel.searchText) { oldValue, newValue in
+            let query = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !query.isEmpty else { return }
+            let totalResults = viewModel.filteredProducts.count
+            AnalyticsManager.shared.track(
+                name: AnalyticsEventName.product_list_search,
+                properties: [
+                    AnalyticsPropertyKey.query: query,
+                    AnalyticsPropertyKey.results: totalResults,
+                ]
+            )
+        }
         .navigationTitle("Products".localized())
         .overlay(alignment: .bottomTrailing) {
             if #unavailable(iOS 26) {
@@ -70,6 +82,10 @@ struct ProductListView: View {
             sortOptions: Array(ProductSortOption.allCases),
             onSortOptionSelected: { sortOption in
                 viewModel.updateSortOption(sortOption)
+                AnalyticsManager.shared.track(
+                    name: AnalyticsEventName.product_list_sorting_changed,
+                    properties: [AnalyticsPropertyKey.sort_type: String(describing: sortOption)]
+                )
             },
             accessibilityIdentifier: "sort_products_button",
             accessibilityLabel: "Sort products".localized(),
@@ -90,6 +106,7 @@ struct ProductListView: View {
                 product: product,
                 onDismiss: { shouldSave, _ in
                     if !shouldSave {
+                        AnalyticsManager.shared.track(name: AnalyticsEventName.edit_product_cancelled, properties: [AnalyticsPropertyKey.is_new_adding: viewModel.isAddingNewProduct])
                         AppLogger.info("Product editing dismissed without saving", category: AppLogger.viewModel)
                     }
                     viewModel.selectedProduct = nil
@@ -115,6 +132,9 @@ struct ProductListView: View {
                 if filteredProducts.isEmpty {
                     if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         ProductListEmptyState(onAdd: onAdd)
+                            .onAppear {
+                                AnalyticsManager.shared.track(name: AnalyticsEventName.product_list_empty_state_shown, properties: [:])
+                            }
                     } else {
                         ProductListNoResultsState()
                     }

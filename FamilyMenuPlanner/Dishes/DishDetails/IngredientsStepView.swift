@@ -41,6 +41,20 @@ struct IngredientsStepView: View {
                         viewModel.selectedIngredient = ingredient
                         viewModel.isAddingIngredient = false
                         viewModel.showProductSelection = true
+                        AnalyticsManager.shared.track(
+                            name: AnalyticsEventName.product_selection_opened,
+                            properties: [
+                                AnalyticsPropertyKey.source: "list",
+                                AnalyticsPropertyKey.is_new_adding: viewModel.isCreatingNewDish,
+                                AnalyticsPropertyKey.dish_name: viewModel.dish?.name ?? "",
+                                AnalyticsPropertyKey.recipe_length: viewModel.dish?.details?.count ?? 0,
+                                AnalyticsPropertyKey.meal_types: viewModel.selectedMealTypes.map({ type in
+                                    type.name ?? ""
+                                }),
+                                AnalyticsPropertyKey.category: viewModel.selectedCategory?.name ?? "",
+                                AnalyticsPropertyKey.ingredients_count: viewModel.selectedIngredients.count
+                            ]
+                        )
                     }
                 )
                 } else {
@@ -49,6 +63,20 @@ struct IngredientsStepView: View {
                             viewModel.selectedIngredient = nil
                             viewModel.isAddingIngredient = true
                             viewModel.showProductSelection = true
+                            AnalyticsManager.shared.track(
+                                name: AnalyticsEventName.product_selection_opened,
+                                properties: [
+                                    AnalyticsPropertyKey.source: "empty_list",
+                                    AnalyticsPropertyKey.is_new_adding: viewModel.isCreatingNewDish,
+                                    AnalyticsPropertyKey.dish_name: viewModel.dish?.name ?? "",
+                                    AnalyticsPropertyKey.recipe_length: viewModel.dish?.details?.count ?? 0,
+                                    AnalyticsPropertyKey.meal_types: viewModel.selectedMealTypes.map({ type in
+                                        type.name ?? ""
+                                    }),
+                                    AnalyticsPropertyKey.category: viewModel.selectedCategory?.name ?? "",
+                                    AnalyticsPropertyKey.ingredients_count: viewModel.selectedIngredients.count
+                                ]
+                            )
                         }
                     )
                 }
@@ -180,6 +208,20 @@ struct QuickAddIngredientCard: View {
                 viewModel.selectedIngredient = nil
                 viewModel.isAddingIngredient = true
                 viewModel.showProductSelection = true
+                AnalyticsManager.shared.track(
+                    name: AnalyticsEventName.product_selection_opened,
+                    properties: [
+                        AnalyticsPropertyKey.source: "add_button",
+                        AnalyticsPropertyKey.is_new_adding: viewModel.isCreatingNewDish,
+                        AnalyticsPropertyKey.dish_name: viewModel.dish?.name ?? "",
+                        AnalyticsPropertyKey.recipe_length: viewModel.dish?.details?.count ?? 0,
+                        AnalyticsPropertyKey.meal_types: viewModel.selectedMealTypes.map({ type in
+                            type.name ?? ""
+                        }),
+                        AnalyticsPropertyKey.category: viewModel.selectedCategory?.name ?? "",
+                        AnalyticsPropertyKey.ingredients_count: viewModel.selectedIngredients.count
+                    ]
+                )
             }) {
                 HStack {
                     Image(systemName: "plus")

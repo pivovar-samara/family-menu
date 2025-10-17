@@ -54,6 +54,7 @@ class DishDetailsViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let onDismiss: ((Bool) -> Void)?
     private var hasSavedChanges = false
+    private var dismissCalled: Bool = false
     
     // UserDefaults key for storing ingredient sort preference
     private static let ingredientSortPreferenceKey = "IngredientSortPreference"
@@ -191,15 +192,19 @@ class DishDetailsViewModel: ObservableObject {
     }
     
     func setDishCategory(_ category: DishCategory?) {
+        let oldCategoryName = selectedCategory?.name ?? ""
         selectedCategory = category
         
         // Check if dish is still valid before setting category
         guard let dish = ensureValidDish() else {
             AppLogger.warning("Attempted to set category on deleted dish entity", category: AppLogger.viewModel)
+            logDishEventWithProperties(name: AnalyticsEventName.edit_dish_category_changing_failed, additionalProperties: [AnalyticsPropertyKey.new_category: category?.name ?? ""])
             return
         }
         
         dish.category = category
+        
+        logDishEventWithProperties(name: AnalyticsEventName.edit_dish_category_changed, additionalProperties: [AnalyticsPropertyKey.old_category: oldCategoryName])
     }
 
     func addIngredient(product: Product, quantity: Double) {
@@ -224,8 +229,10 @@ class DishDetailsViewModel: ObservableObject {
             try dishDetailsService.saveChanges()
             // Refresh ingredients list
             loadIngredients()
+            logDishEventWithProperties(name: AnalyticsEventName.edit_dish_ingredients_added)
         } catch {
             AppLogger.error("Failed to create a new ingredient", error: error, category: AppLogger.viewModel)
+            logDishEventWithProperties(name: AnalyticsEventName.edit_dish_ingredients_adding_failed, additionalProperties: [AnalyticsPropertyKey.error_message: error.localizedDescription])
         }
     }
 
@@ -249,8 +256,10 @@ class DishDetailsViewModel: ObservableObject {
             }
             try dishDetailsService.saveChanges()
             loadIngredients()
+            logDishEventWithProperties(name: AnalyticsEventName.edit_dish_ingredients_added)
         } catch {
             AppLogger.error("Failed to create ingredients in batch", error: error, category: AppLogger.viewModel)
+            logDishEventWithProperties(name: AnalyticsEventName.edit_dish_ingredients_adding_failed, additionalProperties: [AnalyticsPropertyKey.error_message: error.localizedDescription])
         }
     }
 
@@ -273,6 +282,7 @@ class DishDetailsViewModel: ObservableObject {
             // Persist changes in the background to avoid UI freezing
             updateSortOrderInBackground()
         }
+        logDishEventWithProperties(name: AnalyticsEventName.edit_dish_ingredients_sorting_changed, additionalProperties: [AnalyticsPropertyKey.sort_type: sortOption.rawValue])
     }
     
     /// Persists the current ingredient sort order changes in Core Data on a background thread
@@ -308,11 +318,16 @@ class DishDetailsViewModel: ObservableObject {
             dishDetailsService.deleteIngredient(ingredient: detail)
         }
         selectedIngredients.remove(atOffsets: offsets)
+        logDishEventWithProperties(name: AnalyticsEventName.edit_dish_ingredients_removed)
     }
     
     func toggleMealTypeSelection(_ mealType: MealType) {
+        let oldMealTypes = selectedMealTypes.map({ type in
+            type.name ?? ""
+        })
         // Check if dish is still valid before modifying meal types
         guard let dish = ensureValidDish() else {
+            logDishEventWithProperties(name: AnalyticsEventName.edit_dish_meal_type_toggle_failed, additionalProperties: [AnalyticsPropertyKey.toggled_meal_type: mealType.name ?? ""])
             AppLogger.warning("Attempted to modify meal types on deleted dish entity", category: AppLogger.viewModel)
             return
         }
@@ -324,11 +339,14 @@ class DishDetailsViewModel: ObservableObject {
             selectedMealTypes.insert(mealType)
             mealType.addToDishes(dish)
         }
+        
+        logDishEventWithProperties(name: AnalyticsEventName.edit_dish_meal_type_toggled, additionalProperties: [AnalyticsPropertyKey.old_meal_types: oldMealTypes])
     }
     
     func saveChanges(onSuccess: ()->Void) {
         do {
             guard self.validate(), validationError == nil else {
+                logDishEventWithProperties(name: AnalyticsEventName.edit_dish_save_failed, additionalProperties: [AnalyticsPropertyKey.error_message: validationError ?? ""])
                 return
             }
             
@@ -344,8 +362,11 @@ class DishDetailsViewModel: ObservableObject {
             
             try dishDetailsService.saveChanges()
             hasSavedChanges = true
-            onDismiss?(true) // Indicate user saved successfully
+            if !dismissCalled { onDismiss?(true) } // Indicate user saved successfully
             onSuccess()
+            dismissCalled = true
+            
+            logDishEventWithProperties(name: AnalyticsEventName.edit_dish_saved)
         } catch let error as NSError {
             enqueueAlert(title: "Error", message: error.localizedDescription)
         } catch {
@@ -355,7 +376,8 @@ class DishDetailsViewModel: ObservableObject {
     
     func rollback() {
         dishDetailsService.rollback()
-        onDismiss?(false) // Indicate user dismissed without saving
+        if !dismissCalled { onDismiss?(false) } // Indicate user dismissed without saving
+        dismissCalled = true
     }
     
     /// Called when user dismisses sheet without explicit cancel - ensures rollback happens
@@ -392,6 +414,8 @@ class DishDetailsViewModel: ObservableObject {
     }
     
     func enqueueAlert(title: String, message: String, action: (() -> Void)? = nil) {
+        logDishEventWithProperties(name: AnalyticsEventName.edit_dish_save_failed, additionalProperties: [AnalyticsPropertyKey.error_message: message])
+        
         let alert = AlertItem(title: title.localized(), message: message.localized(), action: action)
         alertManager.enqueue(alert: alert)
     }
@@ -422,9 +446,11 @@ class DishDetailsViewModel: ObservableObject {
             newDish.details = ""
             newDish.isDraft = true
             AppLogger.info("Recreated dish entity after cleanup deletion", category: AppLogger.viewModel)
+            AnalyticsManager.shared.track(name: AnalyticsEventName.edit_dish_recreated)
             return newDish
         } catch {
             AppLogger.error("Failed to recreate dish after cleanup deletion", error: error, category: AppLogger.viewModel)
+            AnalyticsManager.shared.track(name: AnalyticsEventName.edit_dish_recreation_failed, properties: [AnalyticsPropertyKey.error_message: error.localizedDescription])
             return nil
         }
     }
@@ -448,8 +474,10 @@ class DishDetailsViewModel: ObservableObject {
         // Save changes to Core Data
         do {
             try dishDetailsService.saveChanges()
+            logDishEventWithProperties(name: AnalyticsEventName.edit_dish_ingredients_quantity_changed, additionalProperties: [AnalyticsPropertyKey.quantity: quantity, AnalyticsPropertyKey.recipe_length: 600])
         } catch {
             AppLogger.error("Failed to save ingredient quantity update", error: error, category: AppLogger.viewModel)
+            logDishEventWithProperties(name: AnalyticsEventName.edit_dish_update_ingredient_quantity_failed, additionalProperties: [AnalyticsPropertyKey.quantity: quantity, AnalyticsPropertyKey.error_message: error.localizedDescription])
         }
     }
     
@@ -466,7 +494,9 @@ class DishDetailsViewModel: ObservableObject {
                     let oldValue = detail.quantity
                     detail.quantity = 0.0
                     hasChanges = true
-                    AppLogger.warning("Fixed invalid quantity value (\(oldValue)) in ingredient detail for dish: \(dish.name ?? "unknown")", category: AppLogger.viewModel)
+                    let message: String = "Fixed invalid quantity value (\(oldValue)) in ingredient detail for dish: \(dish.name ?? "unknown")"
+                    AppLogger.warning(message, category: AppLogger.viewModel)
+                    AnalyticsManager.shared.track(name: AnalyticsEventName.edit_dish_data_cleanup_failed, properties: [AnalyticsPropertyKey.error_message: message])
                 }
             }
             
@@ -475,16 +505,27 @@ class DishDetailsViewModel: ObservableObject {
                 do {
                     try dishDetailsService.saveChanges()
                     AppLogger.info("Data validation cleanup completed successfully", category: AppLogger.viewModel)
+                    logDishEventWithProperties(name: AnalyticsEventName.edit_dish_data_cleanup_finished)
                 } catch {
                     AppLogger.error("Failed to save data validation cleanup changes", error: error, category: AppLogger.viewModel)
+                    logDishEventWithProperties(name: AnalyticsEventName.edit_dish_data_cleanup_failed, additionalProperties: [AnalyticsPropertyKey.error_message: error.localizedDescription])
                 }
             }
         }
     }
     
-    // Fallback cleanup when ViewModel is deallocated. Avoid UI callbacks from deinit.
-    deinit {
-        AppLogger.info("🔴 DishDetailsViewModel deinit called", category: AppLogger.viewModel)
-        // No explicit rollback here to avoid double rollback; handled by dismissWithoutSaving
+    private func logDishEventWithProperties(name: String, additionalProperties: [String: Sendable] = [:]) {
+        var properties: [String: Sendable] = [
+            AnalyticsPropertyKey.is_new_adding: isCreatingNewDish,
+            AnalyticsPropertyKey.dish_name: dish?.name ?? "",
+            AnalyticsPropertyKey.recipe_length: dish?.details?.count ?? 0,
+            AnalyticsPropertyKey.meal_types: selectedMealTypes.map({ type in
+                type.name ?? ""
+            }),
+            AnalyticsPropertyKey.category: selectedCategory?.name ?? "",
+            AnalyticsPropertyKey.ingredients_count: selectedIngredients.count
+        ]
+        properties.merge(additionalProperties, uniquingKeysWith: { _, lhs in lhs })
+        AnalyticsManager.shared.track(name: name, properties: properties)
     }
 }

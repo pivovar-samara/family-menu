@@ -25,6 +25,18 @@ struct DishListView: View {
         )
         .trackScreenAppear(name: AnalyticsScreenName.DishList)
         .searchable(text: $viewModel.searchText, prompt: "Search dishes...".localized())
+        .onChange(of: viewModel.searchText) { oldValue, newValue in
+            let query = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !query.isEmpty else { return }
+            let totalResults = viewModel.filteredDishes.count
+            AnalyticsManager.shared.track(
+                name: AnalyticsEventName.dish_list_search,
+                properties: [
+                    AnalyticsPropertyKey.query: query,
+                    AnalyticsPropertyKey.results: totalResults,
+                ]
+            )
+        }
         .modifier(dishListToolbar)
         .modifier(dishListAddSheet)
         .modifier(dishListEditSheet)
@@ -67,6 +79,10 @@ struct DishListView: View {
             sortOptions: Array(DishSortOption.allCases),
             onSortOptionSelected: { sortOption in
                 viewModel.updateSortOption(sortOption)
+                AnalyticsManager.shared.track(
+                    name: AnalyticsEventName.dish_list_sorting_changed,
+                    properties: [AnalyticsPropertyKey.sort_type: String(describing: sortOption)]
+                )
             },
             accessibilityIdentifier: "sort_dishes_button",
             accessibilityLabel: "Sort dishes".localized(),
@@ -87,6 +103,7 @@ struct DishListView: View {
                 dish: dish,
                 onDismiss: { shouldSave in
                     if !shouldSave {
+                        AnalyticsManager.shared.track(name: AnalyticsEventName.edit_dish_cancelled, properties: [AnalyticsPropertyKey.is_new_adding: viewModel.isAddingNewDish])
                         AppLogger.info("Dish editing dismissed without saving", category: AppLogger.viewModel)
                     }
                     viewModel.selectedDish = nil
@@ -112,6 +129,9 @@ struct DishListView: View {
                 if filteredDishes.isEmpty {
                     if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         DishListEmptyState(onAdd: onAdd)
+                            .onAppear {
+                                AnalyticsManager.shared.track(name: AnalyticsEventName.dish_list_empty_state_shown, properties: [:])
+                            }
                     } else {
                         DishListNoResultsState()
                     }
