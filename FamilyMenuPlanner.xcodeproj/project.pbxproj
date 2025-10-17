@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		4851EA672EA2C227008E5A0F /* AmplitudeSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 4851EA662EA2C227008E5A0F /* AmplitudeSwift */; };
+		4851EA692EA2C22D008E5A0F /* AmplitudeSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 4851EA682EA2C22D008E5A0F /* AmplitudeSwift */; };
+		4851EA6B2EA2C231008E5A0F /* AmplitudeSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 4851EA6A2EA2C231008E5A0F /* AmplitudeSwift */; };
+		4851EA6D2EA2C235008E5A0F /* AmplitudeSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 4851EA6C2EA2C235008E5A0F /* AmplitudeSwift */; };
 		486071B92E8BBDC90084E430 /* AmplitudeSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 486071B82E8BBDC90084E430 /* AmplitudeSwift */; };
 /* End PBXBuildFile section */
 
@@ -213,11 +217,13 @@
 		4841617B2DEF52D800A48C49 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				4851EA692EA2C22D008E5A0F /* AmplitudeSwift in Frameworks */,
 			);
 		};
 		484161DA2DEF698200A48C49 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				4851EA6B2EA2C231008E5A0F /* AmplitudeSwift in Frameworks */,
 			);
 		};
 		A004ED722D11DC000081DDC0 /* Frameworks */ = {
@@ -229,16 +235,25 @@
 		A004ED882D11DC030081DDC0 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				4851EA672EA2C227008E5A0F /* AmplitudeSwift in Frameworks */,
 			);
 		};
 		A004ED922D11DC030081DDC0 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				4851EA6D2EA2C235008E5A0F /* AmplitudeSwift in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		4851EA652EA2C227008E5A0F /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		A004ED6C2D11DC000081DDC0 = {
 			isa = PBXGroup;
 			children = (
@@ -248,6 +263,7 @@
 				4841617F2DEF52D800A48C49 /* FamilyMenuPlannerIntegrationTests */,
 				4866AC4F2DF35BD7006942F3 /* FamilyMenuPlannerPerformanceTests */,
 				4866AC5E2DF35BDA006942F3 /* FamilyMenuPlannerUITests */,
+				4851EA652EA2C227008E5A0F /* Frameworks */,
 				A004ED762D11DC000081DDC0 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -285,6 +301,9 @@
 				4866AB4E2DF35BD0006942F3 /* FamilyMenuPlanner */,
 			);
 			name = FamilyMenuPlannerIntegrationTests;
+			packageProductDependencies = (
+				4851EA682EA2C22D008E5A0F /* AmplitudeSwift */,
+			);
 			productName = FamilyMenuPlannerIntegrationTests;
 			productReference = 4841617E2DEF52D800A48C49 /* FamilyMenuPlannerIntegrationTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -307,6 +326,9 @@
 				4866AC4F2DF35BD7006942F3 /* FamilyMenuPlannerPerformanceTests */,
 			);
 			name = FamilyMenuPlannerPerformanceTests;
+			packageProductDependencies = (
+				4851EA6A2EA2C231008E5A0F /* AmplitudeSwift */,
+			);
 			productName = FamilyMenuPlannerIntegrationTests;
 			productReference = 484161E12DEF698200A48C49 /* FamilyMenuPlannerPerformanceTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -350,6 +372,9 @@
 				4866AB4E2DF35BD0006942F3 /* FamilyMenuPlanner */,
 			);
 			name = FamilyMenuPlannerUnitTests;
+			packageProductDependencies = (
+				4851EA662EA2C227008E5A0F /* AmplitudeSwift */,
+			);
 			productName = FamilyMenuPlannerUnitTests;
 			productReference = A004ED8B2D11DC030081DDC0 /* FamilyMenuPlannerUnitTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -372,6 +397,9 @@
 				4866AC5E2DF35BDA006942F3 /* FamilyMenuPlannerUITests */,
 			);
 			name = FamilyMenuPlannerUITests;
+			packageProductDependencies = (
+				4851EA6C2EA2C235008E5A0F /* AmplitudeSwift */,
+			);
 			productName = FamilyMenuPlannerUITests;
 			productReference = A004ED952D11DC030081DDC0 /* FamilyMenuPlannerUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -932,6 +960,26 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		4851EA662EA2C227008E5A0F /* AmplitudeSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 486071B72E8BBDC90084E430 /* XCRemoteSwiftPackageReference "Amplitude-Swift" */;
+			productName = AmplitudeSwift;
+		};
+		4851EA682EA2C22D008E5A0F /* AmplitudeSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 486071B72E8BBDC90084E430 /* XCRemoteSwiftPackageReference "Amplitude-Swift" */;
+			productName = AmplitudeSwift;
+		};
+		4851EA6A2EA2C231008E5A0F /* AmplitudeSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 486071B72E8BBDC90084E430 /* XCRemoteSwiftPackageReference "Amplitude-Swift" */;
+			productName = AmplitudeSwift;
+		};
+		4851EA6C2EA2C235008E5A0F /* AmplitudeSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 486071B72E8BBDC90084E430 /* XCRemoteSwiftPackageReference "Amplitude-Swift" */;
+			productName = AmplitudeSwift;
+		};
 		486071B82E8BBDC90084E430 /* AmplitudeSwift */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 486071B72E8BBDC90084E430 /* XCRemoteSwiftPackageReference "Amplitude-Swift" */;
