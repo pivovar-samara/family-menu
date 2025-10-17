@@ -31,6 +31,14 @@ jobs:
           echo $default | cat >default
           echo "Using default scheme: $default"
           
+      - name: Write Secrets.xcconfig
+        run: |
+          mkdir -p Configs
+          cat > Configs/Secrets.xcconfig <<'EOF'
+          AMPLITUDE_API_KEY_DEV = ${{ secrets.AMPLITUDE_API_KEY_DEV }}
+          AMPLITUDE_API_KEY_PROD = ${{ secrets.AMPLITUDE_API_KEY_PROD }}
+          EOF
+          
       - name: Build and Test (Unit and Integration Tests)
         env:
           # Set CI environment variables to prevent CloudKit initialization
