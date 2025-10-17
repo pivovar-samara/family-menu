@@ -474,7 +474,7 @@ class DishDetailsViewModel: ObservableObject {
         // Save changes to Core Data
         do {
             try dishDetailsService.saveChanges()
-            logDishEventWithProperties(name: AnalyticsEventName.edit_dish_ingredients_quantity_changed, additionalProperties: [AnalyticsPropertyKey.quantity: quantity, AnalyticsPropertyKey.recipe_length: 600])
+            logDishEventWithProperties(name: AnalyticsEventName.edit_dish_ingredients_quantity_changed, additionalProperties: [AnalyticsPropertyKey.quantity: quantity])
         } catch {
             AppLogger.error("Failed to save ingredient quantity update", error: error, category: AppLogger.viewModel)
             logDishEventWithProperties(name: AnalyticsEventName.edit_dish_update_ingredient_quantity_failed, additionalProperties: [AnalyticsPropertyKey.quantity: quantity, AnalyticsPropertyKey.error_message: error.localizedDescription])

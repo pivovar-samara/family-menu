@@ -88,18 +88,22 @@ public final class AmplitudeAnalyticsProvider: AnalyticsProvider {
         guard let client = self.client else { return }
         var props: [String: Any] = [:]
         for (k, v) in event.properties {
-            if let value = v as? any CustomStringConvertible {
-                props[k] = value.description
-            } else if let value = v as? NSNumber {
-                props[k] = value
-            } else if let value = v as? String {
+            // Preserve numeric and boolean types first so they aren't coerced to strings
+            if let value = v as? NSNumber {
                 props[k] = value
             } else if let value = v as? Int {
                 props[k] = value
             } else if let value = v as? Double {
                 props[k] = value
+            } else if let value = v as? Float {
+                props[k] = value
             } else if let value = v as? Bool {
                 props[k] = value
+            } else if let value = v as? String {
+                props[k] = value
+            } else if let value = v as? any CustomStringConvertible {
+                // As a last resort, stringify custom values
+                props[k] = value.description
             } else {
                 props[k] = String(describing: v)
             }

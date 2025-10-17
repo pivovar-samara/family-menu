@@ -125,7 +125,10 @@ struct MenuView: View {
                         },
                         onClearDay: { day in
                             viewModel.clearMealType(for: day)
-                            AnalyticsManager.shared.track(name: AnalyticsEventName.menu_daily_cleared_all_day, properties: [AnalyticsPropertyKey.day_index: index, AnalyticsPropertyKey.dish_count_for_breakfast: dailyMenu.dailyMeals[0].dishes.count, AnalyticsPropertyKey.dish_count_for_lunch: dailyMenu.dailyMeals[1].dishes.count, AnalyticsPropertyKey.dish_count_for_dinner: dailyMenu.dailyMeals[2].dishes.count])
+                            let breakfastCount = dailyMenu.dailyMeals.indices.contains(0) ? dailyMenu.dailyMeals[0].dishes.count : 0
+                            let lunchCount = dailyMenu.dailyMeals.indices.contains(1) ? dailyMenu.dailyMeals[1].dishes.count : 0
+                            let dinnerCount = dailyMenu.dailyMeals.indices.contains(2) ? dailyMenu.dailyMeals[2].dishes.count : 0
+                            AnalyticsManager.shared.track(name: AnalyticsEventName.menu_daily_cleared_all_day, properties: [AnalyticsPropertyKey.day_index: index, AnalyticsPropertyKey.dish_count_for_breakfast: breakfastCount, AnalyticsPropertyKey.dish_count_for_lunch: lunchCount, AnalyticsPropertyKey.dish_count_for_dinner: dinnerCount])
                         }
                     )
                     .padding(.vertical, 8)
@@ -205,7 +208,7 @@ struct MenuSheetsModifier: ViewModifier {
                 NavigationStack {
                     DishSelectionCoordinator().createDishSelectionView(currentDishes: viewModel.editingDishes, mealType: viewModel.selectedMealType) { newDishes in
                         viewModel.replaceDishes(for: viewModel.selectedDay, mealType: viewModel.selectedMealType, with: newDishes)
-                        AnalyticsManager.shared.track(name: AnalyticsEventName.menu_daily_dishes_added, properties: [AnalyticsPropertyKey.week_index: viewModel.selectedWeekIndex, AnalyticsPropertyKey.day_index: viewModel.selectedDay, AnalyticsPropertyKey.meal_type: viewModel.selectedMealType, AnalyticsPropertyKey.count: newDishes.count])
+                        AnalyticsManager.shared.track(name: AnalyticsEventName.menu_daily_dishes_added, properties: [AnalyticsPropertyKey.week_index: viewModel.selectedWeekIndex, AnalyticsPropertyKey.day_index: viewModel.weekdays.firstIndex(of: viewModel.selectedDay) ?? -1, AnalyticsPropertyKey.meal_type: viewModel.selectedMealType, AnalyticsPropertyKey.count: newDishes.count])
                         viewModel.markDishSelectionCompleted(selectedCount: newDishes.count)
                     }
                     .onAppear {
@@ -249,13 +252,13 @@ struct MenuAlertsModifier: ViewModifier {
                     viewModel.cancelPendingEdit()
                 }
                 Button("Continue".localized()) {
-                    AnalyticsManager.shared.track(name: AnalyticsEventName.menu_past_edit_warning_confirmed, properties: [AnalyticsPropertyKey.week_index: viewModel.selectedWeekIndex, AnalyticsPropertyKey.day_index: viewModel.selectedDay])
+                    AnalyticsManager.shared.track(name: AnalyticsEventName.menu_past_edit_warning_confirmed, properties: [AnalyticsPropertyKey.week_index: viewModel.selectedWeekIndex, AnalyticsPropertyKey.day_index: viewModel.weekdays.firstIndex(of: viewModel.selectedDay) ?? -1])
                     viewModel.confirmPendingEdit()
                 }
             } message: {
                 Text("You are editing a past date.".localized())
                     .onAppear {
-                        AnalyticsManager.shared.track(name: AnalyticsEventName.menu_past_edit_warning_shown, properties: [AnalyticsPropertyKey.week_index: viewModel.selectedWeekIndex, AnalyticsPropertyKey.day_index: viewModel.selectedDay])
+                        AnalyticsManager.shared.track(name: AnalyticsEventName.menu_past_edit_warning_shown, properties: [AnalyticsPropertyKey.week_index: viewModel.selectedWeekIndex, AnalyticsPropertyKey.day_index: viewModel.weekdays.firstIndex(of: viewModel.selectedDay) ?? -1])
                     }
             }
             .alert("Generate New Menu".localized(), isPresented: $viewModel.showGenerateMenuAlert) {
@@ -360,7 +363,10 @@ struct DailyMenuCardView: View {
                 Label("Clear All Day".localized(), systemImage: "trash")
             }
             .onAppear {
-                AnalyticsManager.shared.track(name: AnalyticsEventName.menu_daily_clear_dialog_shown, properties: [AnalyticsPropertyKey.day_index: dayIndex, AnalyticsPropertyKey.dish_count_for_breakfast: dailyMenu.dailyMeals[0].dishes.count, AnalyticsPropertyKey.dish_count_for_lunch: dailyMenu.dailyMeals[1].dishes.count, AnalyticsPropertyKey.dish_count_for_dinner: dailyMenu.dailyMeals[2].dishes.count])
+                let breakfastCount = dailyMenu.dailyMeals.indices.contains(0) ? dailyMenu.dailyMeals[0].dishes.count : 0
+                let lunchCount = dailyMenu.dailyMeals.indices.contains(1) ? dailyMenu.dailyMeals[1].dishes.count : 0
+                let dinnerCount = dailyMenu.dailyMeals.indices.contains(2) ? dailyMenu.dailyMeals[2].dishes.count : 0
+                AnalyticsManager.shared.track(name: AnalyticsEventName.menu_daily_clear_dialog_shown, properties: [AnalyticsPropertyKey.day_index: dayIndex, AnalyticsPropertyKey.dish_count_for_breakfast: breakfastCount, AnalyticsPropertyKey.dish_count_for_lunch: lunchCount, AnalyticsPropertyKey.dish_count_for_dinner: dinnerCount])
             }
             ForEach(dailyMenu.dailyMeals, id: \.self) { dailyMeal in
                 if !dailyMeal.dishes.isEmpty {
