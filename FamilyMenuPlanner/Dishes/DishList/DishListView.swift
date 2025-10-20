@@ -25,18 +25,6 @@ struct DishListView: View {
         )
         .trackScreenAppear(name: AnalyticsScreenName.DishList)
         .searchable(text: $viewModel.searchText, prompt: "Search dishes...".localized())
-        .onChange(of: viewModel.searchText) { oldValue, newValue in
-            let query = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !query.isEmpty else { return }
-            let totalResults = viewModel.filteredDishes.count
-            AnalyticsManager.shared.track(
-                name: AnalyticsEventName.dish_list_search,
-                properties: [
-                    AnalyticsPropertyKey.query: query,
-                    AnalyticsPropertyKey.results: totalResults,
-                ]
-            )
-        }
         .modifier(dishListToolbar)
         .modifier(dishListAddSheet)
         .modifier(dishListEditSheet)

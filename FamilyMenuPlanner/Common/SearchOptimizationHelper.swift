@@ -13,6 +13,7 @@ import Combine
 final class SearchOptimizationHelper<T>: ObservableObject where T: Equatable {
     @Published private(set) var filteredItems: [T] = []
     @Published var searchText: String = ""
+    var screenName: String?
     
     private var allItems: [T] = []
     private var cancellables = Set<AnyCancellable>()
@@ -21,7 +22,7 @@ final class SearchOptimizationHelper<T>: ObservableObject where T: Equatable {
     
     /// Initialize with a filter predicate that determines if an item matches the search text
     /// - Parameter filterPredicate: Closure that takes an item and search text, returns true if item matches
-    init(filterPredicate: @escaping (T, String) -> Bool) {
+    init(screenName: String? = nil, filterPredicate: @escaping (T, String) -> Bool) {
         self.filterPredicate = filterPredicate
         setupSearchPublisher()
     }
@@ -69,6 +70,17 @@ final class SearchOptimizationHelper<T>: ObservableObject where T: Equatable {
         if newFilteredItems != lastFilteredResult {
             lastFilteredResult = newFilteredItems
             filteredItems = newFilteredItems
+        }
+        
+        if let screenName {
+            AnalyticsManager.shared.track(
+                name: AnalyticsEventName.search_happened,
+                properties: [
+                    AnalyticsPropertyKey.query: searchText,
+                    AnalyticsPropertyKey.results: filteredItems.count,
+                    AnalyticsPropertyKey.screen_name: screenName
+                ]
+            )
         }
     }
 } 

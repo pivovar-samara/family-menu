@@ -522,13 +522,13 @@ class DishDetailsViewModel: ObservableObject {
     
     private func logDishEventWithProperties(name: String, additionalProperties: [String: Sendable] = [:]) {
         var properties: [String: Sendable] = dishPropertiesForTracking()
-        properties.merge(additionalProperties, uniquingKeysWith: { _, lhs in lhs })
+        properties.merge(additionalProperties, uniquingKeysWith: { _, rhs in rhs })
         AnalyticsManager.shared.track(name: name, properties: properties)
     }
     
     private func logDishErrorWithProperties(error: Error, category: String, additionalProperties: [String: Sendable] = [:]) {
         var properties: [String: Sendable] = dishPropertiesForTracking()
-        properties.merge(additionalProperties, uniquingKeysWith: { _, lhs in lhs })
+        properties.merge(additionalProperties, uniquingKeysWith: { _, rhs in rhs })
         AnalyticsManager.shared.trackError(error, domain: "Dish Details", category: category, properties: properties)
     }
     

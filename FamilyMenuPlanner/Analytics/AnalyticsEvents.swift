@@ -45,18 +45,15 @@ public enum AnalyticsEventName {
     public static let shopping_list_sorting_changed = "shopping_list_sorting_changed"
     
     // Dish Selection
-    public static let dish_selection_search = "dish_selection_search"
     public static let menu_dish_selection_opened = "menu_dish_selection_opened"
     public static let menu_dish_selection_cancelled = "menu_dish_selection_cancelled"
     public static let menu_dish_selection_done = "menu_dish_selection_done"
     
     // Dish List
-    public static let dish_list_search = "dish_list_search"
     public static let dish_list_sorting_changed = "dish_list_sorting_changed"
     public static let dish_list_empty_state_shown = "dish_list_empty_state_shown"
 
     // Product List
-    public static let product_list_search = "product_list_search"
     public static let product_list_sorting_changed = "product_list_sorting_changed"
     public static let product_list_empty_state_shown = "product_list_empty_state_shown"
     
@@ -84,7 +81,6 @@ public enum AnalyticsEventName {
     public static let edit_dish_data_cleanup_finished = "edit_dish_data_cleanup_finished"
     
     // Product Selection
-    public static let product_selection_search = "product_selection_search"
     public static let product_selection_opened = "product_selection_opened"
     public static let product_selection_cancelled = "product_selection_cancelled"
     public static let product_selection_done = "product_selection_done"

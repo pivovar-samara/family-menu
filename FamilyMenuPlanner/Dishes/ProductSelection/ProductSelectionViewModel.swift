@@ -59,10 +59,10 @@ class ProductSelectionViewModel: ObservableObject {
         self.onProductsSelected = onProductsSelected
         
         // Initialize search helper with proper filter predicate
-        self.searchHelper = SearchOptimizationHelper<Product> { product, searchText in
+        self.searchHelper = SearchOptimizationHelper<Product>(screenName: AnalyticsScreenName.ProductSelection, filterPredicate: { product, searchText in
             guard let name = product.name else { return false }
             return name.localizedCaseInsensitiveContains(searchText)
-        }
+        })
         
         // Setup bindings between ViewModel and SearchHelper
         setupSearchBindings()

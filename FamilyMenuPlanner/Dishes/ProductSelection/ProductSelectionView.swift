@@ -144,18 +144,6 @@ struct ProductSelectionView: View {
                 }
             }
         )
-        .onChange(of: viewModel.searchText) { oldValue, newValue in
-            let query = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !query.isEmpty else { return }
-            let totalResults = viewModel.filteredProducts.count
-            AnalyticsManager.shared.track(
-                name: AnalyticsEventName.product_selection_search,
-                properties: [
-                    AnalyticsPropertyKey.query: query,
-                    AnalyticsPropertyKey.results: totalResults,
-                ]
-            )
-        }
     }
 }
 

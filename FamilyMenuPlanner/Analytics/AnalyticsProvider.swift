@@ -199,7 +199,7 @@ public extension AnalyticsManager {
     
     /// Track an error event.
     /// - Parameters:
-    ///   - error: An error oblect.
+    ///   - error: An error object.
     ///   - category: Domain category for the error.
     ///   - properties: Additional properties to include.
     func trackError(_ error: Error, domain: String, category: String, properties: [String: Sendable] = [:]) {
