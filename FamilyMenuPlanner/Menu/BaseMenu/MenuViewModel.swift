@@ -30,9 +30,13 @@ class MenuViewModel: ObservableObject {
     @Published var hasScrolledToToday: Bool = false
     @Published var currentAlert: AlertItem?
     @Published var showPastEditWarning: Bool = false
+    
     private var pendingDay: String = ""
     private var pendingMealType: String = ""
     private var pendingDishes: [Dish] = []
+    
+    private var dishSelectionStartAt: Date?
+    private var dishSelectionCompleted: Bool = false
     
     let weekdays: [String] = CalendarHelper.localizedWeekdayNamesStartingFromMonday()
     
@@ -151,12 +155,21 @@ class MenuViewModel: ObservableObject {
 
     func generateMenu() {
         guard selectedWeekIndex >= 0 && selectedWeekIndex < weekOptions.count else {
+            AnalyticsManager.shared.track(
+                name: AnalyticsEventName.menu_generation_failed,
+                properties: [AnalyticsPropertyKey.week_index: selectedWeekIndex,
+                             AnalyticsPropertyKey.error_message: "invalid_week_index"]
+            )
             enqueueAlert(title: "Error".localized(), message: "InvalidWeekSelectionMessage".localized())
             return
         }
         let selectedWeekDate = weekOptions[selectedWeekIndex]
         menuService.generateMenu(for: selectedWeekDate)
         loadMenu(for: selectedWeekIndex)
+        AnalyticsManager.shared.track(
+            name: AnalyticsEventName.menu_generation_completed,
+            properties: [AnalyticsPropertyKey.week_index: selectedWeekIndex]
+        )
     }
 
     func removeOldWeeks() {
@@ -174,6 +187,12 @@ class MenuViewModel: ObservableObject {
             try menuService.replaceDishes(for: day, mealType: mealType, selectedWeekDate: selectedWeekDate, with: newDishes)
             loadMenu(for: selectedWeekIndex)
         } catch {
+            let dayIndex = self.weekdays.firstIndex(of: day) ?? -1
+            AnalyticsManager.shared.trackError(error, domain: "Menu", category: "Error replacing dish", properties: [
+                AnalyticsPropertyKey.week_index: self.selectedWeekIndex,
+                AnalyticsPropertyKey.day_index: dayIndex,
+                AnalyticsPropertyKey.meal_type: mealType,
+                AnalyticsPropertyKey.count: newDishes.count])
             DispatchQueue.main.asyncAfter(deadline: .now()+0.3) {
                 self.enqueueAlert(title: "Error", message: "Error replacing dish. Please try again.")
             }
@@ -190,6 +209,11 @@ class MenuViewModel: ObservableObject {
             try menuService.clearMealType(for: day, selectedWeekDate: selectedWeekDate, mealType: mealType)
             loadMenu(for: selectedWeekIndex)
         } catch {
+            let dayIndex = self.weekdays.firstIndex(of: day) ?? -1
+            AnalyticsManager.shared.trackError(error, domain: "Menu", category: (mealType == nil) ? "Error clearing mealType for day" : "Error clearing mealType", properties: [
+                AnalyticsPropertyKey.week_index: self.selectedWeekIndex,
+                AnalyticsPropertyKey.day_index: dayIndex,
+                AnalyticsPropertyKey.meal_type: mealType ?? ""])
             DispatchQueue.main.asyncAfter(deadline: .now()+0.3) {
                 self.enqueueAlert(title: "Error", message: "Error clearing mealType. Please try again.")
             }
@@ -276,6 +300,53 @@ class MenuViewModel: ObservableObject {
         let calendar = Calendar.current
         let startOfWeek = CalendarHelper.startOfWeek(for: selectedWeekDate, calendar: calendar)
         return calendar.date(byAdding: .day, value: dayIndex, to: startOfWeek)
+    }
+
+    // MARK: - Dish Selection Analytics
+    func markDishSelectionOpened(currentCount: Int) {
+        dishSelectionCompleted = false
+        dishSelectionStartAt = Date()
+        AnalyticsManager.shared.track(
+            name: AnalyticsEventName.menu_dish_selection_opened,
+            properties: [
+                AnalyticsPropertyKey.week_index: selectedWeekIndex,
+                AnalyticsPropertyKey.day_index: weekdays.firstIndex(of: selectedDay) ?? -1,
+                AnalyticsPropertyKey.meal_type: selectedMealType,
+                AnalyticsPropertyKey.current_count: currentCount
+            ]
+        )
+    }
+
+    func markDishSelectionCompleted(selectedCount: Int) {
+        dishSelectionCompleted = true
+        let duration = Int64((Date().timeIntervalSince(dishSelectionStartAt ?? Date())) * 1000)
+        AnalyticsManager.shared.track(
+            name: AnalyticsEventName.menu_dish_selection_done,
+            properties: [
+                AnalyticsPropertyKey.week_index: selectedWeekIndex,
+                AnalyticsPropertyKey.day_index: weekdays.firstIndex(of: selectedDay) ?? -1,
+                AnalyticsPropertyKey.meal_type: selectedMealType,
+                AnalyticsPropertyKey.selected_count: selectedCount,
+                AnalyticsPropertyKey.duration_ms: duration
+            ]
+        )
+        dishSelectionStartAt = nil
+    }
+
+    func markDishSelectionCancelled(currentCount: Int) {
+        guard dishSelectionCompleted == false else { return }
+        let duration = Int64((Date().timeIntervalSince(dishSelectionStartAt ?? Date())) * 1000)
+        AnalyticsManager.shared.track(
+            name: AnalyticsEventName.menu_dish_selection_cancelled,
+            properties: [
+                AnalyticsPropertyKey.week_index: selectedWeekIndex,
+                AnalyticsPropertyKey.day_index: weekdays.firstIndex(of: selectedDay) ?? -1,
+                AnalyticsPropertyKey.meal_type: selectedMealType,
+                AnalyticsPropertyKey.current_count: currentCount,
+                AnalyticsPropertyKey.duration_ms: duration
+            ]
+        )
+        dishSelectionStartAt = nil
     }
 }
 

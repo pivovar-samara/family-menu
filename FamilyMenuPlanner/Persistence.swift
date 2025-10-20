@@ -149,6 +149,7 @@ class PersistenceController {
                 AppLogger.info("Query generation set for context", category: AppLogger.persistence)
             } catch {
                 AppLogger.error("Failed to set query generation for context", error: error, category: AppLogger.persistence)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Failed to set query generation for context")
             }
         } else {
             if isRunningTests || inMemory {
@@ -180,6 +181,7 @@ class PersistenceController {
                         AppLogger.info("UI test data saved successfully", category: AppLogger.persistence)
                     } catch {
                         AppLogger.error("Failed to save UI test data", error: error, category: AppLogger.persistence)
+                        AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Failed to save UI test data")
                     }
                 }
             } else {
@@ -264,6 +266,7 @@ class PersistenceController {
                     AppLogger.info("Recomputed IngredientDetail.key for \(updated) rows", category: AppLogger.persistence)
                 } catch {
                     AppLogger.error("Failed to recompute IngredientDetail.key", error: error, category: AppLogger.persistence)
+                    AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Failed to recompute IngredientDetail.key")
                 }
 
                 if context.hasChanges {
@@ -272,6 +275,7 @@ class PersistenceController {
                 AppLogger.info("Reconciliation completed", category: AppLogger.persistence)
             } catch {
                 AppLogger.error("Post-seeding reconciliation failed", error: error, category: AppLogger.persistence)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Post-seeding reconciliation failed")
             }
         }
     }
@@ -334,6 +338,7 @@ class PersistenceController {
             if let error = error as NSError? {
                 AppLogger.error("Persistent store loading failed", error: error, category: AppLogger.persistence)
                 AppLogger.error("Store description: \(String(describing: error.userInfo))", category: AppLogger.persistence)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Persistent store loading failed")
                 
                 self.handleStoreLoadingError(error, storeDescription: nil, stateManager: stateManager) { success in
                     completion(success)
@@ -398,6 +403,7 @@ class PersistenceController {
         
         // TODO: Send to crash reporting service (e.g., Crashlytics, Sentry)
         // CrashReporter.shared.recordError(persistenceError)
+        AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "[Critical] Core Data Store Loading Error", properties: [AnalyticsPropertyKey.user_info: error.userInfo, AnalyticsPropertyKey.error_message: persistenceError.errorDescription])
     }
     
     private func attemptErrorRecovery(_ error: NSError, storeDescription: NSPersistentStoreDescription?) -> Bool {
@@ -451,6 +457,7 @@ class PersistenceController {
             
         } catch {
             AppLogger.error("Failed to remove store files", error: error, category: AppLogger.persistence)
+            AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Failed to remove store files")
             return false
         }
     }
@@ -653,6 +660,7 @@ class PersistenceController {
                 }
             } catch {
                 AppLogger.error("Error checking \(entityName) count in database", error: error, category: AppLogger.persistence)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error checking \(entityName) count in database")
                 // If we can't check, assume not empty to be safe
                 return false
             }
@@ -743,6 +751,7 @@ class PersistenceController {
             return try decoder.decode(PreloadedData.self, from: data)
         } catch {
             AppLogger.error("Error loading preload data for validation", error: error, category: AppLogger.dataImport)
+            AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error loading preload data for validation")
             return nil
         }
     }
@@ -779,6 +788,7 @@ class PersistenceController {
             return true
         } catch {
             AppLogger.error("Error validating units", error: error, category: AppLogger.persistence)
+            AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error validating units")
             return false
         }
     }
@@ -815,6 +825,7 @@ class PersistenceController {
             return true
         } catch {
             AppLogger.error("Error validating meal types", error: error, category: AppLogger.persistence)
+            AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error validating meal types")
             return false
         }
     }
@@ -851,6 +862,7 @@ class PersistenceController {
             return true
         } catch {
             AppLogger.error("Error validating dish categories", error: error, category: AppLogger.persistence)
+            AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error validating dish categories")
             return false
         }
     }
@@ -922,6 +934,7 @@ class PersistenceController {
                 }
             } catch {
                 AppLogger.error("Error checking \(entityName) during CloudKit sync detection", error: error, category: AppLogger.persistence)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error checking \(entityName) during CloudKit sync detection")
             }
         }
         
@@ -1000,6 +1013,7 @@ class PersistenceController {
             
         } catch {
             AppLogger.error("Error preloading data", error: error, category: AppLogger.dataImport)
+            AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error preloading data")
         }
         
         isDataGenerationInProgress = false
@@ -1050,6 +1064,7 @@ class PersistenceController {
             
         } catch {
             AppLogger.error("Error in forced data regeneration", error: error, category: AppLogger.dataImport)
+            AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error in forced data regeneration")
         }
         
         isDataGenerationInProgress = false
@@ -1071,6 +1086,7 @@ class PersistenceController {
                 existingUnit = try context.fetch(fetchRequest).first
             } catch {
                 AppLogger.error("Error checking for existing unit \(unitData.name)", error: error, category: AppLogger.dataImport)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error checking for existing unit \(unitData.name)")
                 existingUnit = nil
             }
             if let existingUnit = existingUnit {
@@ -1104,6 +1120,7 @@ class PersistenceController {
                 existingMealType = try context.fetch(fetchRequest).first
             } catch {
                 AppLogger.error("Error checking for existing meal type \(mealTypeData.name)", error: error, category: AppLogger.dataImport)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error checking for existing meal type \(mealTypeData.name)")
                 existingMealType = nil
             }
             if let existingMealType = existingMealType {
@@ -1136,6 +1153,7 @@ class PersistenceController {
                 existingCategory = try context.fetch(fetchRequest).first
             } catch {
                 AppLogger.error("Error checking for existing dish category \(categoryData.name)", error: error, category: AppLogger.dataImport)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error checking for existing dish category \(categoryData.name)")
                 existingCategory = nil
             }
             if let existingCategory = existingCategory {
@@ -1166,6 +1184,7 @@ class PersistenceController {
                 existingProducts = try context.fetch(fetchRequest)
             } catch {
                 AppLogger.error("Error checking for existing product \(productData.name)", error: error, category: AppLogger.dataImport)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error checking for existing product \(productData.name)")
                 existingProducts = []
             }
             
@@ -1215,6 +1234,7 @@ class PersistenceController {
                 existingDishes = try context.fetch(fetchRequest)
             } catch {
                 AppLogger.error("Error checking for existing dish \(dishData.name)", error: error, category: AppLogger.dataImport)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error checking for existing dish \(dishData.name)")
                 existingDishes = []
             }
             
@@ -1316,6 +1336,7 @@ class PersistenceController {
                 try context.save()
             } catch {
                 AppLogger.error("Error saving CloudKit conflict resolution data generation", error: error, category: AppLogger.dataImport)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error saving CloudKit conflict resolution data generation")
             }
         }
         
@@ -1356,6 +1377,7 @@ class PersistenceController {
                 }
             } catch {
                 AppLogger.error("Error checking for existing unit \(unitData.name)", error: error, category: AppLogger.dataImport)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error checking for existing unit \(unitData.name)")
             }
         }
         
@@ -1383,6 +1405,7 @@ class PersistenceController {
                 }
             } catch {
                 AppLogger.error("Error checking for existing meal type \(mealTypeData.name)", error: error, category: AppLogger.dataImport)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error checking for existing meal type \(mealTypeData.name)")
             }
         }
         
@@ -1410,6 +1433,7 @@ class PersistenceController {
                 }
             } catch {
                 AppLogger.error("Error checking for existing dish category \(categoryData.name)", error: error, category: AppLogger.dataImport)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error checking for existing dish category \(categoryData.name)")
             }
         }
 
@@ -1435,6 +1459,7 @@ class PersistenceController {
                 }
             } catch {
                 AppLogger.error("Error checking for existing product \(productData.name)", error: error, category: AppLogger.dataImport)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error checking for existing product \(productData.name)")
             }
         }
 
@@ -1504,6 +1529,7 @@ class PersistenceController {
                 }
             } catch {
                 AppLogger.error("Error creating dish \(dishData.name)", error: error, category: AppLogger.dataImport)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error creating dish \(dishData.name)")
             }
         }
 
@@ -1515,6 +1541,7 @@ class PersistenceController {
             AppLogger.info("Traditional data generation completed successfully", category: AppLogger.dataImport)
         } catch {
             AppLogger.error("Error saving traditional data generation", error: error, category: AppLogger.dataImport)
+            AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error saving traditional data generation")
         }
         
         // Perform post-seeding reconciliation to ensure categories and deduplicate ingredients
@@ -1538,6 +1565,7 @@ class PersistenceController {
                 AppLogger.info("Successfully cleared static data from \(entityName)", category: AppLogger.persistence)
             } catch {
                 AppLogger.error("Error clearing static data from \(entityName)", error: error, category: AppLogger.persistence)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error clearing static data from \(entityName)")
             }
         }
     }
@@ -1561,6 +1589,7 @@ class PersistenceController {
                 AppLogger.info("Successfully cleared all data from \(entityName) for regeneration", category: AppLogger.persistence)
             } catch {
                 AppLogger.error("Error clearing all data from \(entityName) for regeneration", error: error, category: AppLogger.persistence)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error clearing all data from \(entityName) for regeneration")
             }
         }
         
@@ -1572,6 +1601,7 @@ class PersistenceController {
             AppLogger.info("All data cleared successfully for regeneration", category: AppLogger.persistence)
         } catch {
             AppLogger.error("Error saving context after clearing data for regeneration", error: error, category: AppLogger.persistence)
+            AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error saving context after clearing data for regeneration")
         }
     }
 
@@ -1697,6 +1727,7 @@ class PersistenceController {
                 }
             } catch {
                 AppLogger.error("Backfilling static keys failed", error: error, category: AppLogger.persistence)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Backfilling static keys failed")
             }
         }
     }
@@ -1781,6 +1812,7 @@ class PersistenceController {
                 AppLogger.info("Successfully deleted all data from \(entityName)", category: AppLogger.persistence)
             } catch {
                 AppLogger.error("Error deleting data from \(entityName)", error: error, category: AppLogger.persistence)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error deleting data from \(entityName)")
             }
         }
 
@@ -1791,6 +1823,7 @@ class PersistenceController {
             AppLogger.info("All data deleted successfully", category: AppLogger.persistence)
         } catch {
             AppLogger.error("Error saving context after deletion", error: error, category: AppLogger.persistence)
+            AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error saving context after deletion")
         }
     }
     
@@ -1806,6 +1839,8 @@ class PersistenceController {
             completion(true)
             return
         }
+        
+        AnalyticsManager.shared.track(name: AnalyticsEventName.initial_data_generation_started)
         
         // Enhanced test environment detection for background generation
         let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
@@ -1835,21 +1870,27 @@ class PersistenceController {
                 if self.container is NSPersistentCloudKitContainer {
                     // Use captured snapshot from main actor to avoid cross-actor access
                     if isCloudImportInProgress {
-                        AppLogger.info("Deferred initial data generation: CloudKit import in progress", category: AppLogger.persistence)
+                        let message = "Deferred initial data generation: CloudKit import in progress"
+                        AppLogger.info(message, category: AppLogger.persistence)
+                        AnalyticsManager.shared.track(name: AnalyticsEventName.initial_data_generation_skipped, properties: [AnalyticsPropertyKey.error_message: message])
                         return
                     }
                 }
                 self.performInitialDataGeneration(context: backgroundContext)
             } else {
-                AppLogger.info("Background data generation skipped - data is already valid", category: AppLogger.persistence)
+                let message = "Background data generation skipped - data is already valid"
+                AppLogger.info(message, category: AppLogger.persistence)
+                AnalyticsManager.shared.track(name: AnalyticsEventName.initial_data_generation_skipped, properties: [AnalyticsPropertyKey.error_message: message])
             }
         } completion: { result in
             switch result {
             case .success:
                 AppLogger.info("Initial data generated successfully in background", category: AppLogger.persistence)
+                AnalyticsManager.shared.track(name: AnalyticsEventName.initial_data_generation_completed)
                 completion(true)
             case .failure(let error):
                 AppLogger.error("Failed to generate initial data in background", error: error, category: AppLogger.persistence)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Failed to generate initial data in background")
                 completion(false)
             }
         }
@@ -2032,6 +2073,7 @@ class PersistenceController {
             
         } catch {
             AppLogger.error("Error generating initial data in background context", error: error, category: AppLogger.dataImport)
+            AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error generating initial data in background context")
         }
         
         isDataGenerationInProgress = false
@@ -2097,6 +2139,7 @@ class PersistenceController {
                 if removed > 0 { AppLogger.info("Removed \(removed) duplicate dishes after Cloud import (key-based)", category: AppLogger.persistence) }
             } catch {
                 AppLogger.error("Failed to remove locally seeded dishes", error: error, category: AppLogger.persistence)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Failed to remove locally seeded dishes")
             }
         }
     }
@@ -2170,6 +2213,7 @@ class PersistenceController {
             
         } catch {
             AppLogger.error("Error cleaning up duplicate meal types", error: error, category: AppLogger.persistence)
+            AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error cleaning up duplicate meal types")
         }
     }
 
@@ -2212,6 +2256,7 @@ class PersistenceController {
                 AppLogger.info("Normalized meal type relations for \(normalizedCount) dishes", category: AppLogger.persistence)
             } catch {
                 AppLogger.error("Failed to normalize dish meal types", error: error, category: AppLogger.persistence)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Failed to normalize dish meal types")
             }
         }
     }
@@ -2298,6 +2343,7 @@ class PersistenceController {
                 AppLogger.info("Normalized ingredients: reassigned \(totalReassigned), removed \(totalRemoved) duplicates, \(totalOrphans) orphans", category: AppLogger.persistence)
             } catch {
                 AppLogger.error("Failed to normalize ingredient details", error: error, category: AppLogger.persistence)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Failed to normalize ingredient details")
             }
         }
     }
@@ -2383,6 +2429,7 @@ class PersistenceController {
                 AppLogger.info("Canonicalized product relations for \(reassigned) details, removed \(deleted) orphans", category: AppLogger.persistence)
             } catch {
                 AppLogger.error("Failed to canonicalize product relations", error: error, category: AppLogger.persistence)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Failed to canonicalize product relations")
             }
         }
     }
@@ -2431,6 +2478,7 @@ class PersistenceController {
             
         } catch {
             AppLogger.error("Error cleaning up duplicate units", error: error, category: AppLogger.persistence)
+            AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error cleaning up duplicate units")
         }
     }
     
@@ -2478,6 +2526,7 @@ class PersistenceController {
             
         } catch {
             AppLogger.error("Error cleaning up duplicate dish categories", error: error, category: AppLogger.persistence)
+            AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error cleaning up duplicate dish categories")
         }
     }
     
@@ -2524,6 +2573,7 @@ class PersistenceController {
             AppLogger.info("Cleaned up \(removed) duplicate products (key-based)", category: AppLogger.persistence)
         } catch {
             AppLogger.error("Error cleaning up duplicate products", error: error, category: AppLogger.persistence)
+            AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error cleaning up duplicate products")
         }
     }
 
@@ -2589,6 +2639,7 @@ class PersistenceController {
             AppLogger.info("Cleaned up \(duplicatesRemoved) duplicate dishes", category: AppLogger.persistence)
         } catch {
             AppLogger.error("Error cleaning up duplicate dishes", error: error, category: AppLogger.persistence)
+            AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error cleaning up duplicate dishes")
         }
     }
 
@@ -2617,6 +2668,7 @@ class PersistenceController {
                 AppLogger.info("Restored categories for \(updated) dishes from preload", category: AppLogger.persistence)
             } catch {
                 AppLogger.error("Failed to restore dish categories from preload", error: error, category: AppLogger.persistence)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Failed to restore dish categories from preload")
             }
         }
     }
@@ -2667,6 +2719,7 @@ class PersistenceController {
             AppLogger.info("Cleaned up \(removed) duplicate menus", category: AppLogger.persistence)
         } catch {
             AppLogger.error("Error cleaning up duplicate menus", error: error, category: AppLogger.persistence)
+            AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error cleaning up duplicate menus")
         }
     }
 
@@ -2700,6 +2753,7 @@ class PersistenceController {
                 AppLogger.info("Normalized menu mealType strings for \(updated) entries", category: AppLogger.persistence)
             } catch {
                 AppLogger.error("Failed to normalize menu mealType strings", error: error, category: AppLogger.persistence)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Failed to normalize menu mealType strings")
             }
         }
     }

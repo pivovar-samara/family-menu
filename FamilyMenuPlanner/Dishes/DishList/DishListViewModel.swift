@@ -41,7 +41,7 @@ class DishListViewModel: ObservableObject {
         self.dishListService = dishListService
         
         // Initialize search helper with proper filter predicate
-        self.searchHelper = SearchOptimizationHelper<Dish> { dish, searchText in
+        self.searchHelper = SearchOptimizationHelper<Dish>(screenName: AnalyticsScreenName.DishList, filterPredicate: { dish, searchText in
             guard let name = dish.name else { return false }
             let matchesName = name.localizedCaseInsensitiveContains(searchText)
             let matchesDetails = dish.details?.localizedCaseInsensitiveContains(searchText) ?? false
@@ -56,7 +56,7 @@ class DishListViewModel: ObservableObject {
             }()
             
             return matchesName || matchesDetails || matchesCategory || matchesMealType
-        }
+        })
         
         // Load persistent sort preference after all stored properties are initialized
         loadSortPreference()

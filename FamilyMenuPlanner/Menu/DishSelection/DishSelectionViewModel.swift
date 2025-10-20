@@ -35,10 +35,10 @@ class DishSelectionViewModel: ObservableObject {
         self.dishSelectionService = dishSelectionService
         
         // Initialize search helper with proper filter predicate
-        self.searchHelper = SearchOptimizationHelper<Dish> { dish, searchText in
+        self.searchHelper = SearchOptimizationHelper<Dish>(screenName: AnalyticsScreenName.DishSelection, filterPredicate: { dish, searchText in
             guard let name = dish.name else { return false }
             return name.localizedCaseInsensitiveContains(searchText)
-        }
+        })
         
         // Setup bindings between ViewModel and SearchHelper
         setupSearchBindings()

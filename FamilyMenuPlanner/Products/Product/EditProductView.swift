@@ -30,6 +30,7 @@ struct EditProductView: View {
             .padding(.horizontal, 20)
             .padding(.top, 20)
         }
+        .trackScreenAppear(name: viewModel.isCreatingNewProduct ? AnalyticsScreenName.AddProduct : AnalyticsScreenName.EditProduct)
         .background(Color.appBackground)
         .navigationTitle(viewModel.isCreatingNewProduct ? "Add Product".localized() : "Edit Product".localized())
         .navigationBarTitleDisplayMode(.inline)
@@ -37,6 +38,7 @@ struct EditProductView: View {
             ToolbarItem(placement: .confirmationAction) {
                 if #available(iOS 26.0, *) {
                     Button(role: .confirm) {
+                        AnalyticsManager.shared.track(name: AnalyticsEventName.edit_product_save_tap, properties: [AnalyticsPropertyKey.is_new_adding: viewModel.isCreatingNewProduct, AnalyticsPropertyKey.product_name: viewModel.product?.name, AnalyticsPropertyKey.unit: viewModel.selectedUnit?.name])
                         viewModel.saveChanges {
                             dismiss()
                         }
@@ -46,6 +48,7 @@ struct EditProductView: View {
                     .accessibilityIdentifier("Save")
                 } else {
                     Button("Save".localized()) {
+                        AnalyticsManager.shared.track(name: AnalyticsEventName.edit_product_save_tap, properties: [AnalyticsPropertyKey.is_new_adding: viewModel.isCreatingNewProduct, AnalyticsPropertyKey.product_name: viewModel.product?.name, AnalyticsPropertyKey.unit: viewModel.selectedUnit?.name])
                         viewModel.saveChanges {
                             dismiss()
                         }

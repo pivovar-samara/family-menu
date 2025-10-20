@@ -54,6 +54,7 @@ struct BasicInfoStepView: View {
             .padding(.horizontal, 20)
             .padding(.top, 20)
         }
+        .trackScreenAppear(name: AnalyticsScreenName.DishDetailsBasicInfo)
         .background(Color.appBackground)
         .onAppear {
             viewModel.descriptionText = viewModel.dish?.details ?? ""

@@ -23,6 +23,7 @@ struct DishListView: View {
             onEdit: { dish in viewModel.selectedDish = dish },
             onDelete: { dish in viewModel.deleteDish(dish) }
         )
+        .trackScreenAppear(name: AnalyticsScreenName.DishList)
         .searchable(text: $viewModel.searchText, prompt: "Search dishes...".localized())
         .modifier(dishListToolbar)
         .modifier(dishListAddSheet)
@@ -66,6 +67,10 @@ struct DishListView: View {
             sortOptions: Array(DishSortOption.allCases),
             onSortOptionSelected: { sortOption in
                 viewModel.updateSortOption(sortOption)
+                AnalyticsManager.shared.track(
+                    name: AnalyticsEventName.dish_list_sorting_changed,
+                    properties: [AnalyticsPropertyKey.sort_type: String(describing: sortOption)]
+                )
             },
             accessibilityIdentifier: "sort_dishes_button",
             accessibilityLabel: "Sort dishes".localized(),
@@ -86,6 +91,7 @@ struct DishListView: View {
                 dish: dish,
                 onDismiss: { shouldSave in
                     if !shouldSave {
+                        AnalyticsManager.shared.track(name: AnalyticsEventName.edit_dish_cancelled, properties: [AnalyticsPropertyKey.is_new_adding: viewModel.isAddingNewDish])
                         AppLogger.info("Dish editing dismissed without saving", category: AppLogger.viewModel)
                     }
                     viewModel.selectedDish = nil
@@ -111,6 +117,9 @@ struct DishListView: View {
                 if filteredDishes.isEmpty {
                     if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         DishListEmptyState(onAdd: onAdd)
+                            .onAppear {
+                                AnalyticsManager.shared.track(name: AnalyticsEventName.dish_list_empty_state_shown, properties: [:])
+                            }
                     } else {
                         DishListNoResultsState()
                     }

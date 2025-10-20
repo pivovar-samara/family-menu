@@ -92,6 +92,7 @@ class MenuService {
             return initializedMenu
         } catch {
             AppLogger.error("Error loading menu for the selected week", error: error, category: AppLogger.service)
+            AnalyticsManager.shared.trackError(error, domain: "Menu", category: "Error loading menu for the selected week", properties: [AnalyticsPropertyKey.week_index: weekIndex])
             return []
         }
     }
@@ -155,6 +156,7 @@ class MenuService {
             try context.save()
         } catch {
             AppLogger.error("Error generating menu", error: error, category: AppLogger.service)
+            AnalyticsManager.shared.trackError(error, domain: "Menu", category: "Error generating menu")
         }
     }
 
@@ -181,6 +183,7 @@ class MenuService {
             try context.save()
         } catch {
             AppLogger.error("Error removing old menu entries", error: error, category: AppLogger.service)
+            AnalyticsManager.shared.trackError(error, domain: "Menu", category: "Error removing old menu entries")
         }
     }
     

@@ -23,6 +23,7 @@ class EditProductViewModel: ObservableObject {
     private let onDismiss: ((Bool, Product?) -> Void)?
     private var shouldPreventAutoDismiss = false
     private var hasSavedChanges = false
+    private var dismissCalled: Bool = false
     
     init(product: Product? = nil, editProductService: EditProductServiceProtocol, onDismiss: ((Bool, Product?) -> Void)? = nil) {
         self.product = product
@@ -63,6 +64,7 @@ class EditProductViewModel: ObservableObject {
             }
         } catch {
             AppLogger.error("Failed to create a new product", error: error, category: AppLogger.viewModel)
+            AnalyticsManager.shared.trackError(error, domain: "Edit Product", category: "Failed to create a new product")
         }
     }
     
@@ -123,7 +125,8 @@ class EditProductViewModel: ObservableObject {
     
     func rollback() {
         editProductService.rollback()
-        onDismiss?(false, product) // Indicate user dismissed without saving
+        if !dismissCalled { onDismiss?(false, product) } // Indicate user dismissed without saving
+        dismissCalled = true
     }
     
     func saveChanges(onSuccess: ()->Void) {
@@ -138,8 +141,11 @@ class EditProductViewModel: ObservableObject {
             
             try editProductService.saveChanges()
             hasSavedChanges = true
-            onDismiss?(true, product) // Indicate user saved successfully
+            if !dismissCalled { onDismiss?(true, product) } // Indicate user saved successfully
             onSuccess()
+            dismissCalled = true
+            
+            AnalyticsManager.shared.track(name: AnalyticsEventName.edit_product_saved, properties: [AnalyticsPropertyKey.is_new_adding: isCreatingNewProduct, AnalyticsPropertyKey.product_name: product?.name, AnalyticsPropertyKey.unit: selectedUnit?.name])
         } catch let error as NSError {
             enqueueAlert(title: "Error", message: error.localizedDescription)
         } catch {
@@ -159,6 +165,8 @@ class EditProductViewModel: ObservableObject {
     }
     
     private func enqueueAlert(title: String, message: String) {
+        AnalyticsManager.shared.track(name: AnalyticsEventName.edit_product_save_failed, properties: [AnalyticsPropertyKey.is_new_adding: isCreatingNewProduct, AnalyticsPropertyKey.product_name: product?.name, AnalyticsPropertyKey.unit: selectedUnit?.name, AnalyticsPropertyKey.error_message: message])
+        
         let alert = AlertItem(title: title.localized(), message: message.localized(), action: nil)
         alertManager.enqueue(alert: alert)
     }
@@ -166,14 +174,5 @@ class EditProductViewModel: ObservableObject {
     /// Prevents automatic view dismissal during critical operations like text editing
     func setAutoDismissPreventionState(_ prevent: Bool) {
         shouldPreventAutoDismiss = prevent
-    }
-    
-    // Fallback cleanup when ViewModel is deallocated
-    deinit {
-        AppLogger.info("🟢 EditProductViewModel deinit called - cleaning up unsaved changes", category: AppLogger.viewModel)
-        // Roll back if there are unsaved changes
-        if !hasSavedChanges {
-            editProductService.rollback()
-        }
     }
 }

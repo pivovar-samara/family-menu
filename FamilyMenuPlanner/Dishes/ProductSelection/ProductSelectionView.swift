@@ -48,6 +48,7 @@ struct ProductSelectionView: View {
                     .listRowBackground(Color.clear)
             }
         }
+        .trackScreenAppear(name: AnalyticsScreenName.ProductSelection)
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(Color.appBackground)
@@ -60,6 +61,12 @@ struct ProductSelectionView: View {
                     accessibilityLabel: "Add Product".localized(),
                     accessibilityIdentifier: "add_product_button"
                 ) {
+                    AnalyticsManager.shared.track(
+                        name: AnalyticsEventName.product_selection_new_product_tapped,
+                        properties: [
+                            AnalyticsPropertyKey.count: viewModel.selectedProducts.count
+                        ]
+                    )
                     viewModel.isAddingNewProduct = true
                 }
                 .padding(.trailing, 20)
@@ -70,6 +77,12 @@ struct ProductSelectionView: View {
             if #available(iOS 26.0, *) {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
+                        AnalyticsManager.shared.track(
+                            name: AnalyticsEventName.product_selection_new_product_tapped,
+                            properties: [
+                                AnalyticsPropertyKey.count: viewModel.selectedProducts.count
+                            ]
+                        )
                         viewModel.isAddingNewProduct = true
                     } label: {
                         Image(systemName: "plus")
@@ -82,11 +95,13 @@ struct ProductSelectionView: View {
             ToolbarItem(placement: .cancellationAction) {
                 if #available(iOS 26.0, *) {
                     Button(role: .cancel) {
+                        AnalyticsManager.shared.track(name: AnalyticsEventName.product_selection_cancelled, properties: [AnalyticsPropertyKey.count: viewModel.selectedProducts.count])
                         dismiss()
                     }
                     .tint(Color.accent)
                 } else {
                     Button("Cancel".localized()) {
+                        AnalyticsManager.shared.track(name: AnalyticsEventName.product_selection_cancelled, properties: [AnalyticsPropertyKey.count: viewModel.selectedProducts.count])
                         dismiss()
                     }
                     .foregroundColor(Color.accent)

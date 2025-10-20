@@ -31,6 +31,7 @@ struct ContentView: View {
         } else if appStateManager.showPersistenceErrorAlert {
             // Show error state with recovery options
             ErrorRecoveryView()
+                .trackScreenAppear(name: AnalyticsScreenName.PersistenceError, properties: [AnalyticsPropertyKey.error_message: AppStateManager.shared.persistenceError ?? ""])
         } else {
             ZStack(alignment: .top) {
                 TabView {
@@ -75,6 +76,12 @@ struct ContentView: View {
                     SyncBannerView()
                         .transition(.move(edge: .top).combined(with: .opacity))
                         .zIndex(1)
+                        .onAppear {
+                            AnalyticsManager.shared.track(name: AnalyticsEventName.icloud_banner_appeared)
+                        }
+                        .onDisappear {
+                            AnalyticsManager.shared.track(name: AnalyticsEventName.icloud_banner_disappeared)
+                        }
                 }
             }
         }

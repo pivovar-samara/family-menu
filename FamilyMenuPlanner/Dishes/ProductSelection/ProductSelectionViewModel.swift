@@ -59,10 +59,10 @@ class ProductSelectionViewModel: ObservableObject {
         self.onProductsSelected = onProductsSelected
         
         // Initialize search helper with proper filter predicate
-        self.searchHelper = SearchOptimizationHelper<Product> { product, searchText in
+        self.searchHelper = SearchOptimizationHelper<Product>(screenName: AnalyticsScreenName.ProductSelection, filterPredicate: { product, searchText in
             guard let name = product.name else { return false }
             return name.localizedCaseInsensitiveContains(searchText)
-        }
+        })
         
         // Setup bindings between ViewModel and SearchHelper
         setupSearchBindings()
@@ -101,6 +101,12 @@ class ProductSelectionViewModel: ObservableObject {
         case .multiple:
             selectedProducts.insert(product)
         }
+        AnalyticsManager.shared.track(
+            name: AnalyticsEventName.product_selection_new_product_added,
+            properties: [
+                AnalyticsPropertyKey.count: selectedProducts.count
+            ]
+        )
     }
     
     // MARK: - Selection Handling

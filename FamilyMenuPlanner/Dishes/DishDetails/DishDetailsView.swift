@@ -77,6 +77,7 @@ struct DishDetailsView: View {
                         preselectedProducts: [],
                         onProductSelected: { _ in },
                         onProductsSelected: { selectedProducts in
+                            logDishEventWithProperties(name: AnalyticsEventName.product_selection_done)
                             viewModel.addIngredients(products: selectedProducts, defaultQuantity: 1.0)
                         }
                     )
@@ -87,6 +88,7 @@ struct DishDetailsView: View {
                         selectionMode: .single,
                         preselectedProducts: [],
                         onProductSelected: { selectedProduct in
+                            logDishEventWithProperties(name: AnalyticsEventName.product_selection_done)
                             viewModel.selectedIngredient?.product = selectedProduct
                             viewModel.loadIngredients()
                         },
@@ -125,13 +127,30 @@ struct DishDetailsView: View {
     }
     
     private func saveAndDismiss() {
+        logDishEventWithProperties(name: AnalyticsEventName.edit_dish_save_tap)
         viewModel.saveChanges {
             dismiss()
         }
     }
     
     private func cancelAndDismiss() {
+        logDishEventWithProperties(name: AnalyticsEventName.edit_dish_cancelled)
         viewModel.rollback()
         dismiss()
+    }
+    
+    private func logDishEventWithProperties(name: String) {
+        AnalyticsManager.shared.track(
+            name: name,
+            properties:[
+                AnalyticsPropertyKey.is_new_adding: viewModel.isCreatingNewDish,
+                AnalyticsPropertyKey.dish_name: viewModel.dish?.name ?? "",
+                AnalyticsPropertyKey.recipe_length: viewModel.dish?.details?.count ?? 0,
+                AnalyticsPropertyKey.meal_types: viewModel.selectedMealTypes.map({ type in
+                    type.name ?? ""
+                }),
+                AnalyticsPropertyKey.category: viewModel.selectedCategory?.name ?? "",
+                AnalyticsPropertyKey.ingredients_count: viewModel.selectedIngredients.count
+            ])
     }
 }

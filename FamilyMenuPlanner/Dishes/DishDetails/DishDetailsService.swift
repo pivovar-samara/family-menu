@@ -45,6 +45,7 @@ class DishDetailsService {
             return try context.fetch(fetchRequest)
         } catch {
             AppLogger.error("Error loading units", error: error, category: AppLogger.service)
+            AnalyticsManager.shared.trackError(error, domain: "Dish Details", category: "Error loading units")
             return []
         }
     }
@@ -60,6 +61,7 @@ class DishDetailsService {
             return try context.fetch(fetchRequest)
         } catch {
             AppLogger.error("Error loading meal types", error: error, category: AppLogger.service)
+            AnalyticsManager.shared.trackError(error, domain: "Dish Details", category: "Error loading meal types")
             return []
         }
     }
@@ -75,6 +77,7 @@ class DishDetailsService {
             return try context.fetch(fetchRequest)
         } catch {
             AppLogger.error("Error loading dish categories", error: error, category: AppLogger.service)
+            AnalyticsManager.shared.trackError(error, domain: "Dish Details", category: "Error loading dish categories")
             return []
         }
     }
@@ -134,7 +137,12 @@ class DishDetailsService {
         // Ensure inserted objects have permanent IDs so they can be resolved in the background context
         let inserted = Array(context.insertedObjects)
         if !inserted.isEmpty {
-            do { try context.obtainPermanentIDs(for: inserted) } catch { AppLogger.error("Failed to obtain permanent IDs before background save", error: error, category: AppLogger.service) }
+            do {
+                try context.obtainPermanentIDs(for: inserted)
+            } catch {
+                AppLogger.error("Failed to obtain permanent IDs before background save", error: error, category: AppLogger.service)
+                AnalyticsManager.shared.trackError(error, domain: "Dish Details", category: "Failed to obtain permanent IDs before background save")
+            }
         }
 
         let insertedObjectIDs = inserted.map { $0.objectID }
@@ -172,6 +180,7 @@ class DishDetailsService {
                 completion(.success(()))
             case .failure(let error):
                 AppLogger.error("Failed to save dish changes in background", error: error, category: AppLogger.service)
+                AnalyticsManager.shared.trackError(error, domain: "Dish Details", category: "Failed to save dish changes in background")
                 completion(.failure(error))
             }
         }
@@ -224,6 +233,7 @@ class DishDetailsService {
         if context.hasChanges {
             do { try context.save(); AppLogger.info("Deduped \(removed) ingredient rows for a dish", category: AppLogger.service) } catch {
                 AppLogger.error("Failed to dedupe ingredients for a dish", error: error, category: AppLogger.service)
+                AnalyticsManager.shared.trackError(error, domain: "Dish Details", category: "Failed to dedupe ingredients for a dish")
             }
         }
     }

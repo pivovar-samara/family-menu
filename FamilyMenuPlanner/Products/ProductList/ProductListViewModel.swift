@@ -47,10 +47,10 @@ class ProductListViewModel: ObservableObject {
         self.productListService = productListService
         
         // Initialize search helper with proper filter predicate
-        self.searchHelper = SearchOptimizationHelper<Product> { product, searchText in
+        self.searchHelper = SearchOptimizationHelper<Product>(screenName: AnalyticsScreenName.ProductList, filterPredicate: { product, searchText in
             guard let name = product.name else { return false }
             return name.localizedCaseInsensitiveContains(searchText)
-        }
+        })
         
         // Load persistent sort preference now that all stored properties are initialized
         loadSortPreference()

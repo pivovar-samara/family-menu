@@ -81,11 +81,24 @@ class ShoppingListViewModel: ObservableObject {
         
         loadSortPreference()
         
-        // Observe search text changes
+        // Observe search text changes with trimming, de-duplication, and debounced analytics tracking
         $searchText
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .removeDuplicates()
             .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.applyFiltersAndSort()
+            .sink { [weak self] query in
+                guard let self = self else { return }
+                self.applyFiltersAndSort()
+                if !query.isEmpty {
+                    AnalyticsManager.shared.track(
+                        name: AnalyticsEventName.search_happened,
+                        properties: [
+                            AnalyticsPropertyKey.query: query,
+                            AnalyticsPropertyKey.results: self.filteredItems.count,
+                            AnalyticsPropertyKey.screen_name: AnalyticsScreenName.ShoppingList
+                        ]
+                    )
+                }
             }
             .store(in: &cancellables)
     }
@@ -131,9 +144,11 @@ class ShoppingListViewModel: ObservableObject {
         
         if let index = shoppingItems.firstIndex(where: { $0.id == item.id }) {
             shoppingItems[index].isSelected.toggle()
-            saveSelectionState(for: item.productName, unit: item.unitName, isSelected: shoppingItems[index].isSelected, weekDate: weekDate)
+            let becomeSelected = shoppingItems[index].isSelected
+            saveSelectionState(for: item.productName, unit: item.unitName, isSelected: becomeSelected, weekDate: weekDate)
             saveQuantityState(for: item.productName, unit: item.unitName, quantity: item.quantity, weekDate: weekDate)
             applyFiltersAndSort()
+            AnalyticsManager.shared.track(name: becomeSelected ? AnalyticsEventName.shopping_list_item_selected : AnalyticsEventName.shopping_list_item_deselected, properties: [AnalyticsPropertyKey.selected_count: purchasedCount, AnalyticsPropertyKey.all_count: totalCount])
         }
     }
     
@@ -146,6 +161,8 @@ class ShoppingListViewModel: ObservableObject {
             saveQuantityState(for: shoppingItems[index].productName, unit: shoppingItems[index].unitName, quantity: shoppingItems[index].quantity, weekDate: weekDate)
         }
         applyFiltersAndSort()
+        
+        AnalyticsManager.shared.track(name: AnalyticsEventName.shopping_list_all_selected, properties: [AnalyticsPropertyKey.all_count: totalCount])
     }
     
     func deselectAll() {
@@ -157,12 +174,16 @@ class ShoppingListViewModel: ObservableObject {
             saveQuantityState(for: shoppingItems[index].productName, unit: shoppingItems[index].unitName, quantity: shoppingItems[index].quantity, weekDate: weekDate)
         }
         applyFiltersAndSort()
+        
+        AnalyticsManager.shared.track(name: AnalyticsEventName.shopping_list_all_deselected, properties: [AnalyticsPropertyKey.all_count: totalCount])
     }
     
     func updateSortOption(_ option: ShoppingListSortOption) {
         sortOption = option
         saveSortPreference()
         applyFiltersAndSort()
+        
+        AnalyticsManager.shared.track(name: AnalyticsEventName.shopping_list_sorting_changed, properties: [AnalyticsPropertyKey.sort_type: option.rawValue])
     }
     
     private func applyFiltersAndSort() {
@@ -335,3 +356,4 @@ class ShoppingListViewModel: ObservableObject {
         alertManager.dismissCurrentAlert()
     }
 } 
+

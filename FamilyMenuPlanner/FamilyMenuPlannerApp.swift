@@ -37,6 +37,16 @@ struct FamilyMenuPlannerApp: App {
         } else {
             // For production, use the shared instance
             self.persistenceController = PersistenceController.shared
+            
+            AnalyticsBootstrap.configure(
+                amplitudeApiKey: AppConfig.amplitudeKey,
+                environment: "prod",
+                additionalProviders: [], // add other providers here in the future
+                initialUserId: nil,
+                additionalConfiguration: [
+                    "trackingSessionEvents": true
+                ]
+            )
         }
         
         // Customize TabBar appearance
