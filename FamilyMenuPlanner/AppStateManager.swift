@@ -117,6 +117,8 @@ final class AppStateManager: ObservableObject {
                 
                 if let error = error {
                     AppLogger.error("iCloud account check failed", error: error, category: AppLogger.cloudKit)
+                    AnalyticsManager.shared.trackError(error, domain: "iCloud", category: "iCloud account check failed")
+                    AnalyticsManager.shared.setUserProperties([AnalyticsUserPropertyName.icloud_available: false])
                     self.isICloudAvailable = false
                 } else {
                     self.isICloudAvailable = (status == .available)
@@ -132,8 +134,10 @@ final class AppStateManager: ObservableObject {
                             }
                         }
                         AppLogger.info("iCloud is available - CloudKit sync enabled", category: AppLogger.cloudKit)
+                        AnalyticsManager.shared.setUserProperties([AnalyticsUserPropertyName.icloud_available: true])
                     } else {
                         AppLogger.info("iCloud is not available - running in local mode", category: AppLogger.cloudKit)
+                        AnalyticsManager.shared.setUserProperties([AnalyticsUserPropertyName.icloud_available: false])
                     }
                 }
             }
@@ -361,6 +365,7 @@ final class AppStateManager: ObservableObject {
                 AppLogger.info("Found \(draftDishes.count) draft dishes: \(emptyDishes.count) empty, \(minimalContentDishes.count) minimal, \(substantialContentDishes.count) substantial. Deleted \(actuallyDeleted) drafts.", category: AppLogger.appState)
             } catch {
                 AppLogger.error("Failed to fetch draft dishes for cleanup", error: error, category: AppLogger.appState)
+                AnalyticsManager.shared.trackError(error, domain: "iCloud", category: "Failed to fetch draft dishes for cleanup")
             }
             
             // Clean up draft products using tiered approach
@@ -418,6 +423,7 @@ final class AppStateManager: ObservableObject {
                 AppLogger.info("Found \(draftProducts.count) draft products: \(emptyProducts.count) empty, \(minimalContentProducts.count) minimal, \(substantialContentProducts.count) substantial. Deleted \(actuallyDeleted) drafts.", category: AppLogger.appState)
             } catch {
                 AppLogger.error("Failed to fetch draft products for cleanup", error: error, category: AppLogger.appState)
+                AnalyticsManager.shared.trackError(error, domain: "iCloud", category: "Failed to fetch draft products for cleanup")
             }
             
             // Save changes if any entities were deleted
@@ -427,6 +433,7 @@ final class AppStateManager: ObservableObject {
                     AppLogger.info("Successfully cleaned up \(entitiesDeleted) truly abandoned draft entities", category: AppLogger.appState)
                 } catch {
                     AppLogger.error("Failed to save after cleaning up draft entities", error: error, category: AppLogger.appState)
+                    AnalyticsManager.shared.trackError(error, domain: "iCloud", category: "Failed to save after cleaning up draft entities")
                 }
             } else {
                 AppLogger.info("No truly abandoned draft entities found", category: AppLogger.appState)
@@ -489,6 +496,7 @@ final class AppStateManager: ObservableObject {
                 }
             } catch {
                 AppLogger.error("Failed to fetch draft dishes for migration", error: error, category: AppLogger.appState)
+                AnalyticsManager.shared.trackError(error, domain: "iCloud", category: "Failed to fetch draft dishes for migration")
             }
             
             // Restore products that have meaningful content
@@ -510,6 +518,7 @@ final class AppStateManager: ObservableObject {
                 }
             } catch {
                 AppLogger.error("Failed to fetch draft products for migration", error: error, category: AppLogger.appState)
+                AnalyticsManager.shared.trackError(error, domain: "iCloud", category: "Failed to fetch draft products for migration")
             }
             
             // Save changes if any entities were restored
@@ -519,6 +528,7 @@ final class AppStateManager: ObservableObject {
                     AppLogger.info("Successfully restored \(entitiesRestored) user entities from incorrect draft status", category: AppLogger.appState)
                 } catch {
                     AppLogger.error("Failed to save after restoring entities from draft status", error: error, category: AppLogger.appState)
+                    AnalyticsManager.shared.trackError(error, domain: "iCloud", category: "Failed to save after restoring entities from draft status")
                     return
                 }
             } else {

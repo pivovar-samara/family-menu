@@ -38,6 +38,7 @@ class EditProductService {
             return units
         } catch {
             AppLogger.error("Error loading units", error: error, category: AppLogger.service)
+            AnalyticsManager.shared.trackError(error, domain: "Edit Product", category: "Error loading units")
             return []
         }
     }
@@ -112,6 +113,7 @@ class EditProductService {
                 completion(.success(()))
             case .failure(let error):
                 AppLogger.error("Failed to save product changes in background", error: error, category: AppLogger.service)
+                AnalyticsManager.shared.trackError(error, domain: "Edit Product", category: "Failed to save product changes in background")
                 completion(.failure(error))
             }
         }

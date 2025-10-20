@@ -11,6 +11,16 @@ public enum AnalyticsEventName {
     public static let screen_view = "screen_view"
     public static let search_happened = "search_happened"
     
+    // iCloud
+    public static let icloud_banner_appeared = "icloud_banner_appeared"
+    public static let icloud_banner_disappeared = "icloud_banner_disappeared"
+    
+    // Data
+    public static let error = "error"
+    public static let initial_data_generation_started = "initial_data_generation_started"
+    public static let initial_data_generation_skipped = "initial_data_generation_skipped"
+    public static let initial_data_generation_completed = "initial_data_generation_completed"
+    
     // Menu
     public static let menu_week_switched = "menu_week_switched"
     public static let menu_daily_clear_dialog_shown = "menu_daily_clear_dialog_shown"
@@ -23,9 +33,6 @@ public enum AnalyticsEventName {
     public static let menu_past_edit_warning_shown = "menu_past_edit_warning_shown"
     public static let menu_past_edit_warning_confirmed = "menu_past_edit_warning_confirmed"
     public static let menu_past_edit_warning_cancelled = "menu_past_edit_warning_cancelled"
-    public static let menu_replace_dishes_failed = "menu_replace_dishes_failed"
-    public static let menu_clear_meal_failed = "menu_clear_meal_failed"
-    public static let menu_clear_day_failed = "menu_clear_day_failed"
     public static let menu_generation_completed = "menu_generation_completed"
     public static let menu_generation_failed = "menu_generation_failed"
     public static let menu_empty_state_shown = "menu_empty_state_shown"
@@ -72,10 +79,7 @@ public enum AnalyticsEventName {
     public static let edit_dish_ingredients_removed = "edit_dish_ingredients_removed"
     public static let edit_dish_ingredients_quantity_changed = "edit_dish_ingredients_quantity_changed"
     public static let edit_dish_ingredients_sorting_changed = "edit_dish_ingredients_sorting_changed"
-    public static let edit_dish_update_ingredient_quantity_failed = "edit_dish_update_ingredient_quantity_failed"
-    public static let edit_dish_ingredients_adding_failed = "edit_dish_ingredients_adding_failed"
     public static let edit_dish_recreated = "edit_dish_recreated"
-    public static let edit_dish_recreation_failed = "edit_dish_recreation_failed"
     public static let edit_dish_data_cleanup_failed = "edit_dish_data_cleanup_failed"
     public static let edit_dish_data_cleanup_finished = "edit_dish_data_cleanup_finished"
     
@@ -118,6 +122,9 @@ public enum AnalyticsPropertyKey {
     public static let direction = "direction"
     public static let error_code = "error_code"
     public static let error_message = "error_message"
+    public static let error_category = "error_category"
+    public static let error_domain = "error_domain"
+    public static let user_info = "user_info"
     public static let product_name = "product_name"
     public static let unit = "unit"
     public static let is_new_adding = "is_new_adding"
@@ -161,4 +168,11 @@ public enum AnalyticsScreenName {
     /// Edit Product screen
     public static let EditProduct = "Edit Product"
     public static let AddProduct = "Add New Product"
+    
+    // Error
+    public static let PersistenceError = "Persistence Error"
+}
+
+public enum AnalyticsUserPropertyName {
+    public static let icloud_available = "icloud_available"
 }

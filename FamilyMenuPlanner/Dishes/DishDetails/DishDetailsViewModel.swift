@@ -125,6 +125,7 @@ class DishDetailsViewModel: ObservableObject {
             try dish = dishDetailsService.createDish()
         } catch {
             AppLogger.error("Failed to create a new dish", error: error, category: AppLogger.viewModel)
+            logDishErrorWithProperties(error: error, category: "Failed to create a new dish")
         }
     }
     
@@ -232,7 +233,7 @@ class DishDetailsViewModel: ObservableObject {
             logDishEventWithProperties(name: AnalyticsEventName.edit_dish_ingredients_added)
         } catch {
             AppLogger.error("Failed to create a new ingredient", error: error, category: AppLogger.viewModel)
-            logDishEventWithProperties(name: AnalyticsEventName.edit_dish_ingredients_adding_failed, additionalProperties: [AnalyticsPropertyKey.error_message: error.localizedDescription])
+            logDishErrorWithProperties(error: error, category: "Failed to create a new ingredient")
         }
     }
 
@@ -259,7 +260,7 @@ class DishDetailsViewModel: ObservableObject {
             logDishEventWithProperties(name: AnalyticsEventName.edit_dish_ingredients_added)
         } catch {
             AppLogger.error("Failed to create ingredients in batch", error: error, category: AppLogger.viewModel)
-            logDishEventWithProperties(name: AnalyticsEventName.edit_dish_ingredients_adding_failed, additionalProperties: [AnalyticsPropertyKey.error_message: error.localizedDescription])
+            logDishErrorWithProperties(error: error, category: "Failed to create ingredients in batch")
         }
     }
 
@@ -295,6 +296,7 @@ class DishDetailsViewModel: ObservableObject {
                     AppLogger.info("Ingredient sort order updated successfully in background", category: AppLogger.viewModel)
                 case .failure(let error):
                     AppLogger.error("Failed to save ingredient reordering in background", error: error, category: AppLogger.viewModel)
+                    self?.logDishErrorWithProperties(error: error, category: "Failed to save ingredient reordering in background")
                     // If background save fails, try synchronous save as fallback
                     self?.fallbackSyncSave()
                 }
@@ -309,6 +311,7 @@ class DishDetailsViewModel: ObservableObject {
             AppLogger.info("Ingredient sort order saved with fallback sync save", category: AppLogger.viewModel)
         } catch {
             AppLogger.error("Failed to save ingredient reordering with fallback", error: error, category: AppLogger.viewModel)
+            logDishErrorWithProperties(error: error, category: "Failed to save ingredient reordering with fallback")
         }
     }
     
@@ -353,6 +356,7 @@ class DishDetailsViewModel: ObservableObject {
             // Check if dish is still valid before saving
             guard let dish = ensureValidDish() else {
                 AppLogger.error("Attempted to save deleted dish entity", category: AppLogger.viewModel)
+                logDishEventWithProperties(name: AnalyticsEventName.edit_dish_save_failed, additionalProperties: [AnalyticsPropertyKey.error_message: "Attempted to save deleted dish entity"])
                 enqueueAlert(title: "Error", message: "The dish was removed during editing. Please create the dish again.")
                 return
             }
@@ -368,8 +372,10 @@ class DishDetailsViewModel: ObservableObject {
             
             logDishEventWithProperties(name: AnalyticsEventName.edit_dish_saved)
         } catch let error as NSError {
+            logDishErrorWithProperties(error: error, category: "Failed to save dish.")
             enqueueAlert(title: "Error", message: error.localizedDescription)
         } catch {
+            logDishErrorWithProperties(error: error, category: "Failed to save dish.")
             enqueueAlert(title: "Error", message: "Failed to save changes. Please try again.")
         }
     }
@@ -450,7 +456,7 @@ class DishDetailsViewModel: ObservableObject {
             return newDish
         } catch {
             AppLogger.error("Failed to recreate dish after cleanup deletion", error: error, category: AppLogger.viewModel)
-            AnalyticsManager.shared.track(name: AnalyticsEventName.edit_dish_recreation_failed, properties: [AnalyticsPropertyKey.error_message: error.localizedDescription])
+            logDishErrorWithProperties(error: error, category: "Failed to recreate dish after cleanup deletion")
             return nil
         }
     }
@@ -477,7 +483,7 @@ class DishDetailsViewModel: ObservableObject {
             logDishEventWithProperties(name: AnalyticsEventName.edit_dish_ingredients_quantity_changed, additionalProperties: [AnalyticsPropertyKey.quantity: quantity])
         } catch {
             AppLogger.error("Failed to save ingredient quantity update", error: error, category: AppLogger.viewModel)
-            logDishEventWithProperties(name: AnalyticsEventName.edit_dish_update_ingredient_quantity_failed, additionalProperties: [AnalyticsPropertyKey.quantity: quantity, AnalyticsPropertyKey.error_message: error.localizedDescription])
+            logDishErrorWithProperties(error: error, category: "Failed to save ingredient quantity update", additionalProperties: [AnalyticsPropertyKey.quantity: quantity])
         }
     }
     
@@ -508,14 +514,26 @@ class DishDetailsViewModel: ObservableObject {
                     logDishEventWithProperties(name: AnalyticsEventName.edit_dish_data_cleanup_finished)
                 } catch {
                     AppLogger.error("Failed to save data validation cleanup changes", error: error, category: AppLogger.viewModel)
-                    logDishEventWithProperties(name: AnalyticsEventName.edit_dish_data_cleanup_failed, additionalProperties: [AnalyticsPropertyKey.error_message: error.localizedDescription])
+                    logDishErrorWithProperties(error: error, category: "Failed to save data validation cleanup changes")
                 }
             }
         }
     }
     
     private func logDishEventWithProperties(name: String, additionalProperties: [String: Sendable] = [:]) {
-        var properties: [String: Sendable] = [
+        var properties: [String: Sendable] = dishPropertiesForTracking()
+        properties.merge(additionalProperties, uniquingKeysWith: { _, lhs in lhs })
+        AnalyticsManager.shared.track(name: name, properties: properties)
+    }
+    
+    private func logDishErrorWithProperties(error: Error, category: String, additionalProperties: [String: Sendable] = [:]) {
+        var properties: [String: Sendable] = dishPropertiesForTracking()
+        properties.merge(additionalProperties, uniquingKeysWith: { _, lhs in lhs })
+        AnalyticsManager.shared.trackError(error, domain: "Dish Details", category: category, properties: properties)
+    }
+    
+    private func dishPropertiesForTracking() -> [String: Sendable] {
+        return [
             AnalyticsPropertyKey.is_new_adding: isCreatingNewDish,
             AnalyticsPropertyKey.dish_name: dish?.name ?? "",
             AnalyticsPropertyKey.recipe_length: dish?.details?.count ?? 0,
@@ -525,7 +543,5 @@ class DishDetailsViewModel: ObservableObject {
             AnalyticsPropertyKey.category: selectedCategory?.name ?? "",
             AnalyticsPropertyKey.ingredients_count: selectedIngredients.count
         ]
-        properties.merge(additionalProperties, uniquingKeysWith: { _, lhs in lhs })
-        AnalyticsManager.shared.track(name: name, properties: properties)
     }
 }

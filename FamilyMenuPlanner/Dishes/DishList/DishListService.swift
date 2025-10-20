@@ -111,6 +111,7 @@ class DishListService: NSObject {
             notifyDelegate(immediate: false)
         } catch {
             AppLogger.error("Error fetching dishes with new sort order", error: error, category: AppLogger.service)
+            AnalyticsManager.shared.trackError(error, domain: "Dish List", category: "Error fetching dishes with new sort order")
         }
     }
     
@@ -124,6 +125,7 @@ class DishListService: NSObject {
             notifyDelegate(immediate: true)
         } catch {
             AppLogger.error("Error fetching dishes", error: error, category: AppLogger.service)
+            AnalyticsManager.shared.trackError(error, domain: "Dish List", category: "Error fetching dishes")
         }
     }
     

@@ -188,18 +188,11 @@ class MenuViewModel: ObservableObject {
             loadMenu(for: selectedWeekIndex)
         } catch {
             let dayIndex = self.weekdays.firstIndex(of: day) ?? -1
-            let nsError = error as NSError
-            AnalyticsManager.shared.track(
-                name: AnalyticsEventName.menu_replace_dishes_failed,
-                properties: [
-                    AnalyticsPropertyKey.week_index: self.selectedWeekIndex,
-                    AnalyticsPropertyKey.day_index: dayIndex,
-                    AnalyticsPropertyKey.meal_type: mealType,
-                    AnalyticsPropertyKey.count: newDishes.count,
-                    AnalyticsPropertyKey.error_code: nsError.code,
-                    AnalyticsPropertyKey.error_message: nsError.localizedDescription
-                ]
-            )
+            AnalyticsManager.shared.trackError(error, domain: "Menu", category: "Error replacing dish", properties: [
+                AnalyticsPropertyKey.week_index: self.selectedWeekIndex,
+                AnalyticsPropertyKey.day_index: dayIndex,
+                AnalyticsPropertyKey.meal_type: mealType,
+                AnalyticsPropertyKey.count: newDishes.count])
             DispatchQueue.main.asyncAfter(deadline: .now()+0.3) {
                 self.enqueueAlert(title: "Error", message: "Error replacing dish. Please try again.")
             }
@@ -217,16 +210,10 @@ class MenuViewModel: ObservableObject {
             loadMenu(for: selectedWeekIndex)
         } catch {
             let dayIndex = self.weekdays.firstIndex(of: day) ?? -1
-            let nsError = error as NSError
-            let eventName = (mealType == nil) ? AnalyticsEventName.menu_clear_day_failed : AnalyticsEventName.menu_clear_meal_failed
-            var props: [String: Sendable] = [
+            AnalyticsManager.shared.trackError(error, domain: "Menu", category: (mealType == nil) ? "Error clearing mealType for day" : "Error clearing mealType", properties: [
                 AnalyticsPropertyKey.week_index: self.selectedWeekIndex,
                 AnalyticsPropertyKey.day_index: dayIndex,
-                AnalyticsPropertyKey.error_code: nsError.code,
-                AnalyticsPropertyKey.error_message: nsError.localizedDescription
-            ]
-            if let mt = mealType { props[AnalyticsPropertyKey.meal_type] = mt }
-            AnalyticsManager.shared.track(name: eventName, properties: props)
+                AnalyticsPropertyKey.meal_type: mealType ?? ""])
             DispatchQueue.main.asyncAfter(deadline: .now()+0.3) {
                 self.enqueueAlert(title: "Error", message: "Error clearing mealType. Please try again.")
             }

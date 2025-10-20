@@ -196,4 +196,18 @@ public extension AnalyticsManager {
         props[AnalyticsPropertyKey.screen_name] = name
         track(name: AnalyticsEventName.screen_view, properties: props)
     }
+    
+    /// Track an error event.
+    /// - Parameters:
+    ///   - error: An error oblect.
+    ///   - category: Domain category for the error.
+    ///   - properties: Additional properties to include.
+    func trackError(_ error: Error, domain: String, category: String, properties: [String: Sendable] = [:]) {
+        var props = properties
+        // Ensure the standard key is present for provider mappings.
+        props[AnalyticsPropertyKey.error_domain] = domain
+        props[AnalyticsPropertyKey.error_category] = category
+        props[AnalyticsPropertyKey.error_message] = error.localizedDescription
+        track(name: AnalyticsEventName.error, properties: props)
+    }
 }

@@ -64,6 +64,7 @@ class EditProductViewModel: ObservableObject {
             }
         } catch {
             AppLogger.error("Failed to create a new product", error: error, category: AppLogger.viewModel)
+            AnalyticsManager.shared.trackError(error, domain: "Edit Product", category: "Failed to create a new product")
         }
     }
     

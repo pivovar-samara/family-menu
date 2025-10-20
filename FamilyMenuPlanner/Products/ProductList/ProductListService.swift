@@ -58,6 +58,7 @@ class ProductListService: NSObject {
             notifyDelegate(immediate: true)
         } catch {
             AppLogger.error("Error fetching products", error: error, category: AppLogger.service)
+            AnalyticsManager.shared.trackError(error, domain: "Product List", category: "Error fetching products")
         }
     }
     
@@ -72,6 +73,7 @@ class ProductListService: NSObject {
             return try context.fetch(fetchRequest)
         } catch {
             AppLogger.error("Error loading units", error: error, category: AppLogger.service)
+            AnalyticsManager.shared.trackError(error, domain: "Product List", category: "Error loading units")
             return []
         }
     }
@@ -171,6 +173,7 @@ class ProductListService: NSObject {
             notifyDelegate(immediate: false)
         } catch {
             AppLogger.error("Error fetching products with new sort order", error: error, category: AppLogger.service)
+            AnalyticsManager.shared.trackError(error, domain: "Product List", category: "Error fetching products with new sort order")
         }
     }
 }
