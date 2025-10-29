@@ -1,0 +1,208 @@
+{
+  "fill" : {
+    "solid" : "display-p3:0.88627,0.86275,0.77255,1.00000"
+  },
+  "groups" : [
+    {
+      "blend-mode" : "normal",
+      "blur-material" : null,
+      "hidden" : false,
+      "layers" : [
+        {
+          "image-name" : "spoon 2.svg",
+          "name" : "spoon",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              314,
+              20
+            ]
+          }
+        },
+        {
+          "glass" : true,
+          "image-name" : "layer5-9.svg",
+          "name" : "fork",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              -330,
+              20
+            ]
+          }
+        },
+        {
+          "blend-mode" : "screen",
+          "fill" : {
+            "solid" : "srgb:1.00000,1.00000,1.00000,1.00000"
+          },
+          "glass" : false,
+          "hidden" : false,
+          "image-name" : "plate1-1.svg",
+          "name" : "plate1",
+          "opacity" : 0.2,
+          "position" : {
+            "scale" : 0.4,
+            "translation-in-points" : [
+              0,
+              20
+            ]
+          }
+        },
+        {
+          "blend-mode" : "normal",
+          "fill" : {
+            "solid" : "srgb:0.00000,0.00000,0.00000,1.00000"
+          },
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "plate1-1.svg",
+          "name" : "plate2",
+          "opacity" : 0.1,
+          "position" : {
+            "scale" : 0.86,
+            "translation-in-points" : [
+              0,
+              20
+            ]
+          }
+        },
+        {
+          "blend-mode" : "normal",
+          "fill" : "none",
+          "hidden" : false,
+          "image-name" : "plate1-1.svg",
+          "name" : "plate3",
+          "opacity" : 0.8,
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              20
+            ]
+          }
+        }
+      ],
+      "lighting" : "individual",
+      "position" : {
+        "scale" : 1,
+        "translation-in-points" : [
+          0,
+          -22
+        ]
+      },
+      "shadow" : {
+        "kind" : "layer-color",
+        "opacity" : 1
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.5
+      }
+    },
+    {
+      "blend-mode" : "normal",
+      "blur-material" : null,
+      "hidden" : false,
+      "layers" : [
+        {
+          "blend-mode" : "normal",
+          "glass" : false,
+          "hidden" : false,
+          "image-name" : "label 2.svg",
+          "name" : "label",
+          "position-specializations" : [
+            {
+              "value" : {
+                "scale" : 1,
+                "translation-in-points" : [
+                  210.0025339280682,
+                  -359.6824497435337
+                ]
+              }
+            },
+            {
+              "idiom" : "watchOS",
+              "value" : {
+                "scale" : 1,
+                "translation-in-points" : [
+                  130,
+                  -359.6824497435337
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "position" : {
+        "scale" : 1,
+        "translation-in-points" : [
+          17,
+          -10
+        ]
+      },
+      "shadow" : {
+        "kind" : "layer-color",
+        "opacity" : 1
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    },
+    {
+      "blend-mode" : "normal",
+      "blur-material" : null,
+      "hidden" : false,
+      "layers" : [
+        {
+          "blend-mode" : "normal",
+          "fill" : "none",
+          "glass" : false,
+          "hidden" : false,
+          "image-name" : "calendar 2.svg",
+          "name" : "calendar",
+          "position-specializations" : [
+            {
+              "value" : {
+                "scale" : 1,
+                "translation-in-points" : [
+                  0,
+                  420
+                ]
+              }
+            },
+            {
+              "idiom" : "watchOS",
+              "value" : {
+                "scale" : 1,
+                "translation-in-points" : [
+                  0,
+                  450
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "lighting" : "individual",
+      "shadow" : {
+        "kind" : "layer-color",
+        "opacity" : 1
+      },
+      "specular" : false,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}
