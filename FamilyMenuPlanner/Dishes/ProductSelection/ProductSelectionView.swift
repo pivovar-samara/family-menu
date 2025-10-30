@@ -54,6 +54,7 @@ struct ProductSelectionView: View {
         .background(Color.appBackground)
         .navigationTitle("Select Product".localized())
         .searchable(text: $viewModel.searchText, prompt: "Search products...".localized())
+        .searchPresentationToolbarBehavior(.avoidHidingContent)
         .overlay(alignment: .bottomTrailing) {
             if #unavailable(iOS 26) {
                 FloatingActionButton(
