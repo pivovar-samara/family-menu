@@ -40,6 +40,7 @@ struct ShoppingListView: View {
         .background(Color.appBackground)
         .navigationTitle("Shopping List".localized())
         .searchable(text: $viewModel.searchText, prompt: "Search items...".localized())
+        .searchPresentationToolbarBehavior(.avoidHidingContent)
         .toolbar { toolbarContent }
         .alert(item: Binding(
             get: { viewModel.currentAlert },

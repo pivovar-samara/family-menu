@@ -107,6 +107,7 @@ struct DishSelectionView: View {
         .background(Color.appBackground)
         .navigationTitle("Select Dish".localized())
         .searchable(text: $viewModel.searchText, prompt: "Search dishes...".localized())
+        .searchPresentationToolbarBehavior(.avoidHidingContent)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 if #available(iOS 26.0, *) {
