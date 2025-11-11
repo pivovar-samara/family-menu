@@ -14,7 +14,7 @@ struct UIConstants {
     static let horizontalPadding: CGFloat = 20
     static let topPadding: CGFloat = 20
     static let cardPadding: CGFloat = 20
-    static let sectionSpacing: CGFloat = 24
+    static let sectionSpacing: CGFloat = 16
     static let itemSpacing: CGFloat = 16
     
     // MARK: - Corner Radius
@@ -34,6 +34,9 @@ struct UIConstants {
     // MARK: - Button Sizing
     static let buttonHorizontalPadding: CGFloat = 24
     static let buttonVerticalPadding: CGFloat = 14
+
+    // MARK: - Layout
+    static let maxContentWidth: CGFloat = 700
 }
 
 // MARK: - Button State Style
@@ -198,23 +201,17 @@ enum ButtonStateStyle {
     }
 }
 
-// MARK: - View Extensions
+// MARK: - Centering Helpers
 extension View {
-    /// Prevents CoreGraphics NaN errors by validating frame dimensions
-    /// - Parameters:
-    ///   - width: Optional width constraint
-    ///   - height: Optional height constraint
-    ///   - alignment: Frame alignment (default: .center)
-    /// - Returns: A view with safe frame constraints
-    func safeFrame(width: CGFloat? = nil, height: CGFloat? = nil, alignment: Alignment = .center) -> some View {
-        let safeWidth = width?.isNaN == false && width?.isInfinite == false ? width : nil
-        let safeHeight = height?.isNaN == false && height?.isInfinite == false ? height : nil
-        
-        return self.frame(
-            width: safeWidth,
-            height: safeHeight,
-            alignment: alignment
-        )
+    /// Centers the view horizontally within its container and constrains its maximum width
+    /// - Parameter width: The maximum content width to apply (default: UIConstants.maxContentWidth)
+    /// - Returns: A horizontally centered view constrained to the specified width
+    func centeredMaxWidth(_ width: CGFloat = UIConstants.maxContentWidth) -> some View {
+        HStack {
+            Spacer(minLength: 0)
+            self.frame(maxWidth: width)
+            Spacer(minLength: 0)
+        }
     }
 }
 
