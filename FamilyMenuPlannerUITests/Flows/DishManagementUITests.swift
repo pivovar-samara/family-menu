@@ -454,15 +454,74 @@ final class DishManagementUITests: XCTestCase {
     // MARK: - Helper Methods
     
     private func navigateToDishList() {
-        // Navigate to Dishes tab
-        let dishesTab = app.tabBars.buttons["Dishes"]
-        XCTAssertTrue(dishesTab.waitForExistence(timeout: 3), "Dishes tab should exist")
-        dishesTab.tap()
-        
+        func tapTabBarItem(_ identifier: String, label: String) -> Bool {
+            // Prefer explicit identifier on tab bar hierarchy to avoid duplicate matches
+            let tabBar = app.otherElements["main_tab_bar"].firstMatch
+            if tabBar.exists {
+                let buttonInTabBar = tabBar.descendants(matching: .button).matching(NSPredicate(format: "identifier == %@ OR label == %@", identifier, label)).firstMatch
+                if buttonInTabBar.waitForExistence(timeout: 2) && buttonInTabBar.isHittable {
+                    buttonInTabBar.tap()
+                    return true
+                }
+            }
+
+            // Fallback: use tabBars scope, then disambiguate to first hittable match
+            let scoped = app.tabBars.buttons.matching(NSPredicate(format: "identifier == %@ OR label == %@", identifier, label))
+            if scoped.count > 0 {
+                let first = scoped.firstMatch
+                if first.waitForExistence(timeout: 2) && first.isHittable {
+                    first.tap()
+                    return true
+                }
+            }
+
+            // Last resort: global match, pick first hittable to avoid multiple match failure
+            let global = app.buttons.matching(NSPredicate(format: "identifier == %@ OR label == %@", identifier, label))
+            if global.count > 0 {
+                let first = global.firstMatch
+                if first.waitForExistence(timeout: 2) && first.isHittable {
+                    first.tap()
+                    return true
+                }
+            }
+            return false
+        }
+
+        let dishesIdentifier = "tab_dishes"
+        let dishesLabel = "Dishes"
+
+        var navigated = false
+
+        // Strategy 1: iPhone/tab bar with explicit identifier within tab bar container
+        if tapTabBarItem(dishesIdentifier, label: dishesLabel) {
+            navigated = true
+        } else {
+            // Strategy 2: iPad sidebar or list cell
+            let dishesSidebarButton = app.buttons[dishesLabel]
+            if dishesSidebarButton.waitForExistence(timeout: 2) && dishesSidebarButton.isHittable {
+                dishesSidebarButton.tap()
+                navigated = true
+            } else {
+                let dishesCell = app.cells.staticTexts[dishesLabel]
+                if dishesCell.waitForExistence(timeout: 2) && dishesCell.isHittable {
+                    dishesCell.tap()
+                    navigated = true
+                } else {
+                    let dishesNavButton = app.navigationBars.buttons[dishesLabel]
+                    if dishesNavButton.waitForExistence(timeout: 2) && dishesNavButton.isHittable {
+                        dishesNavButton.tap()
+                        navigated = true
+                    }
+                }
+            }
+        }
+
+        XCTAssertTrue(navigated, "Dishes entry point should exist (tab bar, sidebar button, list cell, or nav button)")
+
         // Verify we're on the dish list screen
         let dishListTitle = app.navigationBars["Dishes"]
-        XCTAssertTrue(dishListTitle.waitForExistence(timeout: 3), "Should be on dish list screen")
-        
+        XCTAssertTrue(dishListTitle.waitForExistence(timeout: 5), "Should be on dish list screen")
+
         // Wait for content to load using proper waiting mechanism
         app.waitForUIUpdate(timeout: 0.5)
     }
@@ -611,14 +670,13 @@ final class DishManagementUITests: XCTestCase {
         }
         print("✅ Found \(totalDishes) dishes to search through")
 
-        // Look for search bar
-        let searchField = app.searchFields.firstMatch
-        if !searchField.waitForExistence(timeout: 5) {
-            XCTFail("❌ FAILED: Could not find search field - search functionality may not be accessible")
+        // Obtain a search field in a platform-adaptive way (iPadOS 26 may not expose UISearchBar as XCUIElementTypeSearchField)
+        guard let searchField = obtainSearchField() else {
+            XCTFail("❌ FAILED: Could not find or open search UI (iPad may hide search field)")
             return
         }
 
-        print("✅ Found search field")
+        print("✅ Found search field or alternative search input")
 
         // Perform search for a term we expect to match
         searchField.tap()
@@ -656,39 +714,52 @@ final class DishManagementUITests: XCTestCase {
         }
         
         // Strategy 2: Try search functionality if available
-        let searchField = app.searchFields.firstMatch
-        if searchField.exists {
-            print("🔍 Using search functionality to find dish")
-            searchField.tap()
-            searchField.typeText(dishName)
-            
-            var foundViaSearch = false
-            for _ in 0..<6 { // Up to ~3 seconds total wait (6*0.5)
-                if findDishInCurrentView(dishName: dishName) {
-                    foundViaSearch = true
-                    break
-                }
-                app.waitForUIUpdate(timeout: 0.5)
-            }
-
-            if foundViaSearch {
-                print("✅ Found dish using search functionality")
-                // Keep the search filter active so the dish card remains visible for further actions (e.g., delete)
-                // The caller can decide when to clear the search later.
-                return true
-            } else {
-                print("⚠️ Dish not found via search after waiting, clearing search and falling back to scrolling")
-                // Clear search
-                let clearButton = searchField.buttons["Clear text"]
-                if clearButton.exists {
-                    clearButton.tap()
-                } else {
-                    searchField.clearText()
-                }
-                app.waitForUIUpdate(timeout: 0.5)
-            }
-        } else {
+        guard let searchField = obtainSearchField() else {
             print("⚠️ No search field found, trying scrolling method")
+            // Prefer scroll view with dish cards
+            let scrollView = app.scrollViews.firstMatch
+            if scrollView.exists {
+                print("🔍 Scrolling through scroll view to find dish")
+                return findDishByScrolling(dishName: dishName, in: scrollView)
+            }
+            // Legacy collection view fallback
+            let collectionView = app.collectionViews.firstMatch
+            if collectionView.exists {
+                print("🔍 Scrolling through collection view to find dish (legacy)")
+                return findDishByScrollingLegacy(dishName: dishName, in: collectionView)
+            }
+            print("❌ Exhausted all search strategies - dish not found")
+            return false
+        }
+        
+        print("🔍 Using search functionality to find dish")
+        searchField.tap()
+        searchField.typeText(dishName)
+        
+        var foundViaSearch = false
+        for _ in 0..<6 { // Up to ~3 seconds total wait (6*0.5)
+            if findDishInCurrentView(dishName: dishName) {
+                foundViaSearch = true
+                break
+            }
+            app.waitForUIUpdate(timeout: 0.5)
+        }
+
+        if foundViaSearch {
+            print("✅ Found dish using search functionality")
+            // Keep the search filter active so the dish card remains visible for further actions (e.g., delete)
+            // The caller can decide when to clear the search later.
+            return true
+        } else {
+            print("⚠️ Dish not found via search after waiting, clearing search and falling back to scrolling")
+            // Clear search
+            let clearButton = searchField.buttons["Clear text"]
+            if clearButton.exists {
+                clearButton.tap()
+            } else {
+                searchField.clearText()
+            }
+            app.waitForUIUpdate(timeout: 0.5)
         }
         
         // Prefer scroll view with dish cards
@@ -1138,6 +1209,64 @@ final class DishManagementUITests: XCTestCase {
         
         // Close menu
         app.tap()
+    }
+    
+    /// Attempts to obtain a usable search field across form factors.
+    /// On iPadOS 26, UISearchBar may not be exposed as XCUIElementTypeSearchField; this falls back to alternative entry points.
+    private func obtainSearchField() -> XCUIElement? {
+        // 1) Preferred: a standard search field if it exists and is hittable
+        let searchField = app.searchFields.firstMatch
+        if searchField.exists && (searchField.isHittable || searchField.waitForExistence(timeout: 2)) {
+            return searchField
+        }
+
+        // 2) Some layouts use a text field with placeholder "Search"
+        let textFieldSearch = app.textFields.matching(NSPredicate(format: "placeholderValue CONTAINS[c] 'Search' OR label CONTAINS[c] 'Search'"))
+        if textFieldSearch.firstMatch.exists && textFieldSearch.firstMatch.isHittable {
+            return textFieldSearch.firstMatch
+        }
+
+        // 3) Try a navigation bar search button (magnifying glass)
+        let navBar = app.navigationBars.firstMatch
+        if navBar.exists {
+            // Common identifiers/labels
+            let possibleSearchButtons: [XCUIElement] = [
+                navBar.buttons["Search"],
+                navBar.buttons["search"],
+                navBar.buttons["Search Dishes"],
+                navBar.buttons.matching(NSPredicate(format: "identifier CONTAINS[c] 'search' OR label CONTAINS[c] 'search'" )).firstMatch
+            ]
+            for btn in possibleSearchButtons where btn.exists && btn.isHittable {
+                btn.tap()
+                // After tapping, check again for a search field or text field
+                if app.searchFields.firstMatch.waitForExistence(timeout: 2) {
+                    return app.searchFields.firstMatch
+                }
+                let tf = app.textFields.matching(NSPredicate(format: "placeholderValue CONTAINS[c] 'Search' OR label CONTAINS[c] 'Search'"))
+                if tf.firstMatch.exists {
+                    return tf.firstMatch
+                }
+            }
+        }
+
+        // 4) As a last resort, try pulling to reveal a potential search area at the top
+        let scrollView = app.scrollViews.firstMatch
+        if scrollView.exists {
+            // Pull down a couple of times to reveal a possible search field
+            for _ in 0..<2 {
+                scrollView.swipeDown()
+                if app.searchFields.firstMatch.exists {
+                    return app.searchFields.firstMatch
+                }
+                let tf = app.textFields.matching(NSPredicate(format: "placeholderValue CONTAINS[c] 'Search' OR label CONTAINS[c] 'Search'"))
+                if tf.firstMatch.exists {
+                    return tf.firstMatch
+                }
+            }
+        }
+
+        // If nothing was found, return nil so the caller can decide how to proceed
+        return nil
     }
 } 
 

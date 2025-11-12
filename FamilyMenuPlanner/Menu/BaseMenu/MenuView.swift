@@ -431,7 +431,7 @@ extension DailyMenuCardView {
         formatter.locale = .current
         formatter.calendar = .current
         let locale = formatter.locale
-        let template = "d MMMM" // e.g., 15 September / 15 сентября
+        let template = "EEEE, d MMMM" // e.g., Monday, 15 September / понедельник, 15 сентября
         formatter.dateFormat = DateFormatter.dateFormat(fromTemplate: template, options: 0, locale: locale)
         return formatter
     }()

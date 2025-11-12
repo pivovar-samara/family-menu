@@ -35,42 +35,46 @@ struct ContentView: View {
         } else {
             ZStack(alignment: .top) {
                 TabView {
-                // Menu
-                NavigationStack {
-                    MenuCoordinator().createMenuView()
-                        .navigationTitle("Menu".localized())
-                }
-                .tabItem {
-                    Label("Menu".localized(), systemImage: "calendar")
-                }
+                    // Menu
+                    NavigationStack {
+                        MenuCoordinator().createMenuView()
+                            .navigationTitle("Menu".localized())
+                    }
+                    .tabItem {
+                        Label("Menu".localized(), systemImage: "calendar")
+                            .accessibilityIdentifier("tab_menu")
+                    }
 
-                // Products
-                NavigationStack {
-                    ProductListCoordinator().createProductListView()
-                        .navigationTitle("Products".localized())
-                }
-                .tabItem {
-                    Label("Products".localized(), systemImage: "list.bullet")
-                }
+                    // Products
+                    NavigationStack {
+                        ProductListCoordinator().createProductListView()
+                            .navigationTitle("Products".localized())
+                    }
+                    .tabItem {
+                        Label("Products".localized(), systemImage: "list.bullet")
+                            .accessibilityIdentifier("tab_products")
+                    }
 
-                // Dishes
-                NavigationStack {
-                    DishListCoordinator().createDishListView()
-                        .navigationTitle("Dishes".localized())
+                    // Dishes
+                    NavigationStack {
+                        DishListCoordinator().createDishListView()
+                            .navigationTitle("Dishes".localized())
+                    }
+                    .tabItem {
+                        Label("Dishes".localized(), systemImage: "fork.knife")
+                            .accessibilityIdentifier("tab_dishes")
+                    }
+                    
+                    #if DEBUG
+                    NavigationStack {
+                        DataManagementDebugView()
+                    }
+                    .tabItem {
+                        Label("Debug", systemImage: "wrench.and.screwdriver")
+                    }
+                    #endif
                 }
-                .tabItem {
-                    Label("Dishes".localized(), systemImage: "fork.knife")
-                }
-                
-                #if DEBUG
-                NavigationStack {
-                    DataManagementDebugView()
-                }
-                .tabItem {
-                    Label("Debug", systemImage: "wrench.and.screwdriver")
-                }
-                #endif
-                }
+                .accessibilityIdentifier("main_tab_bar")
                 
                 if appStateManager.isCloudKitSyncing {
                     SyncBannerView()
@@ -127,3 +131,4 @@ struct ErrorRecoveryView: View {
         }
     }
 }
+
