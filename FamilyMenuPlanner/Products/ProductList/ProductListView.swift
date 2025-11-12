@@ -142,29 +142,36 @@ struct ProductListView: View {
         let onEdit: (Product) -> Void
         let onDelete: (Product) -> Void
         var body: some View {
-            ForEach(products, id: \.self) { product in
-                productCard(for: product)
+            VStack(spacing: 0) {
+                let minColumnWidth = 300.0
+                let columns = [GridItem(.adaptive(minimum: minColumnWidth), spacing: UIConstants.itemSpacing, alignment: .top)]
+                LazyVGrid(columns: columns, spacing: UIConstants.sectionSpacing) {
+                    ForEach(products, id: \.self) { product in
+                        ProductCardView(
+                            product: product,
+                            onEdit: { onEdit(product) },
+                            onDelete: { onDelete(product) }
+                        )
+                        .frame(maxWidth: UIConstants.maxContentWidth)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .accessibilityIdentifier("product_list_item_\(product.name ?? "unnamed")")
+                        .accessibilityHint("Tap to edit this product".localized())
+                    }
+                }
+                .padding(.horizontal, UIConstants.horizontalPadding)
+
+                // Bottom spacer to keep content above FAB / bottom edge
+                if #unavailable(iOS 26) {
+                    Color.clear
+                        .frame(height: 80)
+                } else {
+                    Color.clear
+                        .frame(height: 20)
+                }
             }
-            if #unavailable(iOS 26) {
-                Color.clear
-                    .frame(height: 80)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-            }
-        }
-        @ViewBuilder
-        private func productCard(for product: Product) -> some View {
-            ProductCardView(
-                product: product,
-                onEdit: { onEdit(product) },
-                onDelete: { onDelete(product) }
-            )
-            .padding(.vertical, 8)
-            .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
             .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
-            .accessibilityIdentifier("product_list_item_\(product.name ?? "unnamed")")
-            .accessibilityHint("Tap to edit this product".localized())
+            .listRowBackground(Color.appBackground)
         }
     }
 
