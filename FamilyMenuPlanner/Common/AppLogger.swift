@@ -61,9 +61,15 @@ struct AppLogger {
     
     // MARK: - Convenience Methods
     
+    /// Internal helper to mirror messages into the in-memory diagnostics buffer
+    private static func capture(_ message: String) {
+        AppLogCapture.shared.append(message)
+    }
+    
     /// Log a debug message for development
     static func debug(_ message: String, category: Logger? = .general) {
         #if DEBUG
+        capture(message)
         if isCI {
             print("🔍 DEBUG: \(message)")
         } else {
@@ -74,6 +80,7 @@ struct AppLogger {
     
     /// Log informational message
     static func info(_ message: String, category: Logger? = .general) {
+        capture(message)
         if isCI {
             print("ℹ️ INFO: \(message)")
         } else {
@@ -83,6 +90,7 @@ struct AppLogger {
     
     /// Log a warning message
     static func warning(_ message: String, category: Logger? = .general) {
+        capture(message)
         if isCI {
             print("⚠️ WARNING: \(message)")
         } else {
@@ -92,11 +100,14 @@ struct AppLogger {
     
     /// Log an error message
     static func error(_ message: String, error: Error? = nil, category: Logger? = .general) {
-        let fullMessage = if let error = error {
-            "\(message): \(error.localizedDescription)"
-        } else {
-            message
-        }
+        let fullMessage = {
+            if let error = error {
+                return "\(message): \(error.localizedDescription)"
+            } else {
+                return message
+            }
+        }()
+        capture(fullMessage)
         
         if isCI {
             print("❌ ERROR: \(fullMessage)")
@@ -111,11 +122,14 @@ struct AppLogger {
     
     /// Log a critical error that may cause app failure
     static func critical(_ message: String, error: Error? = nil, category: Logger? = .general) {
-        let fullMessage = if let error = error {
-            "\(message): \(error.localizedDescription)"
-        } else {
-            message
-        }
+        let fullMessage = {
+            if let error = error {
+                return "\(message): \(error.localizedDescription)"
+            } else {
+                return message
+            }
+        }()
+        capture(fullMessage)
         
         if isCI {
             print("💥 CRITICAL: \(fullMessage)")
@@ -130,11 +144,14 @@ struct AppLogger {
     
     /// Log performance metrics
     static func performance(_ message: String, duration: TimeInterval? = nil, category: Logger? = .general) {
-        let fullMessage = if let duration = duration {
-            "📊 Performance: \(message) - Duration: \(String(format: "%.3f", duration))s"
-        } else {
-            "📊 Performance: \(message)"
-        }
+        let fullMessage = {
+            if let duration = duration {
+                return "📊 Performance: \(message) - Duration: \(String(format: "%.3f", duration))s"
+            } else {
+                return "📊 Performance: \(message)"
+            }
+        }()
+        capture(fullMessage)
         
         if isCI {
             print(fullMessage)

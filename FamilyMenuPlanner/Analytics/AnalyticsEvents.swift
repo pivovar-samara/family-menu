@@ -86,6 +86,12 @@ public enum AnalyticsEventName {
     public static let product_selection_done = "product_selection_done"
     public static let product_selection_new_product_added = "product_selection_new_product_added"
     public static let product_selection_new_product_tapped = "product_selection_new_product_tapped"
+    
+    // Feedback
+    public static let feedback_form_cancelled = "feedback_form_cancelled"
+    public static let feedback_form_send = "feedback_form_send"
+    public static let feedback_form_email_unavailable = "feedback_form_email_unavailable"
+    public static let feedback_form_email_result = "feedback_form_email_result"
 }
 
 /// A namespace for commonly reused analytics property keys.
@@ -134,6 +140,7 @@ public enum AnalyticsPropertyKey {
     public static let new_category = "new_category"
     public static let toggled_meal_type = "toggled_meal_type"
     public static let source = "source"
+    public static let email_result = "email_result"
 }
 
 /// A namespace for common screen names used across the app.
@@ -167,6 +174,9 @@ public enum AnalyticsScreenName {
     
     // Error
     public static let PersistenceError = "Persistence Error"
+    
+    /// Feedback
+    public static let FeedbackForm = "FeedbackForm"
 }
 
 public enum AnalyticsUserPropertyName {
