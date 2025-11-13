@@ -7,6 +7,9 @@
 
 import XCTest
 
+// We avoid querying app.cells directly because some views expose a single large container cell that contains many other cells,
+// leading to ambiguous or oversized cell selections. We scope queries to the actual product list container for precision.
+
 final class ProductManagementUITests: XCTestCase {
     var app: XCUIApplication!
     
@@ -101,21 +104,20 @@ final class ProductManagementUITests: XCTestCase {
         
         // Verify the product was created by checking if it appears in the list
         // The product might be added below the visible area, so scroll to find it
-        let createdProduct = app.staticTexts["Test Product UI"]
+        let list = productListContainer()
+        let createdProduct = list.staticTexts["Test Product UI"]
         
         // First try to find it without scrolling
         if !createdProduct.waitForExistence(timeout: 2) {
             // If not found, scroll down to look for the product
-            if let productListElement = productList {
-                // Scroll down a few times to find the new product
-                for _ in 0..<5 {
-                    productListElement.swipeUp()
-                    // Wait for scroll animation to complete
-                    let scrollExpectation = expectation(for: NSPredicate(format: "exists == true"), evaluatedWith: createdProduct, handler: nil)
-                    let scrollResult = XCTWaiter().wait(for: [scrollExpectation], timeout: 1.0)
-                    if scrollResult == .completed {
-                        break
-                    }
+            // Scroll down a few times to find the new product
+            for _ in 0..<5 {
+                list.swipeUp()
+                // Wait for scroll animation to complete
+                let scrollExpectation = expectation(for: NSPredicate(format: "exists == true"), evaluatedWith: createdProduct, handler: nil)
+                let scrollResult = XCTWaiter().wait(for: [scrollExpectation], timeout: 1.0)
+                if scrollResult == .completed {
+                    break
                 }
             }
         }
@@ -123,7 +125,8 @@ final class ProductManagementUITests: XCTestCase {
         XCTAssertTrue(createdProduct.exists, "Created product should appear in the product list (after scrolling if needed)")
         
         // Additional verification: Test creating another product to ensure functionality still works
-        addProductButton.tap()
+        let addProductButton2 = app.buttons["add_product_button"]
+        addProductButton2.tap()
         XCTAssertTrue(addProductNavBar.waitForExistence(timeout: 3), "Add Product sheet should appear again")
         
         let secondProductNameField = app.textFields["product_name_field"]
@@ -135,7 +138,7 @@ final class ProductManagementUITests: XCTestCase {
         
         // Verify return to list and second product creation
         XCTAssertTrue(app.navigationBars["Products"].waitForExistence(timeout: 5), "Should return to Products list after second save")
-        let secondCreatedProduct = app.staticTexts["Second Test Product"]
+        let secondCreatedProduct = list.staticTexts["Second Test Product"]
         XCTAssertTrue(secondCreatedProduct.waitForExistence(timeout: 3), "Second product should also appear in the list")
     }
     
@@ -290,21 +293,14 @@ final class ProductManagementUITests: XCTestCase {
         
         var updatedFound = updatedText.waitForExistence(timeout: 2)
         if !updatedFound {
-            // Try scrolling through potential container types
-            let containers: [XCUIElement] = [
-                app.collectionViews["ProductList"],
-                app.scrollViews.firstMatch,
-                app.tables.firstMatch
-            ]
-            for container in containers where container.exists {
-                for _ in 0..<6 {
-                    container.swipeUp()
-                    if updatedText.exists {
-                        updatedFound = true
-                        break
-                    }
+            // Try scrolling through the product list container only
+            let list = productListContainer()
+            for _ in 0..<6 {
+                list.swipeUp()
+                if updatedText.exists {
+                    updatedFound = true
+                    break
                 }
-                if updatedFound { break }
             }
         }
         
@@ -335,14 +331,15 @@ final class ProductManagementUITests: XCTestCase {
         for i in 0..<20 {
             let cell = allCells.element(boundBy: i)
             if cell.exists {
-                let cellTexts = cell.staticTexts
+                // Replace enumeration with identifier-targeted lookups
                 var cellLabels: [String] = []
-                
-                for j in 0..<10 { // Limit to reasonable number of text elements
-                    let text = cellTexts.element(boundBy: j)
-                    if text.exists && !text.label.isEmpty {
-                        cellLabels.append(text.label)
-                    }
+                let nameElement = cell.staticTexts.matching(identifier: "ProductNameLabel").firstMatch
+                if nameElement.exists, !nameElement.label.isEmpty {
+                    cellLabels.append(nameElement.label)
+                }
+                let unitElement = cell.staticTexts.matching(identifier: "ProductUnitLabel").firstMatch
+                if unitElement.exists, !unitElement.label.isEmpty {
+                    cellLabels.append(unitElement.label)
                 }
                 
                 print("🔍 Cell \(i) contents: \(cellLabels)")
@@ -410,7 +407,9 @@ final class ProductManagementUITests: XCTestCase {
         if foundProductToDelete {
             print("🧪 Testing product deletion functionality")
             var productDeleted = false
-
+            
+            let list = productListContainer()
+            
             // Open the Edit menu from the visible Edit button, then choose Delete
             let editMenuButton = app.buttons["EditProductButton"].firstMatch
             if editMenuButton.waitForExistence(timeout: 3) {
@@ -422,7 +421,7 @@ final class ProductManagementUITests: XCTestCase {
                     if confirmDelete.waitForExistence(timeout: 3) {
                         confirmDelete.tap()
                         // Wait for the specific card to disappear
-                        let targetCard = app.otherElements["product_list_item_\(productToDeleteName)"]
+                        let targetCard = list.otherElements["product_list_item_\(productToDeleteName)"]
                         let gonePredicate = NSPredicate(format: "exists == false")
                         let goneExpectation = XCTNSPredicateExpectation(predicate: gonePredicate, object: targetCard)
                         let waiter = XCTWaiter()
@@ -478,8 +477,9 @@ final class ProductManagementUITests: XCTestCase {
         // Open sort dialog
         openSortDialogAndSelect(optionLabel: "Name A-Z")
 
-        // Wait for the table to finish updating by ensuring a cell exists
-        let firstProductCellAsc = app.cells.firstMatch
+        // Wait for the table to finish updating by ensuring a cell exists inside the product list container
+        let list = productListContainer()
+        let firstProductCellAsc = list.cells.firstMatch
         XCTAssertTrue(firstProductCellAsc.waitForExistence(timeout: 5), "Sorting did not complete in time")
 
         let names = fetchVisibleProductNames(maxCount: 5)
@@ -493,7 +493,8 @@ final class ProductManagementUITests: XCTestCase {
         // Open sort dialog
         openSortDialogAndSelect(optionLabel: "Name Z-A")
 
-        let firstProductCellDesc = app.cells.firstMatch
+        let list = productListContainer()
+        let firstProductCellDesc = list.cells.firstMatch
         XCTAssertTrue(firstProductCellDesc.waitForExistence(timeout: 5), "Sorting did not complete in time")
 
         let names = fetchVisibleProductNames(maxCount: 5)
@@ -505,14 +506,21 @@ final class ProductManagementUITests: XCTestCase {
         navigateToProductList()
 
         openSortDialogAndSelect(optionLabel: "Unit")
-        let firstProductCellUnit = app.cells.firstMatch
+        let list = productListContainer()
+        let firstProductCellUnit = list.cells.firstMatch
         XCTAssertTrue(firstProductCellUnit.waitForExistence(timeout: 5), "Sorting did not complete in time")
 
-        // Simple sanity check: capture first two visible unit strings and assert not equal when reversed sort by name A-Z
-        let units = fetchVisibleUnitLabels(maxCount: 3)
-        XCTAssertGreaterThan(units.count, 1, "Need at least two products to verify unit sorting")
-        // Assume units array should be in ascending unit order (based on sortOrder attribute). Verify first <= second alphabetically as proxy.
-        XCTAssertTrue(units.first!.localizedCaseInsensitiveCompare(units[1]) != .orderedDescending, "Unit sorting should place units in defined order")
+        // Collect a broader window of unit labels by scrolling through the list
+        let units = collectVisibleUnitLabels(maxCount: 20)
+        XCTAssertGreaterThanOrEqual(units.count, 2, "Not enough products visible to verify unit sorting across the list.")
+
+        // Verify the entire collected sequence is non-decreasing by unit sortOrder
+        let order = units.map { unitSortOrder(for: $0) }
+        let isNonDecreasing = order.enumerated().dropFirst().allSatisfy { index, value in
+            let prev = order[index - 1]
+            return prev <= value
+        }
+        XCTAssertTrue(isNonDecreasing, "Products should be sorted by unit sort order across the visible list")
     }
     
     // MARK: - Helper Methods
@@ -564,6 +572,21 @@ final class ProductManagementUITests: XCTestCase {
     
     // MARK: - Helpers
     
+    /// Returns the most specific container for the product list.
+    /// Checks collectionViews["ProductList"], tables["ProductList"], otherElements["ProductList"], then fallback containers.
+    private func productListContainer() -> XCUIElement {
+        if app.collectionViews["ProductList"].exists { return app.collectionViews["ProductList"] }
+        if app.tables["ProductList"].exists { return app.tables["ProductList"] }
+        if app.otherElements["ProductList"].exists { return app.otherElements["ProductList"] }
+        let table = app.tables.firstMatch
+        if table.exists { return table }
+        let collection = app.collectionViews.firstMatch
+        if collection.exists { return collection }
+        let scroll = app.scrollViews.firstMatch
+        if scroll.exists { return scroll }
+        return app.otherElements.firstMatch
+    }
+    
     private func openSortDialogAndSelect(optionLabel: String) {
         let sortButton = app.buttons["sort_products_button"]
         XCTAssertTrue(sortButton.waitForExistence(timeout: 5), "Sort button should exist")
@@ -576,30 +599,186 @@ final class ProductManagementUITests: XCTestCase {
 
     private func fetchVisibleProductNames(maxCount: Int) -> [String] {
         var names: [String] = []
-        let nameElements = app.staticTexts.matching(identifier: "ProductNameLabel")
-        let count = min(nameElements.count, maxCount)
+        let list = productListContainer()
+
+        // Prefer querying product cards directly to avoid giant container cell issues
+        let cards = list.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH %@", "product_list_item_"))
+        let cardCount = min(cards.count, maxCount)
+
+        if cardCount > 0 {
+            for i in 0..<cardCount {
+                let card = cards.element(boundBy: i)
+                guard card.exists else { continue }
+                let nameElement = card.staticTexts["ProductNameLabel"]
+                if nameElement.exists, !nameElement.label.isEmpty {
+                    names.append(nameElement.label)
+                }
+            }
+            return names
+        }
+
+        // Fallback: iterate over visible cells but target the specific name label by identifier
+        let count = min(list.cells.count, maxCount)
         for i in 0..<count {
-            let element = nameElements.element(boundBy: i)
-            if element.exists { names.append(element.label) }
+            let cell = list.cells.element(boundBy: i)
+            if cell.exists {
+                let nameElement = cell.staticTexts.matching(identifier: "ProductNameLabel").firstMatch
+                if nameElement.exists, !nameElement.label.isEmpty {
+                    names.append(nameElement.label)
+                }
+            }
         }
         return names
     }
 
-    private func fetchVisibleUnitLabels(maxCount: Int) -> [String] {
+    private func fetchVisibleUnitLabelsFromList(maxCount: Int) -> [String] {
         var units: [String] = []
-        let cells = app.cells
-        let count = min(cells.count, maxCount)
+        let list = productListContainer()
+
+        // Prefer querying product cards directly
+        let cards = list.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH %@", "product_list_item_"))
+        let cardCount = min(cards.count, maxCount)
+
+        if cardCount > 0 {
+            for i in 0..<cardCount {
+                let card = cards.element(boundBy: i)
+                guard card.exists else { continue }
+                let unitElement = card.staticTexts["ProductUnitLabel"]
+                if unitElement.exists, !unitElement.label.isEmpty {
+                    units.append(unitElement.label)
+                }
+            }
+            return units
+        }
+
+        // Fallback: iterate over visible cells but target the specific unit label by identifier
+        let count = min(list.cells.count, maxCount)
         for i in 0..<count {
-            let cell = cells.element(boundBy: i)
+            let cell = list.cells.element(boundBy: i)
             if cell.exists {
-                // Unit label is likely second static text (index 1)
-                if cell.staticTexts.count > 1 {
-                    let unitLabel = cell.staticTexts.element(boundBy: 1)
-                    units.append(unitLabel.label)
+                let unitById = cell.staticTexts.matching(identifier: "ProductUnitLabel").firstMatch
+                if unitById.exists, !unitById.label.isEmpty {
+                    units.append(unitById.label)
                 }
             }
         }
         return units
+    }
+    
+    private func ensureAtLeastProducts(count requiredCount: Int) {
+        // Count currently visible product name labels
+        var currentCount = app.staticTexts.matching(identifier: "ProductNameLabel").count
+        if currentCount >= requiredCount { return }
+
+        // Try to add simple products until reaching required count
+        let addButton = app.buttons["add_product_button"]
+        let addNav = app.navigationBars["Add Product"]
+        let saveFromAdd = app.navigationBars["Add Product"].buttons["Save"]
+        let nameField = app.textFields["product_name_field"]
+
+        var index = 1
+        while currentCount < requiredCount && index <= 5 { // safety cap
+            if addButton.waitForExistence(timeout: 2) {
+                addButton.tap()
+            } else {
+                // Fallback to an alternate entry point
+                let emptyCTA = app.buttons["Add Product"]
+                if emptyCTA.waitForExistence(timeout: 2) {
+                    emptyCTA.tap()
+                }
+            }
+
+            if addNav.waitForExistence(timeout: 3) && nameField.waitForExistence(timeout: 2) {
+                nameField.tap()
+                nameField.clearTextWithFallback()
+                nameField.typeText("Auto Product \(UUID().uuidString.prefix(6))")
+
+                // If a unit picker exists, try to set a unit to make data consistent
+                let unitPickerButton = app.buttons.containing(NSPredicate(format: "label CONTAINS 'Unit'")).firstMatch
+                if unitPickerButton.exists {
+                    unitPickerButton.tap()
+                    let wheel = app.pickerWheels.firstMatch
+                    if wheel.exists {
+                        // Alternate units to avoid duplicates
+                        let candidate = (index % 2 == 0) ? "pcs" : "kg"
+                        wheel.adjust(toPickerWheelValue: candidate)
+                    }
+                    // Dismiss picker by tapping the name field again
+                    nameField.tap()
+                }
+
+                if saveFromAdd.exists { saveFromAdd.tap() }
+                _ = app.navigationBars["Products"].waitForExistence(timeout: 3)
+
+                // Recount
+                currentCount = app.staticTexts.matching(identifier: "ProductNameLabel").count
+                index += 1
+            } else {
+                // If we can't access add flow, skip to avoid hard failure
+                break
+            }
+        }
+    }
+    
+    private func collectVisibleUnitLabels(maxCount: Int) -> [String] {
+        var units: [String] = []
+        let list = productListContainer()
+        
+        // Prefer product cards directly to avoid giant container cell issues
+        let cards = list.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH %@", "product_list_item_"))
+        let cardCount = min(cards.count, maxCount)
+        
+        if cardCount > 0 {
+            for i in 0..<cardCount {
+                let card = cards.element(boundBy: i)
+                guard card.exists else { continue }
+                let unitElement = card.staticTexts["ProductUnitLabel"]
+                if unitElement.exists {
+                    let label = unitElement.label
+                    if !label.isEmpty { units.append(label) }
+                }
+            }
+            return units
+        }
+        
+        // Fallback: iterate over visible cells but only target the unit label by identifier
+        let cellCount = min(list.cells.count, maxCount)
+        for i in 0..<cellCount {
+            let cell = list.cells.element(boundBy: i)
+            guard cell.exists else { continue }
+            let unitById = cell.staticTexts.matching(identifier: "ProductUnitLabel").firstMatch
+            if unitById.exists {
+                let label = unitById.label
+                if !label.isEmpty { units.append(label) }
+            }
+        }
+        
+        return units
+    }
+    
+    private func unitSortOrder(for label: String) -> Int {
+        // Map visible unit labels to the model's sortOrder. Keep this in sync with @Unit definitions.
+        // Unknown labels get a large value so they naturally sort to the end without breaking the test.
+        let normalized = label.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        switch normalized {
+        case "kg":
+            return 1
+        case "g":
+            return 2
+        case "l":
+            return 3
+        case "ml":
+            return 4
+        case "pcs", "piece", "pieces":
+            return 5
+        case "tbsp", "tablespoon":
+            return 6
+        case "tsp", "teaspoon":
+            return 7
+        default:
+            // Fallback for units we don't explicitly map
+            return 999
+        }
     }
 } 
 

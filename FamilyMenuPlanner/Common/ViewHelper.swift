@@ -37,6 +37,7 @@ struct UIConstants {
 
     // MARK: - Layout
     static let maxContentWidth: CGFloat = 700
+    static let minCardWidth: CGFloat = 320
 }
 
 // MARK: - Button State Style

@@ -139,8 +139,7 @@ struct DishListView: View {
         let onDelete: (Dish) -> Void
         var body: some View {
             VStack(spacing: 0) {
-                let minColumnWidth = 300.0
-                let columns = [GridItem(.adaptive(minimum: minColumnWidth), spacing: UIConstants.itemSpacing, alignment: .top)]
+                let columns = GridLayoutHelper.columns()
                 LazyVGrid(columns: columns, spacing: UIConstants.sectionSpacing) {
                     ForEach(dishes, id: \.self) { dish in
                         DishCardView(

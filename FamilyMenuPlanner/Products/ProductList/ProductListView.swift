@@ -143,8 +143,7 @@ struct ProductListView: View {
         let onDelete: (Product) -> Void
         var body: some View {
             VStack(spacing: 0) {
-                let minColumnWidth = 300.0
-                let columns = [GridItem(.adaptive(minimum: minColumnWidth), spacing: UIConstants.itemSpacing, alignment: .top)]
+                let columns = GridLayoutHelper.columns()
                 LazyVGrid(columns: columns, spacing: UIConstants.sectionSpacing) {
                     ForEach(products, id: \.self) { product in
                         ProductCardView(
@@ -213,6 +212,7 @@ struct ProductCardView: View {
                         isSelected: true,
                         font: .caption
                     )
+                    .accessibilityIdentifier("ProductUnitLabel")
                 }
 
                 Spacer()
@@ -292,4 +292,3 @@ struct EmptyProductListView: View {
         )
     }
 }
-
