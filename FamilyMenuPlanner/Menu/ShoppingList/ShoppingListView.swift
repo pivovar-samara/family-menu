@@ -29,6 +29,7 @@ struct ShoppingListView: View {
                         .accessibilityIdentifier("shopping_list_progress_label")
                 }
                 .padding(.vertical, 8)
+                .centeredMaxWidth()
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
             }
@@ -65,11 +66,13 @@ struct ShoppingListView: View {
         if viewModel.filteredItems.isEmpty {
             if viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 EmptyShoppingListView()
+                    .centeredMaxWidth()
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
                     .accessibilityIdentifier("shopping_list_empty_state")
             } else {
                 ViewHelper.emptyState(Color.clear, message: "No results found".localized())
+                    .centeredMaxWidth()
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
                     .accessibilityIdentifier("shopping_list_no_results_state")
@@ -82,6 +85,7 @@ struct ShoppingListView: View {
                         viewModel.toggleSelection(for: item)
                     }
                 )
+                .centeredMaxWidth()
                 .padding(.vertical, 8)
                 .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
                 .listRowSeparator(.hidden)
@@ -237,3 +241,4 @@ struct EmptyShoppingListView: View {
         )
     }
 }
+

@@ -38,14 +38,74 @@ final class MenuManagementUITests: XCTestCase {
     // MARK: - Navigation Helper
     
     private func navigateToMenu() {
-        // Navigate to Menu tab
-        let menuTab = app.tabBars.buttons["Menu"]
-        XCTAssertTrue(menuTab.waitForExistence(timeout: 5), "Menu tab should exist")
-        menuTab.tap()
-        
-        // Verify we're on the menu screen
-        let menuTitle = app.navigationBars["Menu"]
-        XCTAssertTrue(menuTitle.waitForExistence(timeout: 3), "Should be on Menu screen")
+        // Try to find Menu via common iPad patterns first (sidebar / split view)
+        // 1) If there's a sidebar toggle, reveal it
+        let sidebarButtons = [
+            app.buttons["Sidebar"],
+            app.buttons["Show Sidebar"],
+            app.buttons["Toggle Sidebar"],
+            app.buttons["sidebar"],
+            app.navigationBars.buttons["Sidebar"],
+            app.navigationBars.buttons["Show Sidebar"],
+            app.navigationBars.buttons["Toggle Sidebar"]
+        ]
+        if !app.staticTexts["Menu"].exists && !app.navigationBars["Menu"].exists {
+            if let toggle = sidebarButtons.first(where: { $0.exists }) {
+                toggle.tap()
+                print("ℹ️ Tapped sidebar toggle to reveal navigation list")
+            }
+        }
+
+        // 2) Prefer selecting "Menu" from a sidebar or list if present
+        let possibleMenuListItems: [XCUIElement] = [
+            app.cells.staticTexts["Menu"],
+            app.staticTexts["Menu"],
+            app.buttons["Menu"]
+        ]
+        if let menuListItem = possibleMenuListItems.first(where: { $0.waitForExistence(timeout: 1.0) }) {
+            // If it's inside a cell (common for sidebars), try to tap the containing cell
+            var tapped = false
+            let tables = app.tables
+            if tables.count > 0 {
+                let table = tables.firstMatch
+                if table.exists {
+                    // Find a cell that contains a static text labeled "Menu"
+                    let menuCell = table.cells.containing(.staticText, identifier: "Menu").firstMatch
+                    if menuCell.exists {
+                        menuCell.tap()
+                        tapped = true
+                        print("✅ Navigated to Menu via sidebar/list cell")
+                    }
+                }
+            }
+            if !tapped {
+                // Fall back to tapping the element directly
+                menuListItem.tap()
+                print("✅ Navigated to Menu via direct element tap")
+            }
+        } else {
+            // 3) Fall back to tab bar on iPhone layouts
+            let tabBar = app.tabBars.firstMatch
+            if tabBar.exists {
+                let menuTab = tabBar.buttons["Menu"]
+                XCTAssertTrue(menuTab.waitForExistence(timeout: 3), "Menu tab should exist")
+                menuTab.tap()
+                print("✅ Navigated to Menu via tab bar")
+            } else {
+                // 4) As a last resort, try any button labeled "Menu" in the UI
+                let anyMenuButton = app.buttons["Menu"].firstMatch
+                if anyMenuButton.waitForExistence(timeout: 1.0) {
+                    anyMenuButton.tap()
+                    print("✅ Navigated to Menu via fallback button")
+                }
+            }
+        }
+
+        // Verify we're on the menu screen (either nav bar title or prominent label)
+        let menuNavBar = app.navigationBars["Menu"]
+        let menuLabel = app.staticTexts["Menu"]
+        let onMenu = menuNavBar.waitForExistence(timeout: 3) || menuLabel.waitForExistence(timeout: 3)
+        XCTAssertTrue(onMenu, "Should be on Menu screen")
         print("✅ Successfully navigated to Menu screen")
     }
     
@@ -720,9 +780,39 @@ final class MenuManagementUITests: XCTestCase {
         
         XCTAssertTrue(openedDishSelection, "Should successfully open dish selection screen")
         
-        // Test search functionality
-        let searchField = app.searchFields.firstMatch
-        XCTAssertTrue(searchField.waitForExistence(timeout: 3), "Search field should exist")
+        // Obtain search field robustly across iPhone/iPad layouts
+        var searchField: XCUIElement = app.searchFields.firstMatch
+
+        // Prefer search field embedded in navigation bar (common on iPad)
+        let navBarSearch = app.navigationBars.firstMatch.searchFields.firstMatch
+        if navBarSearch.exists {
+            searchField = navBarSearch
+        } else {
+            // Try a labeled search field
+            let labeledSearch = app.searchFields["Search"]
+            if labeledSearch.exists {
+                searchField = labeledSearch
+            } else {
+                // Try within tables and collection views
+                let tableSearch = app.tables.searchFields.firstMatch
+                if tableSearch.exists {
+                    searchField = tableSearch
+                } else {
+                    let collectionSearch = app.collectionViews.searchFields.firstMatch
+                    if collectionSearch.exists {
+                        searchField = collectionSearch
+                    } else {
+                        // Last resort: any text field with a placeholder containing 'search'
+                        let anySearchLike = app.textFields.containing(NSPredicate(format: "placeholderValue CONTAINS[c] %@", "search")).firstMatch
+                        if anySearchLike.exists {
+                            searchField = anySearchLike
+                        }
+                    }
+                }
+            }
+        }
+
+        XCTAssertTrue(searchField.waitForExistence(timeout: 5), "Search field should exist")
         
         // Tap search field and enter search term
         searchField.tap()
@@ -773,13 +863,69 @@ final class MenuManagementUITests: XCTestCase {
             }
         }
         
-        // Cancel dish selection
+        // Robust dismissal on iPad/iPhone: consider multiple button titles/locations and popover close
         var cancelButton = app.navigationBars.buttons["Cancel"].firstMatch
+
+        // Try common alternates in nav bar
+        let navBar = app.navigationBars.firstMatch
+        let candidateNavButtons: [XCUIElement] = [
+            navBar.buttons["Cancel"],
+            navBar.buttons["Close"],
+            navBar.buttons["Done"],
+            navBar.buttons["Back"],
+            navBar.buttons["Dismiss"],
+            navBar.buttons["Stop"],
+        ]
         if !cancelButton.exists {
-            cancelButton = app.toolbars.buttons["close"].firstMatch
+            if let found = candidateNavButtons.first(where: { $0.exists }) {
+                cancelButton = found
+            }
         }
-        XCTAssertTrue(cancelButton.exists, "Cancel button should exist")
-        cancelButton.tap()
+
+        // Try toolbar/system close buttons (common on iPad popovers)
+        if !cancelButton.exists {
+            let toolbar = app.toolbars.firstMatch
+            let candidateToolbarButtons: [XCUIElement] = [
+                toolbar.buttons["Close"],
+                toolbar.buttons["close"],
+                toolbar.buttons["Done"],
+                toolbar.buttons["Cancel"],
+                app.buttons["Close"],
+                app.buttons["Done"],
+                app.buttons["Cancel"],
+                app.buttons["Dismiss"],
+            ]
+            if let found = candidateToolbarButtons.first(where: { $0.exists }) {
+                cancelButton = found
+            }
+        }
+
+        // Try generic close buttons with SF Symbol identifiers
+        if !cancelButton.exists {
+            let possibleSymbolButtons: [XCUIElement] = [
+                app.buttons["xmark"],
+                app.buttons["x.circle"],
+                app.buttons["xmark.circle"],
+                app.buttons["xmark.circle.fill"],
+            ]
+            if let found = possibleSymbolButtons.first(where: { $0.exists }) {
+                cancelButton = found
+            }
+        }
+
+        // Wait briefly for any of the above to appear before failing
+        let appeared = cancelButton.waitForExistence(timeout: 2)
+        if appeared {
+            cancelButton.tap()
+        } else {
+            // Last resorts: try dismiss gestures for sheets/popovers
+            // Attempt swipe down (sheet style)
+            app.swipeDown()
+            // If still not dismissed, tap outside popover area
+            if app.navigationBars["Menu"].waitForExistence(timeout: 1) == false {
+                app.otherElements.firstMatch.tap()
+            }
+        }
         
         // Verify return to menu
         let menuTitle = app.navigationBars["Menu"]
@@ -788,3 +934,4 @@ final class MenuManagementUITests: XCTestCase {
         print("✅ Search functionality test completed successfully")
     }
 } 
+

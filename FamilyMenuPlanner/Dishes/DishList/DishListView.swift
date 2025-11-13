@@ -138,28 +138,34 @@ struct DishListView: View {
         let onEdit: (Dish) -> Void
         let onDelete: (Dish) -> Void
         var body: some View {
-            ForEach(dishes, id: \.self) { dish in
-                dishCard(for: dish)
+            VStack(spacing: 0) {
+                let columns = GridLayoutHelper.columns()
+                LazyVGrid(columns: columns, spacing: UIConstants.sectionSpacing) {
+                    ForEach(dishes, id: \.self) { dish in
+                        DishCardView(
+                            dish: dish,
+                            onEdit: { onEdit(dish) },
+                            onDelete: { onDelete(dish) }
+                        )
+                        .frame(maxWidth: UIConstants.maxContentWidth)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .accessibilityIdentifier("dish_list_item_\(dish.name ?? "unnamed")")
+                    }
+                }
+                .padding(.horizontal, UIConstants.horizontalPadding)
+
+                // Bottom spacer to keep content above FAB / bottom edge
+                if #unavailable(iOS 26) {
+                    Color.clear
+                        .frame(height: 80)
+                } else {
+                    Color.clear
+                        .frame(height: 20)
+                }
             }
-            if #unavailable(iOS 26) {
-                Color.clear
-                    .frame(height: 80)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-            }
-        }
-        @ViewBuilder
-        private func dishCard(for dish: Dish) -> some View {
-            DishCardView(
-                dish: dish,
-                onEdit: { onEdit(dish) },
-                onDelete: { onDelete(dish) }
-            )
-            .padding(.vertical, 8)
-            .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
             .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
-            .accessibilityIdentifier("dish_list_item_\(dish.name ?? "unnamed")")
+            .listRowBackground(Color.appBackground)
         }
     }
 

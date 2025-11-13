@@ -12,32 +12,37 @@ struct ReviewStepView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
-                // Header Card
-                HeaderCard(
-                    title: "Ready to save?".localized(),
-                    subtitle: "Review your dish details".localized(),
-                    icon: "checkmark.circle"
-                )
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(Text("Review".localized()))
-                
-                // Dish Summary Card
-                DishSummaryCard(viewModel: viewModel)
-                    .accessibilityElement(children: .contain)
-                
-                // Validation Card
-                ValidationCard(viewModel: viewModel)
-                    .accessibilityElement(children: .contain)
-                
-                // Quick Edit Actions
-                QuickEditActionsCard()
-                    .accessibilityElement(children: .contain)
-                
-                Spacer(minLength: 20) // Space for navigation controls
+            HStack {
+                Spacer(minLength: 0)
+                VStack(spacing: 24) {
+                    // Header Card
+                    HeaderCard(
+                        title: "Ready to save?".localized(),
+                        subtitle: "Review your dish details".localized(),
+                        icon: "checkmark.circle"
+                    )
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(Text("Review".localized()))
+                    
+                    // Dish Summary Card
+                    DishSummaryCard(viewModel: viewModel)
+                        .accessibilityElement(children: .contain)
+                    
+                    // Validation Card
+                    ValidationCard(viewModel: viewModel)
+                        .accessibilityElement(children: .contain)
+                    
+                    // Quick Edit Actions
+                    QuickEditActionsCard()
+                        .accessibilityElement(children: .contain)
+                    
+                    Spacer(minLength: 20) // Space for navigation controls
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .frame(maxWidth: UIConstants.maxContentWidth)
+                Spacer(minLength: 0)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
         }
         .trackScreenAppear(name: AnalyticsScreenName.DishDetailsReview)
         .background(Color.appBackground)
@@ -460,4 +465,3 @@ struct QuickEditActionsCard: View {
         .shadow(color: .black.opacity(0.02), radius: 4)
     }
 } 
-
