@@ -402,7 +402,7 @@ struct FeedbackFooterView: View {
             Button(action: { isPresenting = true }) {
                 HStack(spacing: 6) {
                     Image(systemName: "envelope")
-                    Text("Have a feedback? Write us".localized())
+                    Text("Have feedback? Write us".localized())
                 }
                 .font(.footnote.weight(.semibold))
             }

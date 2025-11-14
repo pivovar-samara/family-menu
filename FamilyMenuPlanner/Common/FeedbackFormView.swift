@@ -45,7 +45,7 @@ struct FeedbackFormView: View {
         .navigationTitle("Send Feedback".localized())
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Send", action: sendTapped)
+                Button("Send".localized(), action: sendTapped)
                     .tint(Color.accent)
                     .disabled(!isValid)
                     .accessibilityIdentifier("feedback_send_button")
