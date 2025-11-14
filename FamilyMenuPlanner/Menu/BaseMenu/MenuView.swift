@@ -20,7 +20,7 @@ struct MenuView: View {
             weekSegmentControl
             editingWeekBanner
             menuContent
-            ViewHelper.feedbackFooterView()
+            FeedbackFooterView()
         }
         .trackScreenAppear(name: AnalyticsScreenName.Menu)
         .listStyle(.plain)

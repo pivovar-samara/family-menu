@@ -10,10 +10,16 @@ public final class AppLogCapture {
     private let capacity: Int = 1000
 
     private init() {}
+    
+    /// Shared ISO8601 date formatter for timestamps (thread-safe).
+    public static let timestampFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        return formatter
+    }()
 
     /// Append a new log line with timestamp.
     public func append(_ message: String) {
-        let ts = ISO8601DateFormatter().string(from: Date())
+        let ts = Self.timestampFormatter.string(from: Date())
         let line = "[\(ts)] \(message)"
         queue.async { [weak self] in
             guard let self = self else { return }
@@ -65,7 +71,7 @@ public enum DiagnosticsHelper {
         dict["ios_version"] = UIDevice.current.systemVersion
         dict["device_model"] = deviceModelIdentifier() // model identifier like "iPhone16,1"
         dict["locale"] = Locale.current.identifier
-        dict["timestamp"] = ISO8601DateFormatter().string(from: Date())
+        dict["timestamp"] = AppLogCapture.timestampFormatter.string(from: Date())
         dict["logs_tail"] = AppLogCapture.shared.tail(logsTailCount)
         return dict
     }
@@ -83,7 +89,7 @@ public enum DiagnosticsHelper {
 
     private static func filenameTimestamp() -> String {
         // ISO-like, but avoid characters that are problematic for filenames
-        let formatter = ISO8601DateFormatter()
+        let formatter = AppLogCapture.timestampFormatter
         formatter.formatOptions = [.withInternetDateTime, .withDashSeparatorInDate, .withColonSeparatorInTime]
         var ts = formatter.string(from: Date())
         // Replace ":" with "-" to be safe for filenames
@@ -118,7 +124,7 @@ public enum DiagnosticsHelper {
         case let array as [Any]:
             return array.map { makeJSONSafe($0) }
         case let date as Date:
-            return ISO8601DateFormatter().string(from: date)
+            return AppLogCapture.timestampFormatter.string(from: date)
         case is String, is NSNumber, is NSNull:
             return object
         default:

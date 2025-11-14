@@ -14,8 +14,8 @@ struct FeedbackFormView: View {
 
     var body: some View {
         Form {
-            Section(header: Text("Subject")) {
-                TextField("Enter subject", text: $subject)
+            Section(header: Text("Subject".localized())) {
+                TextField("Enter subject".localized(), text: $subject)
                     .padding(10)
                     .background(Color.appSecondaryBackground)
                     .cornerRadius(8)
@@ -25,7 +25,7 @@ struct FeedbackFormView: View {
                     .accessibilityIdentifier("feedback_subject_field")
             }
 
-            Section(header: Text("Message")) {
+            Section(header: Text("Message".localized())) {
                 TextEditor(text: $message)
                     .padding(8)
                     .background(Color.appSecondaryBackground)
@@ -39,10 +39,10 @@ struct FeedbackFormView: View {
                 EmptyView()
             }
         }
-        .applyStyle()
         .trackScreenAppear(name: AnalyticsScreenName.FeedbackForm)
+        .applyStyle()
         .background(Color.appBackground)
-        .navigationTitle("Send Feedback")
+        .navigationTitle("Send Feedback".localized())
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("Send", action: sendTapped)
@@ -88,10 +88,10 @@ struct FeedbackFormView: View {
                 }
             }
         }
-        .alert("Email Not Available", isPresented: $showCannotSendAlert) {
-            Button("OK", role: .cancel) { }
+        .alert("Email Not Available".localized(), isPresented: $showCannotSendAlert) {
+            Button("OK".localized(), role: .cancel) { }
         } message: {
-            Text("This device isn't set up to send email. Please contact \(FeedbackFormView.supportEmail) manually.")
+            Text("This device isn't set up to send email. Please contact \(FeedbackFormView.supportEmail) manually.".localized())
         }
         .onAppear {
             // Optionally pre-fill attachment so sheet is ready immediately when sending
@@ -106,10 +106,10 @@ struct FeedbackFormView: View {
 
     private var footerNote: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("A diagnostics file will be automatically attached to help us resolve issues faster.")
+            Text("A diagnostics file will be automatically attached to help us resolve issues faster.".localized())
                 .font(.footnote)
                 .foregroundColor(.secondary)
-            Text("No personally identifiable data is included.")
+            Text("No personally identifiable data is included.".localized())
                 .font(.footnote)
                 .foregroundColor(.secondary)
         }
