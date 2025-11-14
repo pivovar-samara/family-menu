@@ -390,3 +390,39 @@ struct SyncBannerView: View {
         )
     }
 }
+
+// MARK: - Feedback Footer View
+
+/// A reusable footer view to show at the bottom of lists/menus that opens the feedback form.
+struct FeedbackFooterView: View {
+    @State private var isPresenting = false
+
+    var body: some View {
+        VStack(spacing: UIConstants.sectionSpacing) {
+            Button(action: { isPresenting = true }) {
+                HStack(spacing: 6) {
+                    Image(systemName: "envelope")
+                    Text("Have feedback? Write us".localized())
+                }
+                .font(.footnote.weight(.semibold))
+            }
+            .buttonStyle(ScaleButtonStyle())
+            .foregroundColor(Color.accent)
+            .accessibilityIdentifier("feedback_footer_button")
+
+            Text("We’d love to hear from you.".localized())
+                .font(.footnote)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.vertical, UIConstants.sectionSpacing)
+        .listRowBackground(Color.appBackground)
+        .listRowSeparator(.hidden)
+        .background(Color.appBackground)
+        .sheet(isPresented: $isPresenting) {
+            NavigationStack {
+                FeedbackFormView()
+            }
+        }
+    }
+}

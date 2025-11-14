@@ -699,4 +699,3 @@ extension SortOption {
         return "sort_option_\(displayName.lowercased().replacingOccurrences(of: " ", with: "_"))"
     }
 }
-
