@@ -67,25 +67,23 @@ struct FeedbackFormView: View {
             }
         }
         .sheet(isPresented: $showMailSheet) {
-            if let attachment = mailAttachment {
-                MailComposerView(
-                    subject: subject,
-                    body: message,
-                    recipients: [FeedbackFormView.supportEmail],
-                    attachment: attachment
-                ) { result, error in
-                    var loggedResult: String
-                    switch result {
-                    case .sent: loggedResult = "success"
-                    case .failed: loggedResult = "failure"
-                    case .cancelled: loggedResult = "cancelled"
-                    case .saved: loggedResult = "saved"
-                    @unknown default: loggedResult = "unknown"
-                    }
-                    AnalyticsManager.shared.track(name: AnalyticsEventName.feedback_form_email_result, properties: [AnalyticsPropertyKey.email_result: loggedResult])
-                    // After dismissal, close the form
-                    dismiss()
+            MailComposerView(
+                subject: subject,
+                body: message,
+                recipients: [FeedbackFormView.supportEmail],
+                attachment: mailAttachment
+            ) { result, error in
+                var loggedResult: String
+                switch result {
+                case .sent: loggedResult = "success"
+                case .failed: loggedResult = "failure"
+                case .cancelled: loggedResult = "cancelled"
+                case .saved: loggedResult = "saved"
+                @unknown default: loggedResult = "unknown"
                 }
+                AnalyticsManager.shared.track(name: AnalyticsEventName.feedback_form_email_result, properties: [AnalyticsPropertyKey.email_result: loggedResult])
+                // After dismissal, close the form
+                dismiss()
             }
         }
         .alert("Email Not Available".localized(), isPresented: $showCannotSendAlert) {
@@ -95,7 +93,7 @@ struct FeedbackFormView: View {
         }
         .onAppear {
             // Optionally pre-fill attachment so sheet is ready immediately when sending
-            prepareAttachment()
+            prepareAttachmentInBackground()
         }
     }
 
@@ -122,17 +120,21 @@ struct FeedbackFormView: View {
             AnalyticsManager.shared.track(name: AnalyticsEventName.feedback_form_email_unavailable)
             return
         }
-        // Ensure we have fresh diagnostics data
-        prepareAttachment()
+        
         showMailSheet = true
         AnalyticsManager.shared.track(name: AnalyticsEventName.feedback_form_send)
     }
 
-    private func prepareAttachment() {
-        if let result = DiagnosticsHelper.diagnosticsJSONData(logsTailCount: 50) {
-            mailAttachment = (data: result.data, mimeType: "application/json", fileName: result.filename)
-        } else {
-            mailAttachment = nil
+    private func prepareAttachmentInBackground() {
+        Task.detached(priority: .utility) {
+            let result = DiagnosticsHelper.diagnosticsJSONData(logsTailCount: 50)
+            await MainActor.run {
+                if let result {
+                    self.mailAttachment = (data: result.data, mimeType: "application/json", fileName: result.filename)
+                } else {
+                    self.mailAttachment = nil
+                }
+            }
         }
     }
 }
