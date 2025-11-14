@@ -14,6 +14,7 @@ public final class AppLogCapture {
     /// Shared ISO8601 date formatter for timestamps (thread-safe).
     public static let timestampFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withDashSeparatorInDate, .withColonSeparatorInTime]
         return formatter
     }()
 
@@ -90,7 +91,6 @@ public enum DiagnosticsHelper {
     private static func filenameTimestamp() -> String {
         // ISO-like, but avoid characters that are problematic for filenames
         let formatter = AppLogCapture.timestampFormatter
-        formatter.formatOptions = [.withInternetDateTime, .withDashSeparatorInDate, .withColonSeparatorInTime]
         var ts = formatter.string(from: Date())
         // Replace ":" with "-" to be safe for filenames
         ts = ts.replacingOccurrences(of: ":", with: "-")
