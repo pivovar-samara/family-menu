@@ -29,14 +29,42 @@ jobs:
 
       - name: Set Default Scheme
         run: |
-          scheme=$(xcodebuild -list -json | ruby -rjson -e '
-            data = JSON.parse(STDIN.read)
-            schemes = (data.dig("project", "schemes") || data.dig("workspace", "schemes") || [])
-            abort("No Xcode schemes found") if schemes.empty?
-            puts schemes.first
-          ')
+          scheme=$(find . -path "*/xcshareddata/xcschemes/*.xcscheme" -print \
+            | sed 's#.*/##; s#\.xcscheme$##' \
+            | head -n 1)
+          if [ -z "$scheme" ]; then
+            scheme=$(xcodebuild -list -json | ruby -rjson -e '
+              data = JSON.parse(STDIN.read)
+              schemes = (data.dig("project", "schemes") || data.dig("workspace", "schemes") || [])
+              abort("No Xcode schemes found") if schemes.empty?
+              puts schemes.first
+            ')
+          fi
           echo "$scheme" > default
           echo "Using default scheme: $scheme"
+
+      - name: Select simulator destination
+        run: |
+          destination=$(xcrun simctl list devices available --json | ruby -rjson -e '
+            data = JSON.parse(STDIN.read)
+            candidates = []
+            (data["devices"] || {}).each do |runtime, devices|
+              next unless runtime.include?("iOS")
+              devices.each do |d|
+                next unless d["isAvailable"]
+                next unless d["name"].to_s.start_with?("iPhone")
+                next unless d["udid"]
+                version = runtime[/iOS[- ](\d+(?:[-_]\d+)*)/, 1].to_s
+                version_key = version.split(/[-_]/).map(&:to_i)
+                candidates << [version_key, d["name"].to_s, d["udid"].to_s]
+              end
+            end
+            abort("No available iPhone simulators found") if candidates.empty?
+            _, _, udid = candidates.max_by { |version_key, name, _| [version_key, name] }
+            puts "id=#{udid}"
+          ')
+          echo "$destination" > destination
+          echo "Using destination: $destination"
 
       - name: Write CI Secrets.xcconfig placeholder
         run: |
@@ -67,7 +95,7 @@ jobs:
           xcodebuild test \
             -scheme "$scheme" \
             -"$filetype_parameter" "$file_to_build" \
-            -destination "platform=iOS Simulator,name=iPhone 16" \
+            -destination "$(cat destination)" \
             -only-testing:FamilyMenuPlannerUnitTests \
             -only-testing:FamilyMenuPlannerIntegrationTests \
             -parallel-testing-enabled NO \
