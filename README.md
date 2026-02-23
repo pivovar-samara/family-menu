@@ -92,9 +92,10 @@ An iOS application for families to plan their weekly menu, built with SwiftUI us
 ## Building and Running
 
 1. Clone the repository
-2. Open `FamilyMenuPlanner.xcodeproj` in Xcode
-3. Select your target device or simulator
-4. Build and run the project
+2. Copy `Configs/Secrets.xcconfig.example` to `Configs/Secrets.xcconfig` and fill in your API keys (or leave the values empty for development without analytics)
+3. Open `FamilyMenuPlanner.xcodeproj` in Xcode
+4. Select your target device or simulator
+5. Build and run the project
 
 ## Testing
 
