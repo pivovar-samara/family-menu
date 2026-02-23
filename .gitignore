@@ -37,3 +37,6 @@ fastlane/test_output/
 .DS_Store
 
 Configs/Secrets.xcconfig
+
+# IDE-specific
+.cursor/
