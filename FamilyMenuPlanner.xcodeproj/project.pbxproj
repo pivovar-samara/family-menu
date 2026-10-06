@@ -48,6 +48,8 @@
 /* Begin PBXFileReference section */
 		4841617E2DEF52D800A48C49 /* FamilyMenuPlannerIntegrationTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FamilyMenuPlannerIntegrationTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		484161E12DEF698200A48C49 /* FamilyMenuPlannerPerformanceTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FamilyMenuPlannerPerformanceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		48CC503B3075102F0098E848 /* FamilyMenuPlanner-Full.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = "FamilyMenuPlanner-Full.xctestplan"; sourceTree = "<group>"; };
+		48CC503C3075102F0098E848 /* FamilyMenuPlanner-PR.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = "FamilyMenuPlanner-PR.xctestplan"; sourceTree = "<group>"; };
 		A004ED752D11DC000081DDC0 /* FamilyMenuPlanner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FamilyMenuPlanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A004ED8B2D11DC030081DDC0 /* FamilyMenuPlannerUnitTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FamilyMenuPlannerUnitTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A004ED952D11DC030081DDC0 /* FamilyMenuPlannerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FamilyMenuPlannerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -269,6 +271,8 @@
 		A004ED6C2D11DC000081DDC0 = {
 			isa = PBXGroup;
 			children = (
+				48CC503B3075102F0098E848 /* FamilyMenuPlanner-Full.xctestplan */,
+				48CC503C3075102F0098E848 /* FamilyMenuPlanner-PR.xctestplan */,
 				486071F92E8E89A80084E430 /* Configs */,
 				4866AB4E2DF35BD0006942F3 /* FamilyMenuPlanner */,
 				4866AAFF2DF35BCA006942F3 /* FamilyMenuPlannerUnitTests */,
@@ -697,7 +701,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -759,7 +763,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
@@ -775,7 +779,6 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = FamilyMenuPlanner/FamilyMenuPlanner.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -792,7 +795,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.pivovar.FamilyMenuPlanner;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -809,7 +812,6 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = FamilyMenuPlanner/FamilyMenuPlanner.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -826,7 +828,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.pivovar.FamilyMenuPlanner;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

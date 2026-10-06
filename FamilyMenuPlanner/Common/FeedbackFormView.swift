@@ -89,7 +89,7 @@ struct FeedbackFormView: View {
         .alert("Email Not Available".localized(), isPresented: $showCannotSendAlert) {
             Button("OK".localized(), role: .cancel) { }
         } message: {
-            Text("This device isn't set up to send email. Please contact \(FeedbackFormView.supportEmail) manually.".localized())
+            Text(String(format: "This device isn't set up to send email. Please contact %@ manually.".localized(), FeedbackFormView.supportEmail))
         }
         .onAppear {
             // Optionally pre-fill attachment so sheet is ready immediately when sending

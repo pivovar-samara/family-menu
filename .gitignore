@@ -1,5 +1,13 @@
 # Xcode
 *.xcworkspace
+# Xcode Cloud requires the resolved SPM dependencies to be committed
+!FamilyMenuPlanner.xcodeproj/project.xcworkspace/
+FamilyMenuPlanner.xcodeproj/project.xcworkspace/*
+!FamilyMenuPlanner.xcodeproj/project.xcworkspace/xcshareddata/
+FamilyMenuPlanner.xcodeproj/project.xcworkspace/xcshareddata/*
+!FamilyMenuPlanner.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+FamilyMenuPlanner.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/*
+!FamilyMenuPlanner.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 xcuserdata/
 DerivedData/
 .idea/
