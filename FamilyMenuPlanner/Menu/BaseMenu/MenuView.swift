@@ -406,8 +406,7 @@ struct DailyMenuCardView: View {
         guard let index = weekdays.firstIndex(of: day) else {
             return ""
         }
-        let startOfWeekDate = startOfWeek(for: weekDate)
-        let date = Calendar.current.date(byAdding: .day, value: index, to: startOfWeekDate) ?? Date()
+        let date = CalendarHelper.date(forDayIndex: index, inWeekOf: weekDate)
         return DailyMenuCardView.dateFormatter.string(from: date)
     }
     
@@ -415,13 +414,7 @@ struct DailyMenuCardView: View {
         guard let index = weekdays.firstIndex(of: day) else {
             return Date()
         }
-        let startOfWeekDate = startOfWeek(for: weekDate)
-        return Calendar.current.date(byAdding: .day, value: index, to: startOfWeekDate) ?? Date()
-    }
-    
-    private func startOfWeek(for date: Date) -> Date {
-        let calendar = Calendar.current
-        return calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date))!
+        return CalendarHelper.date(forDayIndex: index, inWeekOf: weekDate)
     }
 }
 

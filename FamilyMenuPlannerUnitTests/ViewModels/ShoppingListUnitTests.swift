@@ -29,9 +29,7 @@ final class ShoppingListUnitTests: XCTestCase {
     }
     
     private func createTestWeekDate() -> Date {
-        let calendar = Calendar.current
-        let today = Date()
-        return calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today))!
+        CalendarHelper.startOfWeek(for: Date())
     }
     
     // MARK: - Shopping List Loading Tests
@@ -591,10 +589,7 @@ final class ShoppingListUnitTests: XCTestCase {
         viewModel.loadShoppingList(from: rawShoppingList, for: weekDate)
 
         // Check that quantity is saved in UserDefaults for each item
-        let encodedWeek = Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: weekDate)
-        let year = encodedWeek.yearForWeekOfYear ?? 0
-        let week = encodedWeek.weekOfYear ?? 0
-        let weekKey = year * 100 + week
+        let weekKey = CalendarHelper.weekKey(for: weekDate)
         let milkKey = "ShoppingListQuantity_\(weekKey)_Milk_ml"
         let eggsKey = "ShoppingListQuantity_\(weekKey)_Eggs_pcs"
         let milkQuantity = UserDefaults.standard.double(forKey: milkKey)
@@ -651,7 +646,7 @@ final class ShoppingListUnitTests: XCTestCase {
         XCTAssertFalse(oldMilkItem.isSelected)
         
         // Load current week and make a selection
-        let startOfCurrentWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today))!
+        let startOfCurrentWeek = CalendarHelper.startOfWeek(for: today)
         viewModel.loadShoppingList(from: rawShoppingList, for: startOfCurrentWeek)
         let currentMilkItem = viewModel.shoppingItems.first { $0.productName == "Milk" }!
         viewModel.toggleSelection(for: currentMilkItem)
@@ -723,10 +718,8 @@ final class ShoppingListUnitTests: XCTestCase {
         ]
         
         // Create two different week dates
-        let calendar = Calendar.current
-        let today = Date()
-        let week1Date = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today))!
-        let week2Date = calendar.date(byAdding: .weekOfYear, value: 1, to: week1Date)!
+        let week1Date = CalendarHelper.startOfWeek(for: Date())
+        let week2Date = CalendarHelper.startOfWeek(offset: 1, from: week1Date)
         
         // Load shopping list for week 1 and select an item
         viewModel.loadShoppingList(from: rawShoppingList, for: week1Date)
@@ -745,15 +738,9 @@ final class ShoppingListUnitTests: XCTestCase {
     }
     
     func testEncodedWeekConsistency() {
-        // Test that our encodeWeek method produces the same result as MenuService
-        let calendar = Calendar.current
-        let today = Date()
-        let weekComponents = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)
-        
-        // Our implementation
-        let year = weekComponents.yearForWeekOfYear ?? 0
-        let week = weekComponents.weekOfYear ?? 0
-        let ourEncodedWeek = year * 100 + week
+        // ShoppingListViewModel and MenuService both encode weeks via CalendarHelper.weekKey
+        let calendar = CalendarHelper.weekCalendar
+        let ourEncodedWeek = CalendarHelper.weekKey(for: Date())
         
         // Verify the encoded week is reasonable (should be a large number like 202501 for week 1 of 2025)
         XCTAssertGreaterThan(ourEncodedWeek, 200000)
@@ -763,10 +750,7 @@ final class ShoppingListUnitTests: XCTestCase {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         if let testDate = formatter.date(from: "2025-01-06") { // Week 2 of 2025
-            let testComponents = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: testDate)
-            let testYear = testComponents.yearForWeekOfYear ?? 0
-            let testWeek = testComponents.weekOfYear ?? 0
-            let testEncodedWeek = testYear * 100 + testWeek
+            let testEncodedWeek = CalendarHelper.weekKey(for: testDate, calendar: calendar)
             XCTAssertEqual(testEncodedWeek, 202502) // 2025 * 100 + 2
         }
     }

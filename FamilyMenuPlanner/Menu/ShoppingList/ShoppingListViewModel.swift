@@ -226,10 +226,7 @@ class ShoppingListViewModel: ObservableObject {
     }
     
     private func encodeWeek(for weekDate: Date) -> Int {
-        let weekComponents = Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: weekDate)
-        let year = weekComponents.yearForWeekOfYear ?? 0
-        let week = weekComponents.weekOfYear ?? 0
-        return year * 100 + week
+        CalendarHelper.weekKey(for: weekDate)
     }
     
     private func percentEncode(_ string: String) -> String {
@@ -287,10 +284,7 @@ class ShoppingListViewModel: ObservableObject {
     }
     
     func clearOldSelections() {
-        let calendar = Calendar.current
-        let today = Date()
-        let startOfCurrentWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today))!
-        let currentEncodedWeek = encodeWeek(for: startOfCurrentWeek)
+        let currentEncodedWeek = encodeWeek(for: Date())
         
         let defaults = UserDefaults.standard
         let allKeys = defaults.dictionaryRepresentation().keys

@@ -26,18 +26,69 @@ final class CalendarHelper {
         return reorderedWeekdays
     }
     
+    // MARK: - Week Calendar
+    /// The single calendar used for all week math (week boundaries and stored week keys),
+    /// independent of the user's region.
+    /// ISO 8601 rules: weeks start on Monday and week 1 is the week containing January 4th.
+    /// This is the numbering ru_RU (and other ISO regions) produced via `Calendar.current`,
+    /// so menus stored with those week keys keep resolving.
+    static var weekCalendar: Calendar {
+        weekCalendar(timeZone: .current)
+    }
+
+    static func weekCalendar(timeZone: TimeZone) -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.firstWeekday = 2 // Monday
+        calendar.minimumDaysInFirstWeek = 4
+        calendar.timeZone = timeZone
+        return calendar
+    }
+
     // MARK: - Week Calculations
-    /// Returns the start of the week for a given date.
-    static func startOfWeek(for date: Date, calendar: Calendar = Calendar(identifier: .gregorian)) -> Date {
+    /// Returns the start of the week (Monday, midnight) for a given date.
+    static func startOfWeek(for date: Date, calendar: Calendar = weekCalendar) -> Date {
         var calendar = calendar
         calendar.firstWeekday = 2
         let components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
         return calendar.date(from: components) ?? date
     }
-    
+
+    /// Returns the start of the week `offset` weeks away from the week containing `date`.
+    static func startOfWeek(offset: Int, from date: Date, calendar: Calendar = weekCalendar) -> Date {
+        let start = startOfWeek(for: date, calendar: calendar)
+        return calendar.date(byAdding: .weekOfYear, value: offset, to: start) ?? start
+    }
+
+    /// Returns the date of the day at `dayIndex` (0 = Monday) in the week containing `date`.
+    static func date(forDayIndex dayIndex: Int, inWeekOf date: Date, calendar: Calendar = weekCalendar) -> Date {
+        let start = startOfWeek(for: date, calendar: calendar)
+        return calendar.date(byAdding: .day, value: dayIndex, to: start) ?? start
+    }
+
+    /// Returns the persisted key of the week containing `date`: `yearForWeekOfYear * 100 + weekOfYear`.
+    static func weekKey(for date: Date, calendar: Calendar = weekCalendar) -> Int {
+        let components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
+        return (components.yearForWeekOfYear ?? 0) * 100 + (components.weekOfYear ?? 0)
+    }
+
+    /// Converts a week key written with another calendar's week rules (e.g. a Sunday-first
+    /// `Calendar.current`) into the start of the matching week in the week calendar.
+    /// The legacy week is mapped to the week of its first Monday, which shares 6 of 7 days with it.
+    static func weekStart(forLegacyWeekKey key: Int, legacyCalendar: Calendar) -> Date? {
+        let year = key / 100
+        let week = key % 100
+        guard year > 0, week > 0,
+              let legacyStart = legacyCalendar.date(from: DateComponents(weekOfYear: week, yearForWeekOfYear: year)) else {
+            return nil
+        }
+        let daysToMonday = (2 - legacyCalendar.firstWeekday + 7) % 7
+        guard let monday = legacyCalendar.date(byAdding: .day, value: daysToMonday, to: legacyStart) else { return nil }
+        return startOfWeek(for: monday, calendar: weekCalendar(timeZone: legacyCalendar.timeZone))
+    }
+
     /// Returns a localized formatted string for the week of a given date.
     /// Hides the year when both dates are in the same year, shows it when spanning years.
-    static func formattedWeek(_ date: Date, calendar: Calendar = Calendar(identifier: .gregorian), locale: Locale = Locale.current) -> String {
+    static func formattedWeek(_ date: Date, calendar: Calendar = weekCalendar, locale: Locale = Locale.current) -> String {
         let start = startOfWeek(for: date, calendar: calendar)
         let end = calendar.date(byAdding: .day, value: 6, to: start) ?? start
 

@@ -45,9 +45,7 @@ final class StaticKeysGenerationFromInitialDataTests: XCTestCase {
 
         // Same logical menu slot duplicated
         let weekDate = Date()
-        let calendar = Calendar.current
-        let comp = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: weekDate)
-        let encodedWeek = (comp.yearForWeekOfYear ?? 0) * 100 + (comp.weekOfYear ?? 0)
+        let encodedWeek = CalendarHelper.weekKey(for: weekDate)
 
         let m1 = Menu(context: ctx)
         m1.day = "Monday"

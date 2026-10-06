@@ -80,10 +80,8 @@ class MenuServiceUnitTests: XCTestCase {
     
     func testFetchMenuForDifferentWeeks() {
         // Create data for current week
-        let calendar = Calendar.current
-        let today = Date()
-        let currentWeekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today))!
-        let nextWeekStart = calendar.date(byAdding: .weekOfYear, value: 1, to: currentWeekStart)!
+        let currentWeekStart = CalendarHelper.startOfWeek(for: Date())
+        let nextWeekStart = CalendarHelper.startOfWeek(offset: 1, from: currentWeekStart)
         
         let mealType = testDataFactory.createMealType(name: "Dinner", sortOrder: 1)
         let category = testDataFactory.createDishCategory(name: "Main Course", sortOrder: 1)
@@ -174,10 +172,8 @@ class MenuServiceUnitTests: XCTestCase {
     // MARK: - Test Old Week Removal
     
     func testRemoveOldWeeks() {
-        let calendar = Calendar.current
-        let today = Date()
-        let oldWeek = calendar.date(byAdding: .weekOfYear, value: -2, to: today)!
-        let currentWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today))!
+        let oldWeek = CalendarHelper.startOfWeek(offset: -2, from: Date())
+        let currentWeek = CalendarHelper.startOfWeek(for: Date())
         
         let mealType = testDataFactory.createMealType(name: "Breakfast", sortOrder: 1)
         let category = testDataFactory.createDishCategory(name: "Main Course", sortOrder: 1)
@@ -203,22 +199,15 @@ class MenuServiceUnitTests: XCTestCase {
     // MARK: - Helper Methods
     
     private func createMenuEntry(day: String, mealType: String, dishes: [Dish], weekDate: Date) {
-        let calendar = Calendar.current
-        let weekComponents = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: weekDate)
-        let encodedWeek = encodeWeek(weekComponents)
-        
+        let dayIndex = CalendarHelper.localizedWeekdayNamesStartingFromMonday().firstIndex(of: day) ?? 0
+
         let menu = Menu(context: context)
         menu.day = day
         menu.mealType = mealType
-        menu.calendarWeek = Int32(encodedWeek)
+        menu.calendarWeek = Int32(CalendarHelper.weekKey(for: weekDate))
+        menu.date = CalendarHelper.date(forDayIndex: dayIndex, inWeekOf: weekDate)
         menu.dishes = NSSet(array: dishes)
         
         XCTAssertNoThrow(try context.save())
-    }
-    
-    private func encodeWeek(_ weekComponents: DateComponents) -> Int {
-        let year = weekComponents.yearForWeekOfYear ?? 0
-        let week = weekComponents.weekOfYear ?? 0
-        return year * 100 + week
     }
 } 
