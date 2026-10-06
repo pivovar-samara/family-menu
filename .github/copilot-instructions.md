@@ -27,7 +27,7 @@ The app automatically detects test/CI environments and disables CloudKit accordi
 
 ### Build Commands (macOS/Xcode Required)
 
-**Important**: These commands only work in macOS environments with Xcode installed. The CI uses self-hosted macOS runners.
+**Important**: These commands only work in macOS environments with Xcode installed. CI runs on Xcode Cloud.
 
 **Clean Build**:
 ```bash
@@ -40,23 +40,17 @@ xcodebuild test \
   -scheme FamilyMenuPlanner \
   -project FamilyMenuPlanner.xcodeproj \
   -destination "platform=iOS Simulator,name=iPhone 17" \
-  -only-testing:FamilyMenuPlannerUnitTests \
-  -only-testing:FamilyMenuPlannerIntegrationTests \
-  -only-testing:FamilyMenuPlannerPerformanceTests \
-  -only-testing:FamilyMenuPlannerUITests \
+  -testPlan FamilyMenuPlanner-Full \
   -parallel-testing-enabled NO \
   -maximum-concurrent-test-simulator-destinations 1 \
-  -test-timeouts-enabled YES \
-  -default-test-execution-time-allowance 60 \
-  -maximum-test-execution-time-allowance 120 \
   CODE_SIGNING_ALLOWED=NO
 ```
 
 **Individual Test Suites**:
 - Unit Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 17" -only-testing:FamilyMenuPlannerUnitTests`
 - Integration Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 17" -only-testing:FamilyMenuPlannerIntegrationTests`
-- Performance Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 17" -only-testing:FamilyMenuPlannerPerformanceTests`
-- UI Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 17" -only-testing:FamilyMenuPlannerUITests`
+- Performance Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 17" -testPlan FamilyMenuPlanner-Full -only-testing:FamilyMenuPlannerPerformanceTests`
+- UI Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 17" -testPlan FamilyMenuPlanner-Full -only-testing:FamilyMenuPlannerUITests`
 
 **Important**: Always use iPhone 17 simulator for consistency with CI. UI tests require persistent storage (not in-memory).
 
@@ -78,7 +72,10 @@ FamilyMenuPlannerUnitTests/           # Unit tests (mocked dependencies)
 FamilyMenuPlannerIntegrationTests/    # Integration tests (real Core Data)
 FamilyMenuPlannerPerformanceTests/    # Performance benchmarks
 FamilyMenuPlannerUITests/             # Automated UI testing
-.github/workflows/ios.yml            # CI pipeline
+ci_scripts/ci_post_clone.sh          # Xcode Cloud: generates Configs/Secrets.xcconfig
+ci_scripts/ci_pre_xcodebuild.sh      # Xcode Cloud: checks Amplitude key before archive
+FamilyMenuPlanner-PR.xctestplan      # Unit + Integration tests (default)
+FamilyMenuPlanner-Full.xctestplan    # All 4 suites with timeouts
 ```
 
 ### Key Configuration Files
@@ -130,19 +127,22 @@ Coordinator ←──────┘
 
 ## Build Validation & CI
 
-### CI Pipeline (`.github/workflows/ios.yml`)
-- **Trigger**: All pushes and PRs to any branch
-- **Runner**: Self-hosted (supports UI tests)
-- **Environment**: Automatically sets `CI=true`, `GITHUB_ACTIONS=true`
-- **Test Execution**: All 4 test suites with timeouts (60s default, 120s max)
-- **Parallelization**: Disabled for stability (`-parallel-testing-enabled NO`)
+### CI Pipeline (Xcode Cloud)
+Workflows are configured in Xcode / App Store Connect; the repo holds `ci_scripts/` and the test plans.
+- **PR Validation**: on pull requests, test plan `FamilyMenuPlanner-PR` (Unit + Integration)
+- **Full Tests**: manual, test plan `FamilyMenuPlanner-Full` (all 4 suites, 60s default / 120s max timeouts)
+- **TestFlight**: on push to `main`, Test + Archive → TestFlight internal testing
+- **App Store Release**: on tag, Archive → App Store
+- **Secrets**: `ci_scripts/ci_post_clone.sh` writes `Configs/Secrets.xcconfig` from workflow env vars. TestFlight internal workflow defines only `AMPLITUDE_API_KEY_DEV` (archives fall back to it); App Store release workflow (tag) defines `AMPLITUDE_API_KEY_PROD`. `ci_scripts/ci_pre_xcodebuild.sh` fails an archive when the required key is missing (`_PROD` for tag builds, `_DEV` otherwise)
+- **Environment**: test plans set `CI=true`
+- **Dependencies**: `Package.resolved` must stay committed (Xcode Cloud does not resolve packages automatically)
 
 ### Validation Workflow
 1. **Build First**: Always run clean build before tests
 2. **Environment Check**: CI detection automatically disables CloudKit
 3. **Test Order**: Unit → Integration → Performance → UI
 4. **Timeout Handling**: Tests automatically fail after 120s
-5. **Signing**: Disabled for CI (`CODE_SIGNING_ALLOWED=NO`)
+5. **Signing**: Xcode Cloud manages signing (automatic, team `TW4M5HXN5U`)
 
 ### Known Issues & Workarounds
 - **CloudKit in Simulator**: Disabled by default for cleaner development
@@ -207,7 +207,7 @@ Coordinator ←──────┘
 - **Simulator Issues**: Restart simulator, ensure iPhone 17 available
 - **CloudKit Errors**: Verify CI environment detection is working
 - **Test Timeouts**: Check for infinite loops in Core Data operations
-- **Code Signing**: Ensure `CODE_SIGNING_ALLOWED=NO` for CI builds
+- **Code Signing**: Use `CODE_SIGNING_ALLOWED=NO` for local command-line test builds
 
 ### Trust These Instructions
 These instructions are comprehensive and tested. Only search for additional information if:
@@ -215,4 +215,4 @@ These instructions are comprehensive and tested. Only search for additional info
 - New iOS/Xcode versions introduce compatibility issues  
 - Adding features outside the documented MVVM + Coordinators pattern
 
-The existing CI pipeline validates all commands and patterns daily. Follow the documented architecture and build processes for reliable development.
+The Xcode Cloud workflows validate these commands and patterns on every PR. Follow the documented architecture and build processes for reliable development.

@@ -128,4 +128,4 @@ All tests are designed to run efficiently with proper context management and rea
 - **Production**: Full CloudKit sync with persistent storage
 - **Simulator**: Configurable CloudKit support (disabled by default for performance)
 - **Testing**: In-memory stores for unit/integration tests, persistent stores for UI tests
-- **CI/CD**: Automated test execution with environment-specific configurations
+- **CI/CD**: Xcode Cloud — PR validation (`FamilyMenuPlanner-PR` test plan), full test suite (`FamilyMenuPlanner-Full`), and TestFlight builds from `main`

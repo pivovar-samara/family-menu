@@ -55,10 +55,7 @@ xcodebuild test \
   -scheme FamilyMenuPlanner \
   -project FamilyMenuPlanner.xcodeproj \
   -destination "platform=iOS Simulator,name=iPhone 17" \
-  -only-testing:FamilyMenuPlannerUnitTests \
-  -only-testing:FamilyMenuPlannerIntegrationTests \
-  -only-testing:FamilyMenuPlannerPerformanceTests \
-  -only-testing:FamilyMenuPlannerUITests \
+  -testPlan FamilyMenuPlanner-Full \
   -parallel-testing-enabled NO \
   CODE_SIGNING_ALLOWED=NO
 ```

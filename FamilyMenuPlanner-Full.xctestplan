@@ -1,0 +1,61 @@
+{
+  "configurations": [
+    {
+      "id": "109E9502-4D38-4586-870D-F7A6226C1FDF",
+      "name": "Configuration 1",
+      "options": {}
+    }
+  ],
+  "defaultOptions": {
+    "codeCoverage": true,
+    "environmentVariableEntries": [
+      {
+        "key": "CI",
+        "value": "true"
+      }
+    ],
+    "targetForVariableExpansion": {
+      "containerPath": "container:FamilyMenuPlanner.xcodeproj",
+      "identifier": "A004ED742D11DC000081DDC0",
+      "name": "FamilyMenuPlanner"
+    },
+    "testTimeoutsEnabled": true,
+    "defaultTestExecutionTimeAllowance": 60,
+    "maximumTestExecutionTimeAllowance": 120
+  },
+  "testTargets": [
+    {
+      "parallelizable": false,
+      "target": {
+        "containerPath": "container:FamilyMenuPlanner.xcodeproj",
+        "identifier": "A004ED8A2D11DC030081DDC0",
+        "name": "FamilyMenuPlannerUnitTests"
+      }
+    },
+    {
+      "parallelizable": false,
+      "target": {
+        "containerPath": "container:FamilyMenuPlanner.xcodeproj",
+        "identifier": "4841617D2DEF52D800A48C49",
+        "name": "FamilyMenuPlannerIntegrationTests"
+      }
+    },
+    {
+      "parallelizable": false,
+      "target": {
+        "containerPath": "container:FamilyMenuPlanner.xcodeproj",
+        "identifier": "484161BE2DEF698200A48C49",
+        "name": "FamilyMenuPlannerPerformanceTests"
+      }
+    },
+    {
+      "parallelizable": false,
+      "target": {
+        "containerPath": "container:FamilyMenuPlanner.xcodeproj",
+        "identifier": "A004ED942D11DC030081DDC0",
+        "name": "FamilyMenuPlannerUITests"
+      }
+    }
+  ],
+  "version": 1
+}
