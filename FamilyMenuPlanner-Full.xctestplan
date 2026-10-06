@@ -21,7 +21,8 @@
     },
     "testTimeoutsEnabled": true,
     "defaultTestExecutionTimeAllowance": 60,
-    "maximumTestExecutionTimeAllowance": 120
+    "maximumTestExecutionTimeAllowance": 120,
+    "region": "RU"
   },
   "testTargets": [
     {

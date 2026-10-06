@@ -1249,12 +1249,12 @@ final class DishManagementUITests: XCTestCase {
             }
         }
 
-        // 4) As a last resort, try pulling to reveal a potential search area at the top
-        let scrollView = app.scrollViews.firstMatch
-        if scrollView.exists {
-            // Pull down a couple of times to reveal a possible search field
+        // 4) As a last resort, pull the list down to reveal the search field hidden under the large title.
+        // Drag from the navigation bar: a swipe starting mid-list can land on a dish card and open it.
+        if navBar.exists {
             for _ in 0..<2 {
-                scrollView.swipeDown()
+                let start = navBar.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9))
+                start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: 250)))
                 if app.searchFields.firstMatch.exists {
                     return app.searchFields.firstMatch
                 }
