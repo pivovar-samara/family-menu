@@ -177,6 +177,7 @@ class MenuService {
     /// current code always carry `date`, so a `nil` date marks a legacy entry; stamping `date`
     /// during migration makes this idempotent per entry, including entries synced via CloudKit.
     /// For ISO regions such as ru_RU the week key is unchanged.
+    /// Runs from removeOldWeeks() and after CloudKit imports, before menus are deduplicated.
     func migrateLegacyWeekKeys(legacyCalendar: Calendar = .current) {
         let fetchRequest: NSFetchRequest<Menu> = Menu.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "date == nil")
@@ -240,10 +241,8 @@ class MenuService {
         let results = try context.fetch(fetchRequest)
         if let menuEntry = results.first {
             menuEntry.removeFromDishes(menuEntry.dishes ?? NSSet())
+            // Don't stamp `date` here: a legacy entry must stay eligible for migrateLegacyWeekKeys()
             menuEntry.dishes = NSSet(array: newDishes)
-            if menuEntry.date == nil {
-                menuEntry.date = dayDate(for: day, inWeekOf: selectedWeekDate)
-            }
         } else {
             let newMenuEntry = Menu(context: context)
             newMenuEntry.day = day

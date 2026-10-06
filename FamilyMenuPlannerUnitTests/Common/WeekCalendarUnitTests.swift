@@ -337,6 +337,54 @@ final class MenuServiceWeekUnitTests: XCTestCase {
         XCTAssertEqual(dinnerDishes(service.fetchMenu(for: 1), day: "Monday"), ["Next"])
     }
 
+    func testLegacyEntryEditedBeforeMigrationIsStillMigrated() throws {
+        let dinner = factory.createMealType(name: "Dinner", sortOrder: 1)
+        let old = factory.createDish(name: "Old", mealTypes: [dinner])
+        let edited = factory.createDish(name: "Edited", mealTypes: [dinner])
+        let enUS = RegionCalendar.enUS
+        let service = makeService(now: date(2027, 1, 5))
+        // Imported after the screen appeared: en_US key 202702 shows up in ISO week 202702 (next week).
+        insertLegacyEntry(day: "Monday", weekDate: date(2027, 1, 3, hour: 0), legacyCalendar: enUS, dish: old)
+        XCTAssertEqual(dinnerDishes(service.fetchMenu(for: 1), day: "Monday"), ["Old"])
+
+        try service.replaceDishes(for: "Monday", mealType: "Dinner", selectedWeekDate: date(2027, 1, 11, hour: 0), with: [edited])
+        service.migrateLegacyWeekKeys(legacyCalendar: enUS)
+
+        XCTAssertEqual(dinnerDishes(service.fetchMenu(for: 0), day: "Monday"), ["Edited"])
+        XCTAssertEqual(dinnerDishes(service.fetchMenu(for: 1), day: "Monday"), [])
+    }
+
+    func testDuplicateCleanupUsesLogicalSlotNotDayStamp() throws {
+        let dinner = factory.createMealType(name: "Dinner", sortOrder: 1)
+        let monday = factory.createDish(name: "Monday Dish", mealTypes: [dinner])
+        let tuesday = factory.createDish(name: "Tuesday Dish", mealTypes: [dinner])
+        let duplicate = factory.createDish(name: "Duplicate", mealTypes: [dinner])
+        let localTuesday = Calendar.current.startOfDay(for: date(2026, 10, 6))
+
+        func insert(day: String, date stamp: Date, dish: Dish) {
+            let menu = Menu(context: context)
+            menu.day = day
+            menu.mealType = "Dinner"
+            menu.mealTypeKey = "dinner"
+            menu.calendarWeek = 202641
+            menu.date = stamp
+            menu.addToDishes(dish)
+        }
+        // A Monday entry stamped by a device in another time zone can fall on the local Tuesday.
+        insert(day: "Tuesday", date: localTuesday, dish: tuesday)
+        insert(day: "Monday", date: localTuesday.addingTimeInterval(3600), dish: monday)
+        // Same logical slot with different stamps is a real duplicate.
+        insert(day: "Tuesday", date: localTuesday.addingTimeInterval(-3600), dish: duplicate)
+        try context.save()
+
+        PersistenceController.shared.cleanupDuplicateMenus(context: context)
+
+        let service = makeService(now: date(2026, 10, 6))
+        XCTAssertEqual(dinnerDishes(service.fetchMenu(for: 0), day: "Monday"), ["Monday Dish"])
+        XCTAssertEqual(dinnerDishes(service.fetchMenu(for: 0), day: "Tuesday"), ["Duplicate", "Tuesday Dish"])
+        XCTAssertEqual(try context.fetch(allMenus()).count, 2)
+    }
+
     func testRemoveOldWeeksKeepsCurrentWeek() {
         let dinner = factory.createMealType(name: "Dinner", sortOrder: 1)
         let dish = factory.createDish(name: "Stew", mealTypes: [dinner])

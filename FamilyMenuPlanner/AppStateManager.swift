@@ -173,7 +173,8 @@ final class AppStateManager: ObservableObject {
                             PersistenceController.shared.normalizeDishIngredientDetails(context: bg)
                             // Restore missing categories from preload data (in case keep had nil)
                             PersistenceController.shared.restoreDishCategoriesFromPreload(context: bg)
-                            // Normalize menu meal type strings and deduplicate menus
+                            // Re-encode legacy week keys of imported menus, then normalize and deduplicate menus
+                            MenuService(context: bg).migrateLegacyWeekKeys()
                             PersistenceController.shared.normalizeMenuMealTypeStrings(context: bg)
                             PersistenceController.shared.cleanupDuplicateMenus(context: bg)
                             DispatchQueue.main.async {
