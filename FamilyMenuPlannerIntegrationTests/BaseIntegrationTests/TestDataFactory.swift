@@ -102,14 +102,11 @@ class TestDataFactory {
     }
     
     func createMenu(weekStartDate: Date, dish: Dish, mealType: MealType) -> Menu {
-        let calendar = Calendar.current
-        let weekComponents = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: weekStartDate)
-        let encodedWeek = (weekComponents.yearForWeekOfYear ?? 0) * 100 + (weekComponents.weekOfYear ?? 0)
-        
         let menu = Menu(context: context)
         menu.day = "Monday" // Default day for testing
         menu.mealType = mealType.name // mealType property is a String, not MealType object
-        menu.calendarWeek = Int32(encodedWeek)
+        menu.calendarWeek = Int32(CalendarHelper.weekKey(for: weekStartDate))
+        menu.date = CalendarHelper.startOfWeek(for: weekStartDate)
         menu.addToDishes(dish)
         saveContext()
         return menu

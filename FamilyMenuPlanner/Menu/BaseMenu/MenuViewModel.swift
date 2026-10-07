@@ -46,22 +46,29 @@ class MenuViewModel: ObservableObject {
     static let selectedWeekIndexKey = "MenuSelectedWeekIndex"
 
     var weekOptions: [Date] {
-        let calendar = Calendar.current
-        let today = Date()
-        let startOfCurrentWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today))!
-        return (0...2).compactMap { calendar.date(byAdding: .weekOfYear, value: $0, to: startOfCurrentWeek) }
+        let today = now()
+        return (0...2).map { CalendarHelper.startOfWeek(offset: $0, from: today, calendar: calendar) }
     }
 
     var selectedWeekDate: Date {
         (selectedWeekIndex >= 0 && selectedWeekIndex < weekOptions.count)
             ? weekOptions[selectedWeekIndex]
-            : Date()
+            : now()
     }
 
     private let menuService: MenuServiceProtocol
+    private let calendarProvider: () -> Calendar
+    private let now: () -> Date
 
-    init(menuService: MenuServiceProtocol) {
+    private var calendar: Calendar {
+        calendarProvider()
+    }
+
+    /// `calendar` is resolved on each use so week math follows time zone changes while the view model is alive.
+    init(menuService: MenuServiceProtocol, calendar: @escaping () -> Calendar = { CalendarHelper.weekCalendar }, now: @escaping () -> Date = Date.init) {
         self.menuService = menuService
+        self.calendarProvider = calendar
+        self.now = now
         alertManager.$currentAlert
                     .receive(on: RunLoop.main)
                     .assign(to: &$currentAlert)
@@ -291,15 +298,13 @@ class MenuViewModel: ObservableObject {
     
     private func isDateInPast(day: String) -> Bool {
         guard let date = dateFor(day: day) else { return false }
-        let startOfToday = Calendar.current.startOfDay(for: Date())
+        let startOfToday = calendar.startOfDay(for: now())
         return date < startOfToday
     }
     
     private func dateFor(day: String) -> Date? {
         guard let dayIndex = weekdays.firstIndex(of: day) else { return nil }
-        let calendar = Calendar.current
-        let startOfWeek = CalendarHelper.startOfWeek(for: selectedWeekDate, calendar: calendar)
-        return calendar.date(byAdding: .day, value: dayIndex, to: startOfWeek)
+        return CalendarHelper.date(forDayIndex: dayIndex, inWeekOf: selectedWeekDate, calendar: calendar)
     }
 
     // MARK: - Dish Selection Analytics

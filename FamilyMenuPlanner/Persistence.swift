@@ -2681,18 +2681,12 @@ class PersistenceController {
             func norm(_ s: String?) -> String { (s ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
             var groups: [String: [Menu]] = [:]
             for menu in allMenus {
-                var key = ""
-                if let date = menu.date {
-                    // Normalize to start of day to avoid time component differences
-                    let start = Calendar.current.startOfDay(for: date)
-                    let mtKey = (menu.mealTypeKey?.isEmpty == false) ? menu.mealTypeKey! : norm(menu.mealType)
-                    key = "date:\(start.timeIntervalSince1970)|type:\(mtKey)"
-                } else {
-                    let week = menu.calendarWeek
-                    let day = norm(menu.day)
-                    let type = (menu.mealTypeKey?.isEmpty == false) ? menu.mealTypeKey! : norm(menu.mealType)
-                    key = "wk:\(week)|day:\(day)|type:\(type)"
-                }
+                // Group by the logical slot. `date` is not used: it is a local-midnight stamp whose
+                // calendar day differs between time zones of devices sharing the CloudKit store.
+                let week = menu.calendarWeek
+                let day = norm(menu.day)
+                let type = (menu.mealTypeKey?.isEmpty == false) ? menu.mealTypeKey! : norm(menu.mealType)
+                let key = "wk:\(week)|day:\(day)|type:\(type)"
                 groups[key, default: []].append(menu)
             }
             

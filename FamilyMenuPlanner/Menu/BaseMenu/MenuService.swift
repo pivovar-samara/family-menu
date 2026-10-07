@@ -19,17 +19,23 @@ extension MenuService: MenuServiceProtocol {}
 
 class MenuService {
     private let context: NSManagedObjectContext
+    private let calendarProvider: () -> Calendar
+    private let now: () -> Date
 
-    init(context: NSManagedObjectContext) {
+    /// `calendar` is resolved on each use so week math follows time zone changes while the service is alive.
+    init(context: NSManagedObjectContext, calendar: @escaping () -> Calendar = { CalendarHelper.weekCalendar }, now: @escaping () -> Date = Date.init) {
         self.context = context
+        self.calendarProvider = calendar
+        self.now = now
+    }
+
+    private var calendar: Calendar {
+        calendarProvider()
     }
 
     func fetchMenu(for weekIndex: Int) -> [DailyMenu] {
-        let calendar = Calendar.current
-        let startOfCurrentWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date()))!
-        guard let selectedWeekDate = calendar.date(byAdding: .weekOfYear, value: weekIndex, to: startOfCurrentWeek) else { return [] }
-        let selectedWeekComponents = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: selectedWeekDate)
-        let encodedWeek = encodeWeek(selectedWeekComponents)
+        let selectedWeekDate = CalendarHelper.startOfWeek(offset: weekIndex, from: now(), calendar: calendar)
+        let encodedWeek = encodeWeek(for: selectedWeekDate)
 
         do {
             let fetchRequest: NSFetchRequest<Menu> = Menu.fetchRequest()
@@ -120,8 +126,7 @@ class MenuService {
             
             let mealTypes = try context.fetch(mealTypesFetchRequest)
             
-            let weekComponents = Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: weekDate)
-            let encodedWeek = encodeWeek(weekComponents)
+            let encodedWeek = encodeWeek(for: weekDate)
 
             let fetchRequest: NSFetchRequest<Menu> = Menu.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "calendarWeek == %d", encodedWeek)
@@ -134,7 +139,7 @@ class MenuService {
                 context.delete(entry)
             }
 
-            for day in weekdays {
+            for (dayIndex, day) in weekdays.enumerated() {
                 for mealType in mealTypes {
                     let dishesForMealType = dishes.filter { dish in
                         guard let mealTypes = dish.mealTypes as? Set<MealType> else { return false }
@@ -146,6 +151,7 @@ class MenuService {
                     newMenuEntry.mealType = mealType.name
                     newMenuEntry.mealTypeKey = (mealType.key?.isEmpty == false) ? mealType.key : (mealType.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                     newMenuEntry.calendarWeek = Int32(encodedWeek)
+                    newMenuEntry.date = CalendarHelper.date(forDayIndex: dayIndex, inWeekOf: weekDate, calendar: calendar)
 
                     if let randomDish = dishesForMealType.randomElement() {
                         newMenuEntry.addToDishes(randomDish)
@@ -160,14 +166,58 @@ class MenuService {
         }
     }
 
-    private func encodeWeek(_ weekComponents: DateComponents) -> Int {
-        let year = weekComponents.yearForWeekOfYear ?? 0
-        let week = weekComponents.weekOfYear ?? 0
-        return year * 100 + week
+    private func encodeWeek(for weekDate: Date) -> Int {
+        CalendarHelper.weekKey(for: weekDate, calendar: calendar)
+    }
+
+    private func dayDate(for day: String, inWeekOf weekDate: Date) -> Date {
+        let dayIndex = CalendarHelper.localizedWeekdayNamesStartingFromMonday().firstIndex(of: day) ?? 0
+        return CalendarHelper.date(forDayIndex: dayIndex, inWeekOf: weekDate, calendar: calendar)
+    }
+
+    /// Re-encodes menu entries written before week calculations were unified.
+    ///
+    /// Older versions stored `calendarWeek` using `Calendar.current`, whose week rules depend on
+    /// the region (e.g. en_US: Sunday-first, week 1 contains Jan 1). Entries written by the
+    /// current code always carry `date`, so a `nil` date marks a legacy entry; stamping `date`
+    /// during migration makes this idempotent per entry, including entries synced via CloudKit.
+    /// For ISO regions such as ru_RU the week key is unchanged.
+    /// Runs from removeOldWeeks() and after CloudKit imports; merges slots that collide after re-encoding.
+    func migrateLegacyWeekKeys(legacyCalendar: Calendar = .current) {
+        let fetchRequest: NSFetchRequest<Menu> = Menu.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "date == nil")
+        CoreDataFetchHelper.configureForLargeDataset(fetchRequest)
+
+        do {
+            let legacyEntries = try context.fetch(fetchRequest)
+            guard !legacyEntries.isEmpty else { return }
+            var migrated = 0
+            for menu in legacyEntries {
+                guard let weekStart = CalendarHelper.weekStart(forLegacyWeekKey: Int(menu.calendarWeek), legacyCalendar: legacyCalendar) else {
+                    continue // Invalid key; removeOldWeeks() deletes it
+                }
+                let newKey = Int32(encodeWeek(for: weekStart))
+                if menu.calendarWeek != newKey {
+                    menu.calendarWeek = newKey
+                    migrated += 1
+                }
+                menu.date = dayDate(for: menu.day ?? "", inWeekOf: weekStart)
+            }
+            if context.hasChanges { try context.save() }
+            AppLogger.info("Stamped \(legacyEntries.count) legacy menu entries, re-encoded \(migrated) week keys", category: AppLogger.service)
+            if migrated > 0 {
+                // Re-encoded entries can land on a slot that already has a current entry
+                PersistenceController.shared.cleanupDuplicateMenus(context: context)
+            }
+        } catch {
+            AppLogger.error("Error migrating legacy menu week keys", error: error, category: AppLogger.service)
+            AnalyticsManager.shared.trackError(error, domain: "Menu", category: "Error migrating legacy menu week keys")
+        }
     }
     
     func removeOldWeeks() {
-        let currentWeek = Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date())
+        migrateLegacyWeekKeys()
+        let currentWeekKey = Int32(encodeWeek(for: now()))
         let fetchRequest: NSFetchRequest<Menu> = Menu.fetchRequest()
         
         // Configure batch fetching for bulk operations
@@ -176,7 +226,7 @@ class MenuService {
         do {
             let allMenuEntries = try context.fetch(fetchRequest)
             for menu in allMenuEntries {
-                if menu.calendarWeek < Int32(encodeWeek(currentWeek)) {
+                if menu.calendarWeek < currentWeekKey {
                     context.delete(menu)
                 }
             }
@@ -188,8 +238,7 @@ class MenuService {
     }
     
     func replaceDishes(for day: String, mealType: String, selectedWeekDate: Date, with newDishes: [Dish]) throws {
-        let selectedWeekComponents = Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: selectedWeekDate)
-        let encodedWeek = encodeWeek(selectedWeekComponents)
+        let encodedWeek = encodeWeek(for: selectedWeekDate)
         
         let fetchRequest: NSFetchRequest<Menu> = Menu.fetchRequest()
         let mtKey = mealType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -201,6 +250,7 @@ class MenuService {
         let results = try context.fetch(fetchRequest)
         if let menuEntry = results.first {
             menuEntry.removeFromDishes(menuEntry.dishes ?? NSSet())
+            // Don't stamp `date` here: a legacy entry must stay eligible for migrateLegacyWeekKeys()
             menuEntry.dishes = NSSet(array: newDishes)
         } else {
             let newMenuEntry = Menu(context: context)
@@ -208,14 +258,14 @@ class MenuService {
             newMenuEntry.mealType = mealType
             newMenuEntry.mealTypeKey = mtKey
             newMenuEntry.calendarWeek = Int32(encodedWeek)
+            newMenuEntry.date = dayDate(for: day, inWeekOf: selectedWeekDate)
             newMenuEntry.dishes = NSSet(array: newDishes)
         }
         try context.save()
     }
     
     func clearMealType(for day: String, selectedWeekDate: Date, mealType: String? = nil) throws {
-        let selectedWeekComponents = Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: selectedWeekDate)
-        let encodedWeek = encodeWeek(selectedWeekComponents)
+        let encodedWeek = encodeWeek(for: selectedWeekDate)
 
         let fetchRequest: NSFetchRequest<Menu> = Menu.fetchRequest()
         if let mealType = mealType {

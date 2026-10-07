@@ -18,8 +18,7 @@
       "containerPath": "container:FamilyMenuPlanner.xcodeproj",
       "identifier": "A004ED742D11DC000081DDC0",
       "name": "FamilyMenuPlanner"
-    },
-    "region": "RU"
+    }
   },
   "testTargets": [
     {
