@@ -176,7 +176,7 @@ final class MenuViewModelWeekUnitTests: XCTestCase {
     }
 
     private func makeViewModel(now: Date) -> MenuViewModel {
-        MenuViewModel(menuService: MockMenuService(), calendar: weekCalendar, now: { now })
+        MenuViewModel(menuService: MockMenuService(), calendar: { [weekCalendar] in weekCalendar }, now: { now })
     }
 
     func testWeekOptionsStartOnMondayOfCurrentWeekForEveryWeekday() {
@@ -247,7 +247,7 @@ final class MenuServiceWeekUnitTests: XCTestCase {
     }
 
     private func makeService(now: Date) -> MenuService {
-        MenuService(context: context, calendar: weekCalendar, now: { now })
+        MenuService(context: context, calendar: { [weekCalendar] in weekCalendar }, now: { now })
     }
 
     /// Inserts an entry the way older versions did: key from the region calendar, no `date`.
@@ -383,6 +383,51 @@ final class MenuServiceWeekUnitTests: XCTestCase {
         XCTAssertEqual(dinnerDishes(service.fetchMenu(for: 0), day: "Monday"), ["Monday Dish"])
         XCTAssertEqual(dinnerDishes(service.fetchMenu(for: 0), day: "Tuesday"), ["Duplicate", "Tuesday Dish"])
         XCTAssertEqual(try context.fetch(allMenus()).count, 2)
+    }
+
+    func testMigratedEntryMergesWithExistingSlotSoEditReplacesAllDishes() throws {
+        let dinner = factory.createMealType(name: "Dinner", sortOrder: 1)
+        let current = factory.createDish(name: "Current", mealTypes: [dinner])
+        let legacy = factory.createDish(name: "Legacy", mealTypes: [dinner])
+        let replacement = factory.createDish(name: "Replacement", mealTypes: [dinner])
+        let enUS = RegionCalendar.enUS
+        let service = makeService(now: date(2027, 1, 5))
+        let isoWeek = date(2027, 1, 4, hour: 0)
+
+        try service.replaceDishes(for: "Monday", mealType: "Dinner", selectedWeekDate: isoWeek, with: [current])
+        // en_US key 202702 re-encodes to 202701, the same slot as the entry above.
+        insertLegacyEntry(day: "Monday", weekDate: date(2027, 1, 3, hour: 0), legacyCalendar: enUS, dish: legacy)
+
+        service.migrateLegacyWeekKeys(legacyCalendar: enUS)
+        XCTAssertEqual(try context.fetch(allMenus()).count, 1)
+        XCTAssertEqual(dinnerDishes(service.fetchMenu(for: 0), day: "Monday"), ["Current", "Legacy"])
+
+        try service.replaceDishes(for: "Monday", mealType: "Dinner", selectedWeekDate: isoWeek, with: [replacement])
+        XCTAssertEqual(dinnerDishes(service.fetchMenu(for: 0), day: "Monday"), ["Replacement"])
+    }
+
+    func testRemoveOldWeeksFollowsTimeZoneChange() throws {
+        let newYork = TimeZone(identifier: "America/New_York")!
+        let newYorkCalendar = CalendarHelper.weekCalendar(timeZone: newYork)
+        // Sunday, Oct 11, 2026 20:00 in New York is already Monday, Oct 12 in Berlin.
+        let now = newYorkCalendar.date(from: DateComponents(year: 2026, month: 10, day: 11, hour: 20))!
+        let mondayNewYork = newYorkCalendar.date(from: DateComponents(year: 2026, month: 10, day: 5))!
+
+        let dinner = factory.createMealType(name: "Dinner", sortOrder: 1)
+        let dish = factory.createDish(name: "Stew", mealTypes: [dinner])
+
+        // Both are created in Berlin and stay alive while the device moves to New York.
+        var deviceTimeZone = RegionCalendar.timeZone
+        let calendar = { CalendarHelper.weekCalendar(timeZone: deviceTimeZone) }
+        let service = MenuService(context: context, calendar: calendar, now: { now })
+        let viewModel = MenuViewModel(menuService: MockMenuService(), calendar: calendar, now: { now })
+        try service.replaceDishes(for: "Sunday", mealType: "Dinner", selectedWeekDate: mondayNewYork, with: [dish])
+
+        deviceTimeZone = newYork
+        service.removeOldWeeks()
+
+        XCTAssertEqual((try context.fetch(allMenus())).map(\.calendarWeek), [202641])
+        XCTAssertEqual(viewModel.weekOptions.first, mondayNewYork)
     }
 
     func testRemoveOldWeeksKeepsCurrentWeek() {

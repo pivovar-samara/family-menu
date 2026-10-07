@@ -19,13 +19,18 @@ extension MenuService: MenuServiceProtocol {}
 
 class MenuService {
     private let context: NSManagedObjectContext
-    private let calendar: Calendar
+    private let calendarProvider: () -> Calendar
     private let now: () -> Date
 
-    init(context: NSManagedObjectContext, calendar: Calendar = CalendarHelper.weekCalendar, now: @escaping () -> Date = Date.init) {
+    /// `calendar` is resolved on each use so week math follows time zone changes while the service is alive.
+    init(context: NSManagedObjectContext, calendar: @escaping () -> Calendar = { CalendarHelper.weekCalendar }, now: @escaping () -> Date = Date.init) {
         self.context = context
-        self.calendar = calendar
+        self.calendarProvider = calendar
         self.now = now
+    }
+
+    private var calendar: Calendar {
+        calendarProvider()
     }
 
     func fetchMenu(for weekIndex: Int) -> [DailyMenu] {
@@ -177,7 +182,7 @@ class MenuService {
     /// current code always carry `date`, so a `nil` date marks a legacy entry; stamping `date`
     /// during migration makes this idempotent per entry, including entries synced via CloudKit.
     /// For ISO regions such as ru_RU the week key is unchanged.
-    /// Runs from removeOldWeeks() and after CloudKit imports, before menus are deduplicated.
+    /// Runs from removeOldWeeks() and after CloudKit imports; merges slots that collide after re-encoding.
     func migrateLegacyWeekKeys(legacyCalendar: Calendar = .current) {
         let fetchRequest: NSFetchRequest<Menu> = Menu.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "date == nil")
@@ -200,6 +205,10 @@ class MenuService {
             }
             if context.hasChanges { try context.save() }
             AppLogger.info("Stamped \(legacyEntries.count) legacy menu entries, re-encoded \(migrated) week keys", category: AppLogger.service)
+            if migrated > 0 {
+                // Re-encoded entries can land on a slot that already has a current entry
+                PersistenceController.shared.cleanupDuplicateMenus(context: context)
+            }
         } catch {
             AppLogger.error("Error migrating legacy menu week keys", error: error, category: AppLogger.service)
             AnalyticsManager.shared.trackError(error, domain: "Menu", category: "Error migrating legacy menu week keys")

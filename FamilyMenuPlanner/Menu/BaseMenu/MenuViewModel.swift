@@ -57,12 +57,17 @@ class MenuViewModel: ObservableObject {
     }
 
     private let menuService: MenuServiceProtocol
-    private let calendar: Calendar
+    private let calendarProvider: () -> Calendar
     private let now: () -> Date
 
-    init(menuService: MenuServiceProtocol, calendar: Calendar = CalendarHelper.weekCalendar, now: @escaping () -> Date = Date.init) {
+    private var calendar: Calendar {
+        calendarProvider()
+    }
+
+    /// `calendar` is resolved on each use so week math follows time zone changes while the view model is alive.
+    init(menuService: MenuServiceProtocol, calendar: @escaping () -> Calendar = { CalendarHelper.weekCalendar }, now: @escaping () -> Date = Date.init) {
         self.menuService = menuService
-        self.calendar = calendar
+        self.calendarProvider = calendar
         self.now = now
         alertManager.$currentAlert
                     .receive(on: RunLoop.main)
