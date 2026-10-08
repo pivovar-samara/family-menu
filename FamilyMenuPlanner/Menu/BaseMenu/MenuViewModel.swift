@@ -7,6 +7,8 @@
 
 import Foundation
 import SwiftUI
+import Combine
+import Observation
 
 struct DailyMenu: Hashable {
     let day: String
@@ -18,18 +20,18 @@ struct DailyMeal: Hashable {
     let dishes: [Dish]
 }
 
-class MenuViewModel: ObservableObject {
-    @Published var weeklyMenu: [DailyMenu] = []
-    @Published var isShowingShoppingList: Bool = false
-    @Published var showGenerateMenuAlert = false
-    @Published var dishes: [Dish] = []
-    @Published var editingDishes: [Dish] = []
-    @Published var selectedDay: String = ""
-    @Published var selectedMealType: String = ""
-    @Published var selectedWeekIndex: Int = 0
-    @Published var hasScrolledToToday: Bool = false
-    @Published var currentAlert: AlertItem?
-    @Published var showPastEditWarning: Bool = false
+@Observable
+class MenuViewModel {
+    var weeklyMenu: [DailyMenu] = []
+    var isShowingShoppingList: Bool = false
+    var dishes: [Dish] = []
+    var editingDishes: [Dish] = []
+    var selectedDay: String = ""
+    var selectedMealType: String = ""
+    var selectedWeekIndex: Int = 0
+    var hasScrolledToToday: Bool = false
+    var currentAlert: AlertItem?
+    var showPastEditWarning: Bool = false
     
     private var pendingDay: String = ""
     private var pendingMealType: String = ""
@@ -40,7 +42,8 @@ class MenuViewModel: ObservableObject {
     
     let weekdays: [String] = CalendarHelper.localizedWeekdayNamesStartingFromMonday()
     
-    private let alertManager = AlertQueueManager()
+    @ObservationIgnored private let alertManager = AlertQueueManager()
+    @ObservationIgnored private var alertCancellable: AnyCancellable?
     
     // UserDefaults key for storing selected week index
     static let selectedWeekIndexKey = "MenuSelectedWeekIndex"
@@ -69,9 +72,11 @@ class MenuViewModel: ObservableObject {
         self.menuService = menuService
         self.calendarProvider = calendar
         self.now = now
-        alertManager.$currentAlert
-                    .receive(on: RunLoop.main)
-                    .assign(to: &$currentAlert)
+        alertCancellable = alertManager.$currentAlert
+            .receive(on: RunLoop.main)
+            .sink { [weak self] alert in
+                self?.currentAlert = alert
+            }
         
         // Load persistent selected week index after all stored properties are initialized
         loadSelectedWeekIndex()

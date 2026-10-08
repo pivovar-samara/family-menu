@@ -9,10 +9,11 @@ import SwiftUI
 import Foundation
 
 struct MenuView: View {
-    @StateObject private var viewModel: MenuViewModel
+    @State private var viewModel: MenuViewModel
+    @State private var isShowingGenerateMenuAlert = false
 
     init(viewModel: MenuViewModel) {
-        _viewModel = StateObject(wrappedValue: viewModel)
+        _viewModel = State(initialValue: viewModel)
     }
 
     var body: some View {
@@ -31,9 +32,9 @@ struct MenuView: View {
             viewModel.removeOldWeeks()
             viewModel.loadMenu(for: viewModel.selectedWeekIndex)
         }
-        .menuToolbar(viewModel: viewModel)
+        .menuToolbar(viewModel: viewModel, isShowingGenerateMenuAlert: $isShowingGenerateMenuAlert)
         .menuSheets(viewModel: viewModel)
-        .menuAlerts(viewModel: viewModel)
+        .menuAlerts(viewModel: viewModel, isShowingGenerateMenuAlert: $isShowingGenerateMenuAlert)
     }
     
     private var weekSegmentControl: some View {
@@ -171,7 +172,8 @@ struct MenuView: View {
 }
 
 struct MenuToolbarModifier: ViewModifier {
-    @ObservedObject var viewModel: MenuViewModel
+    let viewModel: MenuViewModel
+    @Binding var isShowingGenerateMenuAlert: Bool
 
     func body(content: Content) -> some View {
         content.toolbar {
@@ -182,7 +184,7 @@ struct MenuToolbarModifier: ViewModifier {
             }
             ToolbarItem(placement: .navigationBarLeading) {
                 ViewHelper.createToolbarButton(title: "Generate Menu".localized(), systemImage: "wand.and.stars") {
-                    viewModel.showGenerateMenuAlert = true
+                    isShowingGenerateMenuAlert = true
                     AnalyticsManager.shared.track(name: AnalyticsEventName.menu_generation_dialog_shown, properties: [AnalyticsPropertyKey.week_index: viewModel.selectedWeekIndex])
                 }
             }
@@ -191,13 +193,13 @@ struct MenuToolbarModifier: ViewModifier {
 }
 
 extension View {
-    func menuToolbar(viewModel: MenuViewModel) -> some View {
-        self.modifier(MenuToolbarModifier(viewModel: viewModel))
+    func menuToolbar(viewModel: MenuViewModel, isShowingGenerateMenuAlert: Binding<Bool>) -> some View {
+        self.modifier(MenuToolbarModifier(viewModel: viewModel, isShowingGenerateMenuAlert: isShowingGenerateMenuAlert))
     }
 }
 
 struct MenuSheetsModifier: ViewModifier {
-    @ObservedObject var viewModel: MenuViewModel
+    @Bindable var viewModel: MenuViewModel
 
     func body(content: Content) -> some View {
         content
@@ -248,7 +250,8 @@ extension View {
 }
 
 struct MenuAlertsModifier: ViewModifier {
-    @ObservedObject var viewModel: MenuViewModel
+    @Bindable var viewModel: MenuViewModel
+    @Binding var isShowingGenerateMenuAlert: Bool
 
     private var currentAlertBinding: Binding<AlertItem?> {
         Binding<AlertItem?>(
@@ -283,9 +286,8 @@ struct MenuAlertsModifier: ViewModifier {
                         AnalyticsManager.shared.track(name: AnalyticsEventName.menu_past_edit_warning_shown, properties: [AnalyticsPropertyKey.week_index: viewModel.selectedWeekIndex, AnalyticsPropertyKey.day_index: viewModel.weekdays.firstIndex(of: viewModel.selectedDay) ?? -1])
                     }
             }
-            .alert("Generate New Menu".localized(), isPresented: $viewModel.showGenerateMenuAlert) {
+            .alert("Generate New Menu".localized(), isPresented: $isShowingGenerateMenuAlert) {
                 Button("Cancel".localized(), role: .cancel) {
-                    viewModel.showGenerateMenuAlert = false
                     AnalyticsManager.shared.track(name: AnalyticsEventName.menu_generation_dialog_cancelled, properties: [AnalyticsPropertyKey.week_index: viewModel.selectedWeekIndex])
                 }
                 Button("Generate".localized(), role: .destructive) {
@@ -299,8 +301,8 @@ struct MenuAlertsModifier: ViewModifier {
 }
 
 extension View {
-    func menuAlerts(viewModel: MenuViewModel) -> some View {
-        self.modifier(MenuAlertsModifier(viewModel: viewModel))
+    func menuAlerts(viewModel: MenuViewModel, isShowingGenerateMenuAlert: Binding<Bool>) -> some View {
+        self.modifier(MenuAlertsModifier(viewModel: viewModel, isShowingGenerateMenuAlert: isShowingGenerateMenuAlert))
     }
 }
 
