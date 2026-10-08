@@ -6,9 +6,9 @@ Thank you for your interest in contributing! This guide will help you get starte
 
 ### Prerequisites
 
-- macOS with Xcode 16.3+
-- iOS 17.0+ Simulator (iPhone 17 recommended)
-- Swift 5.9+
+- macOS with Xcode 27.0+
+- iPhone 18 Pro simulator with iOS 27.0 (all tests must be run on it)
+- The app targets iOS 17.1+ and uses the Swift 5 language mode
 
 ### Setup
 
@@ -36,7 +36,7 @@ Thank you for your interest in contributing! This guide will help you get starte
 2. Follow the existing MVVM + Coordinators architecture
 3. Localize all user-facing strings using `.localized()`
 4. Add unit and integration tests for new logic
-5. Ensure all existing tests pass before submitting
+5. Ensure all existing tests pass on the iPhone 18 Pro / iOS 27.0 simulator before submitting
 6. Open a Pull Request with a clear description of your changes
 
 ## Code Style
@@ -54,7 +54,7 @@ Thank you for your interest in contributing! This guide will help you get starte
 xcodebuild test \
   -scheme FamilyMenuPlanner \
   -project FamilyMenuPlanner.xcodeproj \
-  -destination "platform=iOS Simulator,name=iPhone 17" \
+  -destination "platform=iOS Simulator,name=iPhone 18 Pro,OS=27.0" \
   -testPlan FamilyMenuPlanner-Full \
   -parallel-testing-enabled NO \
   CODE_SIGNING_ALLOWED=NO

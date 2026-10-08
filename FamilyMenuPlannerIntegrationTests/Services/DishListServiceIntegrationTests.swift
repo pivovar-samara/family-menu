@@ -180,7 +180,7 @@ class DishListServiceIntegrationTests: BaseIntegrationTest {
         
         // Create service in limited scope with faster debounce for testing
         var service: DishListService? = DishListService(context: context, debounceInterval: 0.01)
-        weak var weakService = service
+        weak let weakService = service
         
         // Trigger timer creation
         _ = createDish(name: "Timer Test Dish", category: category)

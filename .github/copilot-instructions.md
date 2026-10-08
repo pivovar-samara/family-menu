@@ -6,7 +6,7 @@
 
 **Scale**: ~102 Swift files (52 main app + 50 test files), 3.9MB total size, mature codebase with comprehensive testing infrastructure.
 
-**Languages & Technologies**: Swift 5.9+, SwiftUI, Core Data with CloudKit, iOS 17.0+ target, localized (English/Russian).
+**Languages & Technologies**: Swift (Swift 5 language mode), SwiftUI, Core Data with CloudKit, iOS 17.1+ target, localized (English/Russian).
 
 **Architecture**: MVVM with Coordinators pattern, background operations for performance, card-based modern UI design.
 
@@ -14,9 +14,8 @@
 
 ### Prerequisites
 - **macOS Environment** (Xcode is macOS-only)
-- **Xcode 16.3+** (Required, earlier versions fail)
-- **iOS 17.0+ Simulator** (iPhone 17 recommended for CI compatibility)
-- **Swift 5.9+**
+- **Xcode 27.0+** (Required for the iOS 27.0 simulator)
+- **iPhone 18 Pro simulator, iOS 27.0** (Required: all tests are run on it)
 
 **Note**: This is an iOS project that requires Xcode and macOS for building and testing. Linux/Windows environments cannot build or run the project.
 
@@ -31,7 +30,7 @@ The app automatically detects test/CI environments and disables CloudKit accordi
 
 **Clean Build**:
 ```bash
-xcodebuild -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 17" clean build
+xcodebuild -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 18 Pro,OS=27.0" clean build
 ```
 
 **Run Tests** (ALL test suites - takes 3-5 minutes):
@@ -39,7 +38,7 @@ xcodebuild -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=i
 xcodebuild test \
   -scheme FamilyMenuPlanner \
   -project FamilyMenuPlanner.xcodeproj \
-  -destination "platform=iOS Simulator,name=iPhone 17" \
+  -destination "platform=iOS Simulator,name=iPhone 18 Pro,OS=27.0" \
   -testPlan FamilyMenuPlanner-Full \
   -parallel-testing-enabled NO \
   -maximum-concurrent-test-simulator-destinations 1 \
@@ -47,12 +46,12 @@ xcodebuild test \
 ```
 
 **Individual Test Suites**:
-- Unit Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 17" -only-testing:FamilyMenuPlannerUnitTests`
-- Integration Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 17" -only-testing:FamilyMenuPlannerIntegrationTests`
-- Performance Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 17" -testPlan FamilyMenuPlanner-Full -only-testing:FamilyMenuPlannerPerformanceTests`
-- UI Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 17" -testPlan FamilyMenuPlanner-Full -only-testing:FamilyMenuPlannerUITests`
+- Unit Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 18 Pro,OS=27.0" -only-testing:FamilyMenuPlannerUnitTests`
+- Integration Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 18 Pro,OS=27.0" -only-testing:FamilyMenuPlannerIntegrationTests`
+- Performance Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 18 Pro,OS=27.0" -testPlan FamilyMenuPlanner-Full -only-testing:FamilyMenuPlannerPerformanceTests`
+- UI Tests: `xcodebuild test -scheme FamilyMenuPlanner -destination "platform=iOS Simulator,name=iPhone 18 Pro,OS=27.0" -testPlan FamilyMenuPlanner-Full -only-testing:FamilyMenuPlannerUITests`
 
-**Important**: Always use iPhone 17 simulator for consistency with CI. UI tests require persistent storage (not in-memory).
+**Important**: Always run tests on the iPhone 18 Pro simulator with iOS 27.0. UI tests require persistent storage (not in-memory).
 
 ## Project Layout & Architecture
 
@@ -159,7 +158,7 @@ Workflows are configured in Xcode / App Store Connect; the repo holds `ci_script
 4. **UI Tests** (`FamilyMenuPlannerUITests/`): End-to-end user workflows
 
 ### Test Data Factory
-**File**: `FamilyMenuPlannerUnitTests/Common/TestDataFactory.swift`
+**File**: `FamilyMenuPlannerIntegrationTests/BaseIntegrationTests/TestDataFactory.swift`
 **Purpose**: Centralized creation of test entities for all test types
 **Usage**: Always use TestDataFactory for consistent test data
 
@@ -204,7 +203,7 @@ Workflows are configured in Xcode / App Store Connect; the repo holds `ci_script
 - **Static Data**: Use `StaticDataCacheManager` for reference data
 
 ### Build Failures
-- **Simulator Issues**: Restart simulator, ensure iPhone 17 available
+- **Simulator Issues**: Restart simulator, ensure the iPhone 18 Pro (iOS 27.0) simulator is installed
 - **CloudKit Errors**: Verify CI environment detection is working
 - **Test Timeouts**: Check for infinite loops in Core Data operations
 - **Code Signing**: Use `CODE_SIGNING_ALLOWED=NO` for local command-line test builds

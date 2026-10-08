@@ -70,7 +70,7 @@ An iOS application for families to plan their weekly menu, built with SwiftUI us
 - **UI Tests**: Automated UI flows for product, dish, menu, and shopping list management (see `FamilyMenuPlannerUITests`)
 - **Test Data Factory**: Centralized creation of test data for all test types
 - **CI Support**: Tests run in CI with in-memory or persistent stores as appropriate
-- **Platform**: All tests run on iOS Simulator, iPhone 16 Pro, OS 18.5
+- **Platform**: Run all tests on the **iPhone 18 Pro simulator, iOS 27.0**
 
 ## Development Guidelines
 
@@ -85,9 +85,9 @@ An iOS application for families to plan their weekly menu, built with SwiftUI us
 
 ## Requirements
 
-- iOS 16.0+
-- Xcode 16.3+
-- Swift 5.9+
+- iOS 17.1+ (deployment target)
+- Xcode 27.0+ (required for the iOS 27.0 simulator used for testing)
+- Swift 5 language mode (built with the Swift 6 toolchain bundled with Xcode)
 
 ## Building and Running
 
@@ -99,11 +99,20 @@ An iOS application for families to plan their weekly menu, built with SwiftUI us
 
 ## Testing
 
-Run tests in Xcode:
-- **Unit Tests**: `Cmd+U` to run all tests
-- **Integration Tests**: Run `FamilyMenuPlannerIntegrationTests` scheme
-- **Performance Tests**: Run `FamilyMenuPlannerPerformanceTests` scheme
-- **UI Tests**: Run `FamilyMenuPlannerUITests` scheme
+Run tests on the **iPhone 18 Pro simulator with iOS 27.0**.
+
+The project has a single `FamilyMenuPlanner` scheme with two test plans:
+- **`FamilyMenuPlanner-PR`** (default): Unit + Integration tests. This is what `Cmd+U` runs and what CI runs on pull requests.
+- **`FamilyMenuPlanner-Full`**: Unit, Integration, Performance and UI tests. Select it in Xcode via *Product → Test Plan*, or from the command line:
+
+```bash
+xcodebuild test -project FamilyMenuPlanner.xcodeproj -scheme FamilyMenuPlanner \
+  -testPlan FamilyMenuPlanner-Full \
+  -destination "platform=iOS Simulator,name=iPhone 18 Pro,OS=27.0" \
+  CODE_SIGNING_ALLOWED=NO
+```
+
+To run a single suite, add `-only-testing:<TargetName>` (for example `-only-testing:FamilyMenuPlannerUITests`). Performance and UI test targets are only part of the Full plan, so use `-testPlan FamilyMenuPlanner-Full` for them.
 
 All tests are designed to run efficiently with proper context management and realistic performance characteristics.
 
