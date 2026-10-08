@@ -38,3 +38,25 @@ final class CloudKitSeedingGatePureTests: XCTestCase {
     }
 }
 
+
+final class CloudKitSeedingLeaseTests: XCTestCase {
+    private let now = Date(timeIntervalSince1970: 1_000_000)
+
+    func testLeaseWithoutTimestampIsStale() {
+        XCTAssertTrue(CloudKitSeedingGate.isLeaseStale(leaseDate: nil, now: now))
+    }
+
+    func testFreshLeaseIsNotStale() {
+        XCTAssertFalse(CloudKitSeedingGate.isLeaseStale(leaseDate: now.addingTimeInterval(-60), now: now))
+    }
+
+    func testLeaseOlderThanIntervalIsStale() {
+        let leaseDate = now.addingTimeInterval(-(CloudKitSeedingGate.staleLeaseInterval + 1))
+        XCTAssertTrue(CloudKitSeedingGate.isLeaseStale(leaseDate: leaseDate, now: now))
+    }
+
+    func testGateUsesEntitledContainerNotBundleDefault() {
+        XCTAssertEqual(CloudKitSeedingGate.containerIdentifier, "iCloud.container.menu")
+        XCTAssertEqual(LiveCloudKitSeedingService().containerIdentifier, "iCloud.container.menu")
+    }
+}

@@ -27,28 +27,58 @@ final class AppStateManager: ObservableObject {
     /// to proceed with local initial data generation to avoid an infinite wait loop.
     private var hasCloudKitSeedingLease: Bool = false
 
-    private init() {
-        // Early CI detection to prevent potential startup issues
-        let isCI = ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] != nil ||
-                   ProcessInfo.processInfo.environment["CI"] != nil ||
-                   ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
-        
-        if isCI {
+    private let seedingService: CloudKitSeedingService
+    private let dataStore: StartupDataStore
+    private let seedingGateMaxWait: TimeInterval
+    /// Pause between gate rounds that ended without a decision, so a quick "keep waiting" does not spin
+    private let seedingGateRetryDelay: TimeInterval
+    private var startupTask: Task<Void, Never>?
+    private var seedingGateTask: Task<Void, Never>?
+
+    private convenience init() {
+        self.init(
+            seedingService: LiveCloudKitSeedingService(),
+            dataStore: PersistenceStartupDataStore(),
+            startupMode: .detect()
+        )
+    }
+
+    init(seedingService: CloudKitSeedingService,
+         dataStore: StartupDataStore,
+         startupMode: StartupMode,
+         seedingGateMaxWait: TimeInterval = CloudKitSeedingGate.defaultMaxWait,
+         seedingGateRetryDelay: TimeInterval = 15) {
+        self.seedingService = seedingService
+        self.dataStore = dataStore
+        self.seedingGateMaxWait = seedingGateMaxWait
+        self.seedingGateRetryDelay = seedingGateRetryDelay
+
+        switch startupMode {
+        case .skipped:
             print("ℹ️ AppStateManager: Running in CI environment")
             // Set safe defaults for CI
             self.isLoading = false
             self.isICloudAvailable = false
-            return
+        case .localOnly:
+            AppLogger.info("AppStateManager initializing...", category: AppLogger.appState)
+            AppLogger.debug("Running in test/CI environment - skipping iCloud account status check", category: AppLogger.appState)
+            self.isICloudAvailable = false
+            checkPersistenceState()
+            AppLogger.info("AppStateManager initialized successfully", category: AppLogger.appState)
+        case .cloudKitAware:
+            AppLogger.info("AppStateManager initializing...", category: AppLogger.appState)
+            // The seeding decision depends on iCloud availability, so resolve the account status first
+            // and keep the loading screen up meanwhile.
+            startupTask = Task { [weak self] in
+                await self?.resolveICloudAccountStatus()
+                self?.checkPersistenceState()
+            }
         }
-        
-        AppLogger.info("AppStateManager initializing...", category: AppLogger.appState)
-        
-        checkPersistenceState()
-        checkICloudAccountStatus()
-        AppLogger.info("AppStateManager initialized successfully", category: AppLogger.appState)
     }
     
     deinit {
+        startupTask?.cancel()
+        seedingGateTask?.cancel()
         if let token = cloudKitEventObserver {
             NotificationCenter.default.removeObserver(token)
             cloudKitEventObserver = nil
@@ -57,11 +87,9 @@ final class AppStateManager: ObservableObject {
     }
     
     private func checkPersistenceState() {
-        let persistence = PersistenceController.shared
-        
-        if !persistence.isReady {
+        if !dataStore.isReady {
             // Handle persistence errors
-            self.persistenceError = persistence.userFriendlyErrorMessage
+            self.persistenceError = dataStore.userFriendlyErrorMessage
             self.showPersistenceErrorAlert = true
             self.isLoading = false
             return
@@ -76,10 +104,8 @@ final class AppStateManager: ObservableObject {
         self.showPersistenceErrorAlert = false
         self.isLoading = true
         
-        let persistence = PersistenceController.shared
-        
         // Use the new asynchronous recovery method to avoid blocking the UI
-        persistence.attemptRecovery { [weak self] success in
+        dataStore.attemptRecovery { [weak self] success in
             DispatchQueue.main.async {
                 if success {
                     self?.checkDatabaseState()
@@ -92,55 +118,36 @@ final class AppStateManager: ObservableObject {
         }
     }
 
-    private func checkICloudAccountStatus() {
-        // Check if running in test or CI environment
-        let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ||
-                            ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] != nil ||
-                            ProcessInfo.processInfo.environment["CI"] != nil ||
-                            ProcessInfo.processInfo.arguments.contains("-UITests") ||
-                            ProcessInfo.processInfo.arguments.contains("-DisableCloudKit") ||
-                            NSClassFromString("XCTestCase") != nil
-        
-        // Skip CloudKit checks in test/CI environments
-        if isRunningTests {
-            AppLogger.debug("Running in test/CI environment - skipping iCloud account status check", category: AppLogger.appState)
-            DispatchQueue.main.async {
-                self.isICloudAvailable = false
-            }
-            return
-        }
-        
-        // Only check CloudKit status in production environment with additional safety
-        CKContainer.default().accountStatus { [weak self] status, error in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                
-                if let error = error {
-                    AppLogger.error("iCloud account check failed", error: error, category: AppLogger.cloudKit)
-                    AnalyticsManager.shared.trackError(error, domain: "iCloud", category: "iCloud account check failed")
-                    AnalyticsManager.shared.setUserProperties([AnalyticsUserPropertyName.icloud_available: false])
-                    self.isICloudAvailable = false
-                } else {
-                    self.isICloudAvailable = (status == .available)
-                    if self.isICloudAvailable {
-                        // Observe CloudKit events via classic observer to avoid non-sendable Notification in Swift 6
-                        self.cloudKitEventObserver = NotificationCenter.default.addObserver(
-                            forName: NSPersistentCloudKitContainer.eventChangedNotification,
-                            object: nil,
-                            queue: .main
-                        ) { [weak self] notification in
-                            Task { @MainActor [weak self] in
-                                self?.handleCloudKitEvent(notification)
-                            }
-                        }
-                        AppLogger.info("iCloud is available - CloudKit sync enabled", category: AppLogger.cloudKit)
-                        AnalyticsManager.shared.setUserProperties([AnalyticsUserPropertyName.icloud_available: true])
-                    } else {
-                        AppLogger.info("iCloud is not available - running in local mode", category: AppLogger.cloudKit)
-                        AnalyticsManager.shared.setUserProperties([AnalyticsUserPropertyName.icloud_available: false])
+    private func resolveICloudAccountStatus() async {
+        do {
+            let status = try await seedingService.accountStatus()
+            self.isICloudAvailable = (status == .available)
+            if self.isICloudAvailable {
+                // Observe CloudKit events via classic observer to avoid non-sendable Notification in Swift 6
+                self.cloudKitEventObserver = NotificationCenter.default.addObserver(
+                    forName: NSPersistentCloudKitContainer.eventChangedNotification,
+                    object: nil,
+                    queue: .main
+                ) { [weak self] notification in
+                    Task { @MainActor [weak self] in
+                        self?.handleCloudKitEvent(notification)
                     }
                 }
+                AppLogger.info("iCloud is available - CloudKit sync enabled", category: AppLogger.cloudKit)
+                AnalyticsManager.shared.setUserProperties([AnalyticsUserPropertyName.icloud_available: true])
+                if let mirrorContainer = dataStore.cloudKitContainerIdentifier,
+                   mirrorContainer != seedingService.containerIdentifier {
+                    AppLogger.error("Core Data mirrors to \(mirrorContainer) but seeding gate uses \(seedingService.containerIdentifier)", category: AppLogger.cloudKit)
+                }
+            } else {
+                AppLogger.info("iCloud is not available (account status \(status.rawValue)) - running in local mode", category: AppLogger.cloudKit)
+                AnalyticsManager.shared.setUserProperties([AnalyticsUserPropertyName.icloud_available: false])
             }
+        } catch {
+            AppLogger.error("iCloud account check failed", error: error, category: AppLogger.cloudKit)
+            AnalyticsManager.shared.trackError(error, domain: "iCloud", category: "iCloud account check failed")
+            AnalyticsManager.shared.setUserProperties([AnalyticsUserPropertyName.icloud_available: false])
+            self.isICloudAvailable = false
         }
     }
 
@@ -192,87 +199,55 @@ final class AppStateManager: ObservableObject {
     }
 
     private func checkDatabaseState() {
-        let persistence = PersistenceController.shared
-        
         // Double-check that persistence is ready before proceeding
-        guard persistence.isReady else {
-            self.persistenceError = persistence.userFriendlyErrorMessage
+        guard dataStore.isReady else {
+            self.persistenceError = dataStore.userFriendlyErrorMessage
             self.showPersistenceErrorAlert = true
             self.isLoading = false
             return
         }
         
-        let context = persistence.container.viewContext
-        
         // If CloudKit is available and the local store is empty, gate seeding conservatively,
         // unless a seeding lease has been acquired which explicitly allows local seeding.
         if AppSeedingGating.shouldGateSeeding(
             isICloudAvailable: isICloudAvailable,
-            isCloudKitContainer: persistence.container is NSPersistentCloudKitContainer,
-            isDatabaseEmpty: persistence.isDatabaseEmpty(context: context),
+            isCloudKitContainer: dataStore.cloudKitContainerIdentifier != nil,
+            isDatabaseEmpty: dataStore.isDatabaseEmpty(),
             hasSeedingLease: hasCloudKitSeedingLease
         ) {
-            AppLogger.info("CloudKit active and local store empty – gating seeding on import or remote emptiness", category: AppLogger.cloudKit)
-            Task { [weak self] in
-                guard let self = self else { return }
-                // If account was already seeded for this preload version, we do not seed locally
-                let alreadySeeded = await CloudKitSeedingGate.isAccountSeeded(version: PersistenceController.shared.getCurrentPreloadDataVersion())
-                let outcome: CloudKitSeedingGate.GateOutcome = alreadySeeded ? .importCompleted : await CloudKitSeedingGate.waitForImportOrRemoteEmpty(maxWait: 180)
-                // The task inherits @MainActor isolation, so state can be updated directly after awaits
-                switch outcome {
-                case .importCompleted:
-                    AppLogger.info("CloudKit import completed – proceeding", category: AppLogger.cloudKit)
-                    self.checkDatabaseState()
-                case .remoteAppearsEmpty:
-                    // Acquire a seeding lease to prevent multiple devices seeding simultaneously
-                    let acquired = await CloudKitSeedingGate.tryAcquireSeedingLease()
-                    if acquired {
-                        AppLogger.info("Seeding lease acquired – allowing local seed", category: AppLogger.cloudKit)
-                        self.hasCloudKitSeedingLease = true
-                        self.checkDatabaseState()
-                    } else {
-                        AppLogger.info("Seeding lease not acquired – waiting for remote import", category: AppLogger.cloudKit)
-                        // Re-arm gating and continue waiting rather than risking duplicates
-                        _ = await CloudKitSeedingGate.waitForImportOrRemoteEmpty(maxWait: 180)
-                        self.checkDatabaseState()
-                    }
-                case .timedOut:
-                    AppLogger.info("CloudKit gating timed out – continue waiting without seeding", category: AppLogger.cloudKit)
-                    self.isLoading = true
-                    _ = await CloudKitSeedingGate.waitForImportOrRemoteEmpty(maxWait: 180)
-                    self.checkDatabaseState()
-                }
-            }
+            startSeedingGate()
             return
         }
+        // Data arrived by another path (e.g. the import observer) while the gate was still waiting
+        cancelSeedingGate()
         
-        let needsDataPopulation = persistence.isDatabaseEmptyOrOutdated(context: context)
+        let needsDataPopulation = dataStore.needsDataPopulation()
         
         // Avoid global cleanup that may over-delete; reconciliation runs after import
         
-        // One-time migration: Restore user data that was incorrectly marked as drafts
-        restoreUserDataFromDrafts(context: context)
-        
-        // Clean up any abandoned draft entities from incomplete creation flows
-        cleanupAbandonedDrafts(context: context)
+        // One-time draft migration and cleanup of abandoned drafts
+        dataStore.performStartupMaintenance()
         
         if needsDataPopulation {
             // Use background context for initial data generation to avoid blocking UI
             let cloudImportSnapshot = self.isCloudKitSyncing
-            persistence.generateInitialDataInBackground(isCloudImportInProgress: cloudImportSnapshot) { [weak self] success in
+            dataStore.generateInitialData(isCloudImportInProgress: cloudImportSnapshot) { [weak self] success in
                 DispatchQueue.main.async {
                     guard let self = self else { return }
                     
                     if success {
-                        // When seeded successfully in CloudKit environment, mark account seeded
-                        if self.isICloudAvailable, persistence.container is NSPersistentCloudKitContainer {
-                            Task { await CloudKitSeedingGate.markAccountSeeded(version: PersistenceController.shared.getCurrentPreloadDataVersion()) }
+                        // When seeded successfully in CloudKit environment, mark account seeded.
+                        // Generation can be skipped (e.g. import in progress) and still report success, so check the store.
+                        if self.isICloudAvailable, self.dataStore.cloudKitContainerIdentifier != nil, !self.dataStore.isDatabaseEmpty() {
+                            let service = self.seedingService
+                            let version = self.dataStore.preloadDataVersion
+                            Task { await service.markAccountSeeded(version: version) }
                         }
                         // Initialize static data cache after database is ready
                         // This will preload all static data to ensure immediate availability
-                        StaticDataCacheManager.shared.initialize(with: context)
-                    // Reset the lease flag now that seeding has completed
-                    self.hasCloudKitSeedingLease = false
+                        self.dataStore.didFinishLoading()
+                        // Reset the lease flag now that seeding has completed
+                        self.hasCloudKitSeedingLease = false
                         self.isLoading = false
                     } else {
                         self.persistenceError = "Failed to initialize app data. Please restart the app.".localized()
@@ -284,14 +259,58 @@ final class AppStateManager: ObservableObject {
         } else {
             // Initialize static data cache after database is ready
             // This will preload all static data to ensure immediate availability
-            StaticDataCacheManager.shared.initialize(with: context)
+            dataStore.didFinishLoading()
             isLoading = false
         }
     }
+
+    /// Waits (keeping the loading screen) until CloudKit data arrives or this device may seed locally.
+    private func startSeedingGate() {
+        guard seedingGateTask == nil else { return }
+        AppLogger.info("CloudKit active and local store empty – gating seeding on import or remote emptiness", category: AppLogger.cloudKit)
+        isLoading = true
+        let service = seedingService
+        let version = dataStore.preloadDataVersion
+        let maxWait = seedingGateMaxWait
+        let retryDelay = seedingGateRetryDelay
+        seedingGateTask = Task { [weak self] in
+            while !Task.isCancelled {
+                let decision = await AppSeedingGating.runGateRound(service: service, version: version, maxWait: maxWait)
+                guard !Task.isCancelled, let self else { return }
+                switch decision {
+                case .recheckDatabase:
+                    self.seedingGateTask = nil
+                    self.checkDatabaseState()
+                    return
+                case .seedLocally:
+                    self.hasCloudKitSeedingLease = true
+                    self.seedingGateTask = nil
+                    self.checkDatabaseState()
+                    return
+                case .keepWaiting:
+                    self.isLoading = true
+                }
+                try? await Task.sleep(nanoseconds: UInt64(retryDelay * 1_000_000_000))
+            }
+        }
+    }
+
+    private func cancelSeedingGate() {
+        seedingGateTask?.cancel()
+        seedingGateTask = nil
+    }
     
+    /// One-time draft migration followed by cleanup of abandoned drafts, run on every startup
+    static func performDraftMaintenance(context: NSManagedObjectContext) {
+        // One-time migration: Restore user data that was incorrectly marked as drafts
+        restoreUserDataFromDrafts(context: context)
+        // Clean up any abandoned draft entities from incomplete creation flows
+        cleanupAbandonedDrafts(context: context)
+    }
+
     /// Cleans up abandoned draft entities that were created but never completed
     /// Uses intelligent cleanup strategy to balance safety with database cleanliness
-    private func cleanupAbandonedDrafts(context: NSManagedObjectContext) {
+    private static func cleanupAbandonedDrafts(context: NSManagedObjectContext) {
         // Configuration - can be adjusted based on user feedback or made user-configurable
         let maxDraftDishesToKeep = UserDefaults.standard.object(forKey: "MaxDraftDishesToKeep") as? Int ?? 10
         let maxDraftProductsToKeep = UserDefaults.standard.object(forKey: "MaxDraftProductsToKeep") as? Int ?? 5
@@ -453,7 +472,7 @@ final class AppStateManager: ObservableObject {
     
     /// One-time migration: Restores user data that was incorrectly marked as drafts
     /// This fixes the issue where existing entities were marked as drafts during the initial implementation
-    private func restoreUserDataFromDrafts(context: NSManagedObjectContext) {
+    private static func restoreUserDataFromDrafts(context: NSManagedObjectContext) {
         // Check if this migration has already been performed
         let migrationKey = "DraftMigrationCompleted_v1"
         if UserDefaults.standard.bool(forKey: migrationKey) {
@@ -538,7 +557,7 @@ extension Notification.Name {
     static let appDataDidReconcileAfterCloudKitImport = Notification.Name("AppDataDidReconcileAfterCloudKitImport")
 }
 
-// MARK: - Testable helpers (pure, non-actor-isolated)
+// MARK: - Testable helpers
 enum AppSeedingGating {
     /// Determines whether the app should gate initial data seeding awaiting CloudKit signals.
     /// Returns true when CloudKit is available, a CloudKit container is in use, and the database is empty,
@@ -549,5 +568,114 @@ enum AppSeedingGating {
                                   hasSeedingLease: Bool) -> Bool {
         if hasSeedingLease { return false }
         return isICloudAvailable && isCloudKitContainer && isDatabaseEmpty
+    }
+
+    enum GateDecision: Equatable {
+        /// CloudKit delivered data (or may have): re-run the database check
+        case recheckDatabase
+        /// Remote is empty and this device holds the seeding lease
+        case seedLocally
+        /// No decision yet: keep the loading screen and run another round
+        case keepWaiting
+    }
+
+    /// One round of the first-launch seeding gate. Never allows local seeding unless the remote mirror
+    /// is confirmed empty, the account is not marked seeded, and the seeding lease was acquired.
+    @MainActor
+    static func runGateRound(service: CloudKitSeedingService, version: String, maxWait: TimeInterval) async -> GateDecision {
+        let alreadySeeded = await service.isAccountSeeded(version: version)
+        let outcome = await service.waitForImportOrRemoteEmpty(maxWait: maxWait)
+        switch outcome {
+        case .importCompleted:
+            AppLogger.info("CloudKit import completed – proceeding", category: AppLogger.cloudKit)
+            return .recheckDatabase
+        case .timedOut:
+            AppLogger.info("CloudKit gating timed out – continue waiting without seeding", category: AppLogger.cloudKit)
+            return .keepWaiting
+        case .remoteAppearsEmpty:
+            if alreadySeeded {
+                // Another device seeded this version but has not exported its records yet
+                AppLogger.info("Account already seeded but remote mirror still empty – waiting for import", category: AppLogger.cloudKit)
+                return .keepWaiting
+            }
+            // Acquire a seeding lease to prevent multiple devices seeding simultaneously
+            if await service.tryAcquireSeedingLease() {
+                AppLogger.info("Seeding lease acquired – allowing local seed", category: AppLogger.cloudKit)
+                return .seedLocally
+            }
+            AppLogger.info("Seeding lease not acquired – waiting for remote import", category: AppLogger.cloudKit)
+            return .keepWaiting
+        }
+    }
+}
+
+/// How `AppStateManager` starts, derived from the process environment
+enum StartupMode: Equatable {
+    /// Unit tests / CI: no startup work at all
+    case skipped
+    /// UI tests or `-DisableCloudKit`: local store only, no iCloud account check
+    case localOnly
+    /// Normal launch: resolve the iCloud account status before deciding on seeding
+    case cloudKitAware
+
+    static func detect(processInfo: ProcessInfo = .processInfo) -> StartupMode {
+        let environment = processInfo.environment
+        let arguments = processInfo.arguments
+        if environment["GITHUB_ACTIONS"] != nil ||
+            environment["CI"] != nil ||
+            environment["XCTestConfigurationFilePath"] != nil {
+            return .skipped
+        }
+        if arguments.contains("-UITests") ||
+            arguments.contains("-DisableCloudKit") ||
+            NSClassFromString("XCTestCase") != nil {
+            return .localOnly
+        }
+        return .cloudKitAware
+    }
+}
+
+/// Store operations `AppStateManager` needs during startup. Live implementation: `PersistenceStartupDataStore`.
+@MainActor
+protocol StartupDataStore {
+    var isReady: Bool { get }
+    var userFriendlyErrorMessage: String? { get }
+    /// CloudKit container the store mirrors to, or nil when CloudKit mirroring is off (tests, simulator)
+    var cloudKitContainerIdentifier: String? { get }
+    var preloadDataVersion: String { get }
+    func isDatabaseEmpty() -> Bool
+    func needsDataPopulation() -> Bool
+    func performStartupMaintenance()
+    func generateInitialData(isCloudImportInProgress: Bool, completion: @escaping (Bool) -> Void)
+    /// Called once the store has data and the UI can load
+    func didFinishLoading()
+    func attemptRecovery(completion: @escaping (Bool) -> Void)
+}
+
+@MainActor
+struct PersistenceStartupDataStore: StartupDataStore {
+    private var persistence: PersistenceController { PersistenceController.shared }
+    private var viewContext: NSManagedObjectContext { persistence.container.viewContext }
+
+    var isReady: Bool { persistence.isReady }
+    var userFriendlyErrorMessage: String? { persistence.userFriendlyErrorMessage }
+    var cloudKitContainerIdentifier: String? {
+        guard persistence.container is NSPersistentCloudKitContainer else { return nil }
+        return persistence.container.persistentStoreDescriptions.first?.cloudKitContainerOptions?.containerIdentifier
+    }
+    var preloadDataVersion: String { persistence.getCurrentPreloadDataVersion() }
+
+    func isDatabaseEmpty() -> Bool { persistence.isDatabaseEmpty(context: viewContext) }
+    func needsDataPopulation() -> Bool { persistence.isDatabaseEmptyOrOutdated(context: viewContext) }
+    func performStartupMaintenance() { AppStateManager.performDraftMaintenance(context: viewContext) }
+
+    func generateInitialData(isCloudImportInProgress: Bool, completion: @escaping (Bool) -> Void) {
+        persistence.generateInitialDataInBackground(isCloudImportInProgress: isCloudImportInProgress, completion: completion)
+    }
+
+    func didFinishLoading() { StaticDataCacheManager.shared.initialize(with: viewContext) }
+
+    func attemptRecovery(completion: @escaping (Bool) -> Void) {
+        persistence.attemptRecovery(completion: completion)
     }
 }

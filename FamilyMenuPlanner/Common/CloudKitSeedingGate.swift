@@ -2,18 +2,68 @@
 import CoreData
 import CloudKit
 
+/// CloudKit calls used by `AppStateManager` to gate first-launch seeding.
+/// The live implementation is `LiveCloudKitSeedingService`; tests inject a mock.
+protocol CloudKitSeedingService {
+    /// Identifier of the CloudKit container the calls go to
+    var containerIdentifier: String { get }
+    func accountStatus() async throws -> CKAccountStatus
+    func isAccountSeeded(version: String) async -> Bool
+    @MainActor func waitForImportOrRemoteEmpty(maxWait: TimeInterval) async -> CloudKitSeedingGate.GateOutcome
+    func tryAcquireSeedingLease() async -> Bool
+    func markAccountSeeded(version: String) async
+}
+
+struct LiveCloudKitSeedingService: CloudKitSeedingService {
+    var containerIdentifier: String { CloudKitSeedingGate.containerIdentifier }
+
+    func accountStatus() async throws -> CKAccountStatus {
+        try await CloudKitSeedingGate.container.accountStatus()
+    }
+
+    func isAccountSeeded(version: String) async -> Bool {
+        await CloudKitSeedingGate.isAccountSeeded(version: version)
+    }
+
+    @MainActor
+    func waitForImportOrRemoteEmpty(maxWait: TimeInterval) async -> CloudKitSeedingGate.GateOutcome {
+        await CloudKitSeedingGate.waitForImportOrRemoteEmpty(maxWait: maxWait)
+    }
+
+    func tryAcquireSeedingLease() async -> Bool {
+        await CloudKitSeedingGate.tryAcquireSeedingLease()
+    }
+
+    func markAccountSeeded(version: String) async {
+        await CloudKitSeedingGate.markAccountSeeded(version: version)
+    }
+}
+
 enum CloudKitSeedingGate {
+    /// The container NSPersistentCloudKitContainer mirrors to (first entry of
+    /// `com.apple.developer.icloud-container-identifiers`). Do not use `CKContainer.default()` here:
+    /// it resolves to `iCloud.<bundle id>` (`iCloud.com.pivovar.FamilyMenuPlanner`), which the app is
+    /// not entitled to, so every call against it fails.
+    static let containerIdentifier = "iCloud.container.menu"
+    static let container = CKContainer(identifier: containerIdentifier)
+    /// Zone where NSPersistentCloudKitContainer stores the mirrored `CD_*` records
+    static let coreDataZoneID = CKRecordZone.ID(zoneName: "com.apple.coredata.cloudkit.zone", ownerName: CKCurrentUserDefaultName)
+    /// Marker record (private DB, `_defaultZone`) holding the preload version the account was seeded with
+    static let seededVersionRecordName = "FM_SeededVersion"
+    /// Lease record (private DB, `_defaultZone`) created by the device that is seeding
+    static let seedAnchorRecordName = "FM_SeedAnchor"
+    /// A lease older than this is treated as abandoned (the seeding device crashed or went offline)
+    /// and can be taken over. Local seeding takes seconds and the first export well under a minute.
+    static let staleLeaseInterval: TimeInterval = 10 * 60
+
     /// Default maximum time to wait for CloudKit import before declaring timeout.
     /// 3 minutes is a conservative window observed to cover slow but healthy
     /// first-time iCloud imports on older devices and congested networks.
     /// Callers can override this by passing a custom `maxWait` to
     /// `waitForImportOrRemoteEmpty(maxWait:)` if a different trade‑off is desired.
     static let defaultMaxWait: TimeInterval = 180
-    /// Default record type prefix used by NSPersistentCloudKitContainer for mirrored entities
-    private static let cloudKitRecordPrefix: String = "CD_"
-    /// A minimal set of Core Data entity names that should exist in any real dataset
-    /// Kept as entity names to avoid duplicating the CloudKit prefix in many places
-    private static let probeEntityNames: [String] = ["Unit", "Product", "MealType", "DishCategory", "Dish"]
+    /// Upper bound on zone-change pages read while probing the mirror for emptiness
+    private static let maxProbePages = 5
     /// Waits for the first NSPersistentCloudKitContainer import event or a timeout.
     /// Returns true if an import completed, false if timed out.
     static func waitForImportOrTimeout(timeout: TimeInterval) async -> Bool {
@@ -51,7 +101,7 @@ enum CloudKitSeedingGate {
         case timedOut
     }
 
-    /// Indefinitely waits for CloudKit import completion, or within a maxWait window
+    /// Waits for CloudKit import completion, or within a maxWait window
     /// probes remote for emptiness of Core Data mirror and returns an outcome.
     /// This is conservative: it will only allow seeding when remote clearly appears empty.
     @MainActor
@@ -85,16 +135,13 @@ enum CloudKitSeedingGate {
         }
     }
 
-    /// Polls CloudKit mirror for any presence of records within a window.
+    /// Polls the CloudKit mirror within a window.
     /// Returns true if the mirror appears empty before the timeout elapses.
     private static func probeRemoteEmptiness(start: Date, maxWait: TimeInterval) async -> Bool {
-        // Probe a small set of record types commonly present in the mirror
-        // Build record types from entity names using the configured/default prefix
-        let probeTypes = Self.probeEntityNames.map { Self.cloudKitRecordPrefix + $0 }
         var delay: TimeInterval = 2
         while Date().timeIntervalSince(start) < maxWait {
             if Task.isCancelled { return false }
-            if await remoteStoreAppearsEmpty(recordTypes: probeTypes) {
+            if await remoteStoreAppearsEmpty() {
                 return true
             }
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
@@ -104,93 +151,110 @@ enum CloudKitSeedingGate {
         return false
     }
 
-    /// Best-effort probe of CloudKit mirror to see if any Core Data mirrored records exist.
-    /// Returns true if none of the provided record types have any records.
-    private static func remoteStoreAppearsEmpty(recordTypes: [String]) async -> Bool {
-        // If iCloud is unavailable or status cannot be determined, DO NOT treat as empty
-        // to avoid accidental local seeding that later conflicts with CloudKit import.
+    /// Best-effort probe of the Core Data mirror zone.
+    /// Returns true only when the zone is known to hold no records; any error means "unknown" and returns false,
+    /// so a failed probe never unlocks local seeding.
+    ///
+    /// Reads zone changes instead of running a `CKQuery`: queries need a queryable `recordName` index,
+    /// which the Core Data schema does not declare, so a query would always fail.
+    private static func remoteStoreAppearsEmpty() async -> Bool {
         do {
-            let status = try await CKContainer.default().accountStatus()
-            if status != .available { return false }
+            let status = try await container.accountStatus()
+            if status != .available {
+                AppLogger.info("Remote emptiness probe: iCloud account status \(status.rawValue) – treating remote as unknown", category: AppLogger.cloudKit)
+                return false
+            }
         } catch {
+            logCloudKitError("Remote emptiness probe: account status check failed", error)
             return false
         }
 
-        let db = CKContainer.default().privateCloudDatabase
-        for type in recordTypes {
-            let hadAny = await hasAnyRecord(ofType: type, in: db)
-            if hadAny { return false }
-        }
-        return true
-    }
-
-    private static func hasAnyRecord(ofType type: String, in db: CKDatabase) async -> Bool {
-        await withCheckedContinuation { continuation in
-            let query = CKQuery(recordType: type, predicate: NSPredicate(value: true))
-            let op = CKQueryOperation(query: query)
-            op.resultsLimit = 1
-            var found = false
-            op.recordMatchedBlock = { _, result in
-                if case .success = result { found = true }
+        let db = container.privateCloudDatabase
+        var changeToken: CKServerChangeToken? = nil
+        for _ in 0..<maxProbePages {
+            if Task.isCancelled { return false }
+            do {
+                let changes = try await db.recordZoneChanges(inZoneWith: coreDataZoneID, since: changeToken, desiredKeys: [], resultsLimit: 1)
+                if !changes.modificationResultsByID.isEmpty {
+                    return false
+                }
+                if !changes.moreComing {
+                    AppLogger.info("Remote emptiness probe: Core Data zone has no records", category: AppLogger.cloudKit)
+                    return true
+                }
+                changeToken = changes.changeToken
+            } catch let error as CKError where error.code == .zoneNotFound {
+                AppLogger.info("Remote emptiness probe: Core Data zone does not exist yet", category: AppLogger.cloudKit)
+                return true
+            } catch {
+                logCloudKitError("Remote emptiness probe failed – treating remote as not empty", error)
+                return false
             }
-            op.queryResultBlock = { _ in
-                continuation.resume(returning: found)
-            }
-            db.add(op)
         }
+        return false
     }
 
     /// Attempts to create a small anchor record in CloudKit to "lease" seeding.
-    /// Returns true if lease acquired (record created), false if record already exists or on error.
-    static func tryAcquireSeedingLease() async -> Bool {
+    /// Returns true if the lease was acquired: the record was created, or an existing lease older than
+    /// `staleLeaseInterval` was taken over. Returns false if another device holds a fresh lease or on error.
+    static func tryAcquireSeedingLease(now: Date = Date()) async -> Bool {
+        let db = container.privateCloudDatabase
+        let recordID = CKRecord.ID(recordName: seedAnchorRecordName)
+        let record = CKRecord(recordType: seedAnchorRecordName, recordID: recordID)
+        record["timestamp"] = now as CKRecordValue
         do {
-            let db = CKContainer.default().privateCloudDatabase
-            let recordID = CKRecord.ID(recordName: "FM_SeedAnchor")
-            let record = CKRecord(recordType: "FM_SeedAnchor", recordID: recordID)
-            record["timestamp"] = Date() as CKRecordValue
-            return try await withCheckedThrowingContinuation { continuation in
-                db.save(record) { _, error in
-                    if let ckError = error as? CKError {
-                        if ckError.code == .serverRecordChanged || ckError.code == .batchRequestFailed || ckError.code == .unknownItem {
-                            // Treat as not acquired if exists/changed
-                            continuation.resume(returning: false)
-                            return
-                        }
-                    }
-                    if error != nil {
-                        continuation.resume(returning: false)
-                    } else {
-                        continuation.resume(returning: true)
-                    }
-                }
+            _ = try await db.save(record)
+            AppLogger.info("Seeding lease record created", category: AppLogger.cloudKit)
+            return true
+        } catch let error as CKError where error.code == .serverRecordChanged {
+            guard let existing = error.serverRecord else {
+                logCloudKitError("Seeding lease exists but server record is missing from the error", error)
+                return false
+            }
+            let leaseDate = existing["timestamp"] as? Date
+            guard isLeaseStale(leaseDate: leaseDate, now: now) else {
+                AppLogger.info("Seeding lease held by another device since \(leaseDate.map { "\($0)" } ?? "unknown")", category: AppLogger.cloudKit)
+                return false
+            }
+            // Take over by updating the fetched record: the save carries its change tag,
+            // so if another device takes over at the same time only one save succeeds.
+            existing["timestamp"] = now as CKRecordValue
+            do {
+                _ = try await db.save(existing)
+                AppLogger.warning("Took over stale seeding lease from \(leaseDate.map { "\($0)" } ?? "unknown")", category: AppLogger.cloudKit)
+                return true
+            } catch {
+                logCloudKitError("Failed to take over stale seeding lease", error)
+                return false
             }
         } catch {
+            logCloudKitError("Failed to create seeding lease", error)
             return false
         }
+    }
+
+    /// Pure helper: a lease without a timestamp, or older than `staleAfter`, is abandoned.
+    static func isLeaseStale(leaseDate: Date?, now: Date, staleAfter: TimeInterval = staleLeaseInterval) -> Bool {
+        guard let leaseDate else { return true }
+        return now.timeIntervalSince(leaseDate) > staleAfter
     }
 
     /// Returns true if the account already has the given seed version recorded.
     /// The check validates the stored CloudKit record's `version` field equals the requested `version`.
     /// If the record is missing, or the stored version differs (or is missing), returns false.
     static func isAccountSeeded(version: String) async -> Bool {
+        let db = container.privateCloudDatabase
+        let recordID = CKRecord.ID(recordName: seededVersionRecordName)
         do {
-            let db = CKContainer.default().privateCloudDatabase
-            let recordID = CKRecord.ID(recordName: "FM_SeededVersion")
-            return try await withCheckedThrowingContinuation { continuation in
-                db.fetch(withRecordID: recordID) { record, error in
-                    if let record, error == nil {
-                        let storedVersion = record["version"] as? String
-                        continuation.resume(returning: Self.doesStoredSeedVersionSatisfy(stored: storedVersion, required: version))
-                        return
-                    }
-                    if let ckError = error as? CKError, ckError.code == .unknownItem {
-                        continuation.resume(returning: false)
-                        return
-                    }
-                    continuation.resume(returning: false)
-                }
-            }
+            let record = try await db.record(for: recordID)
+            let storedVersion = record["version"] as? String
+            AppLogger.info("Account seed marker found with version \(storedVersion ?? "nil")", category: AppLogger.cloudKit)
+            return doesStoredSeedVersionSatisfy(stored: storedVersion, required: version)
+        } catch let error as CKError where error.code == .unknownItem {
+            AppLogger.info("Account seed marker not found", category: AppLogger.cloudKit)
+            return false
         } catch {
+            logCloudKitError("Failed to fetch account seed marker", error)
             return false
         }
     }
@@ -202,23 +266,28 @@ enum CloudKitSeedingGate {
         return stored == required
     }
 
-    /// Marks the account as seeded for the specified version. Idempotent.
+    /// Marks the account as seeded for the specified version. Idempotent: overwrites an existing marker
+    /// (`.allKeys` save policy), so a marker from an older preload version does not fail with `.serverRecordChanged`.
     static func markAccountSeeded(version: String) async {
+        let db = container.privateCloudDatabase
+        let recordID = CKRecord.ID(recordName: seededVersionRecordName)
+        let record = CKRecord(recordType: seededVersionRecordName, recordID: recordID)
+        record["version"] = version as CKRecordValue
+        record["timestamp"] = Date() as CKRecordValue
         do {
-            let db = CKContainer.default().privateCloudDatabase
-            let recordID = CKRecord.ID(recordName: "FM_SeededVersion")
-            let record = CKRecord(recordType: "FM_SeededVersion", recordID: recordID)
-            record["version"] = version as CKRecordValue
-            record["timestamp"] = Date() as CKRecordValue
-            _ = try await withCheckedThrowingContinuation { continuation in
-                db.save(record) { _, _ in
-                    continuation.resume(returning: ())
-                }
+            let result = try await db.modifyRecords(saving: [record], deleting: [], savePolicy: .allKeys, atomically: false)
+            if case .failure(let error)? = result.saveResults[recordID] {
+                logCloudKitError("Failed to save account seed marker", error)
+                return
             }
+            AppLogger.info("Account marked seeded with version \(version) in \(containerIdentifier)", category: AppLogger.cloudKit)
         } catch {
-            // best-effort; ignore errors
+            logCloudKitError("Failed to save account seed marker", error)
         }
     }
+
+    private static func logCloudKitError(_ message: String, _ error: Error) {
+        let code = (error as? CKError).map { "CKError code \($0.code.rawValue)" } ?? "non-CloudKit error"
+        AppLogger.error("\(message) [\(code), container \(containerIdentifier)]", error: error, category: AppLogger.cloudKit)
+    }
 }
-
-
