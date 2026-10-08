@@ -196,7 +196,7 @@ final class BackgroundOperationManager: BackgroundOperationManagerProtocol {
     /// Executes a heavy fetch operation in background context
     /// - Parameters:
     ///   - fetchRequest: The fetch request to execute
-    ///   - transform: Optional transform function to convert results
+    ///   - transform: Transform applied to the fetched objects on the background queue
     ///   - completion: Completion handler called on main queue with results
     func executeHeavyFetch<T: NSManagedObject, R>(
         fetchRequest: NSFetchRequest<T>,
