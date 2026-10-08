@@ -399,7 +399,7 @@ class TestBackgroundOperationManager: BackgroundOperationManagerProtocol {
     
     func executeHeavyFetch<T: NSManagedObject, R>(
         fetchRequest: NSFetchRequest<T>,
-        transform: @escaping ([T]) -> R = { $0 },
+        transform: @escaping ([T]) -> R,
         completion: @escaping (Result<R, Error>) -> Void
     ) {
         backgroundQueue.async {

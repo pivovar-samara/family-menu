@@ -200,7 +200,7 @@ final class BackgroundOperationManager: BackgroundOperationManagerProtocol {
     ///   - completion: Completion handler called on main queue with results
     func executeHeavyFetch<T: NSManagedObject, R>(
         fetchRequest: NSFetchRequest<T>,
-        transform: @escaping ([T]) -> R = { $0 },
+        transform: @escaping ([T]) -> R,
         completion: @escaping (Result<R, Error>) -> Void
     ) {
         backgroundQueue.async { [weak self] in

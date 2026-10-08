@@ -218,40 +218,29 @@ final class AppStateManager: ObservableObject {
                 // If account was already seeded for this preload version, we do not seed locally
                 let alreadySeeded = await CloudKitSeedingGate.isAccountSeeded(version: PersistenceController.shared.getCurrentPreloadDataVersion())
                 let outcome: CloudKitSeedingGate.GateOutcome = alreadySeeded ? .importCompleted : await CloudKitSeedingGate.waitForImportOrRemoteEmpty(maxWait: 180)
-                DispatchQueue.main.async {
-                    switch outcome {
-                    case .importCompleted:
-                        AppLogger.info("CloudKit import completed – proceeding", category: AppLogger.cloudKit)
+                // The task inherits @MainActor isolation, so state can be updated directly after awaits
+                switch outcome {
+                case .importCompleted:
+                    AppLogger.info("CloudKit import completed – proceeding", category: AppLogger.cloudKit)
+                    self.checkDatabaseState()
+                case .remoteAppearsEmpty:
+                    // Acquire a seeding lease to prevent multiple devices seeding simultaneously
+                    let acquired = await CloudKitSeedingGate.tryAcquireSeedingLease()
+                    if acquired {
+                        AppLogger.info("Seeding lease acquired – allowing local seed", category: AppLogger.cloudKit)
+                        self.hasCloudKitSeedingLease = true
                         self.checkDatabaseState()
-                    case .remoteAppearsEmpty:
-                        // Acquire a seeding lease to prevent multiple devices seeding simultaneously
-                        Task { [weak self] in
-                            let acquired = await CloudKitSeedingGate.tryAcquireSeedingLease()
-                            DispatchQueue.main.async {
-                                if acquired {
-                                    AppLogger.info("Seeding lease acquired – allowing local seed", category: AppLogger.cloudKit)
-                                    self?.hasCloudKitSeedingLease = true
-                                    self?.checkDatabaseState()
-                                } else {
-                                    AppLogger.info("Seeding lease not acquired – waiting for remote import", category: AppLogger.cloudKit)
-                                    // Re-arm gating and continue waiting rather than risking duplicates
-                                    Task { [weak self] in
-                                        guard let self = self else { return }
-                                        _ = await CloudKitSeedingGate.waitForImportOrRemoteEmpty(maxWait: 180)
-                                        DispatchQueue.main.async { self.checkDatabaseState() }
-                                    }
-                                }
-                            }
-                        }
-                    case .timedOut:
-                        AppLogger.info("CloudKit gating timed out – continue waiting without seeding", category: AppLogger.cloudKit)
-                        self.isLoading = true
-                        Task { [weak self] in
-                            guard let self = self else { return }
-                            _ = await CloudKitSeedingGate.waitForImportOrRemoteEmpty(maxWait: 180)
-                            DispatchQueue.main.async { self.checkDatabaseState() }
-                        }
+                    } else {
+                        AppLogger.info("Seeding lease not acquired – waiting for remote import", category: AppLogger.cloudKit)
+                        // Re-arm gating and continue waiting rather than risking duplicates
+                        _ = await CloudKitSeedingGate.waitForImportOrRemoteEmpty(maxWait: 180)
+                        self.checkDatabaseState()
                     }
+                case .timedOut:
+                    AppLogger.info("CloudKit gating timed out – continue waiting without seeding", category: AppLogger.cloudKit)
+                    self.isLoading = true
+                    _ = await CloudKitSeedingGate.waitForImportOrRemoteEmpty(maxWait: 180)
+                    self.checkDatabaseState()
                 }
             }
             return
