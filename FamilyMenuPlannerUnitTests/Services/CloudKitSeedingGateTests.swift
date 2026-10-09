@@ -127,6 +127,85 @@ final class CloudKitSeedingLeaseAcquisitionTests: XCTestCase {
     }
 }
 
+final class CloudKitSeedMarkerTests: XCTestCase {
+    private func marker(version: String) -> CKRecord {
+        let record = CKRecord(recordType: CloudKitSeedingGate.seededVersionRecordName,
+                              recordID: CKRecord.ID(recordName: CloudKitSeedingGate.seededVersionRecordName))
+        record["version"] = version as CKRecordValue
+        return record
+    }
+
+    func testShouldWriteSeedMarker() {
+        XCTAssertTrue(CloudKitSeedingGate.shouldWriteSeedMarker(stored: nil, new: "1.1"))
+        XCTAssertTrue(CloudKitSeedingGate.shouldWriteSeedMarker(stored: "", new: "1.1"))
+        XCTAssertTrue(CloudKitSeedingGate.shouldWriteSeedMarker(stored: "1.1", new: "1.2"))
+        XCTAssertTrue(CloudKitSeedingGate.shouldWriteSeedMarker(stored: "1.9", new: "1.10"))
+        XCTAssertFalse(CloudKitSeedingGate.shouldWriteSeedMarker(stored: "1.1", new: "1.1"))
+        XCTAssertFalse(CloudKitSeedingGate.shouldWriteSeedMarker(stored: "1.2", new: "1.1"))
+        XCTAssertFalse(CloudKitSeedingGate.shouldWriteSeedMarker(stored: "1.10", new: "1.9"))
+    }
+
+    func testCreatesMarkerWhenMissing() async {
+        let database = MockMarkerDatabase()
+
+        let written = await CloudKitSeedingGate.markAccountSeeded(version: "1.1", database: database)
+
+        XCTAssertTrue(written)
+        XCTAssertEqual(database.serverRecord?["version"] as? String, "1.1")
+    }
+
+    func testUpdatesOlderMarkerInPlace() async {
+        let database = MockMarkerDatabase()
+        let server = marker(version: "1.0")
+        database.serverRecord = server
+
+        let written = await CloudKitSeedingGate.markAccountSeeded(version: "1.1", database: database)
+
+        XCTAssertTrue(written)
+        XCTAssertTrue(database.savedRecords.last === server, "Updates the fetched record so the save carries its change tag")
+        XCTAssertEqual(server["version"] as? String, "1.1")
+    }
+
+    func testDoesNotDowngradeNewerMarker() async {
+        let database = MockMarkerDatabase()
+        database.serverRecord = marker(version: "1.2")
+
+        let written = await CloudKitSeedingGate.markAccountSeeded(version: "1.1", database: database)
+
+        XCTAssertFalse(written)
+        XCTAssertTrue(database.savedRecords.isEmpty)
+        XCTAssertEqual(database.serverRecord?["version"] as? String, "1.2")
+    }
+
+    func testFetchErrorDoesNotWrite() async {
+        let database = MockMarkerDatabase()
+        database.fetchError = CKError(.networkUnavailable)
+
+        let written = await CloudKitSeedingGate.markAccountSeeded(version: "1.1", database: database)
+
+        XCTAssertFalse(written)
+        XCTAssertTrue(database.savedRecords.isEmpty)
+    }
+}
+
+private final class MockMarkerDatabase: CloudKitRecordStoring {
+    var serverRecord: CKRecord?
+    var fetchError: Error?
+    private(set) var savedRecords: [CKRecord] = []
+
+    func record(for recordID: CKRecord.ID) async throws -> CKRecord {
+        if let fetchError { throw fetchError }
+        guard let serverRecord else { throw CKError(.unknownItem) }
+        return serverRecord
+    }
+
+    func save(_ record: CKRecord) async throws -> CKRecord {
+        savedRecords.append(record)
+        serverRecord = record
+        return record
+    }
+}
+
 final class CloudKitRemoteEmptinessProbeTests: XCTestCase {
     private func page(records: Bool, moreComing: Bool) -> ZoneChangesPage {
         ZoneChangesPage(hasRecords: records, moreComing: moreComing, changeToken: nil)

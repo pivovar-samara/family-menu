@@ -47,6 +47,13 @@ protocol CloudKitRecordSaving {
 
 extension CKDatabase: CloudKitRecordSaving {}
 
+/// Fetch-and-save access used by the seed marker
+protocol CloudKitRecordStoring: CloudKitRecordSaving {
+    func record(for recordID: CKRecord.ID) async throws -> CKRecord
+}
+
+extension CKDatabase: CloudKitRecordStoring {}
+
 /// One page of record-zone changes, reduced to what the emptiness probe needs
 struct ZoneChangesPage {
     /// Whether the page reported any record, including records that failed to download
@@ -311,24 +318,44 @@ enum CloudKitSeedingGate {
         return stored == required
     }
 
-    /// Marks the account as seeded for the specified version. Idempotent: overwrites an existing marker
-    /// (`.allKeys` save policy), so a marker from an older preload version does not fail with `.serverRecordChanged`.
-    static func markAccountSeeded(version: String) async {
-        let db = container.privateCloudDatabase
+    /// Marks the account as seeded for the specified version. Idempotent and never downgrades:
+    /// an existing marker with the same or a newer version (e.g. written by a newer app) is left alone;
+    /// an older one is updated in place, so the save carries its change tag and a concurrent write wins cleanly.
+    @discardableResult
+    static func markAccountSeeded(version: String, now: Date = Date(),
+                                  database: CloudKitRecordStoring = container.privateCloudDatabase) async -> Bool {
         let recordID = CKRecord.ID(recordName: seededVersionRecordName)
-        let record = CKRecord(recordType: seededVersionRecordName, recordID: recordID)
-        record["version"] = version as CKRecordValue
-        record["timestamp"] = Date() as CKRecordValue
+        let existing: CKRecord?
         do {
-            let result = try await db.modifyRecords(saving: [record], deleting: [], savePolicy: .allKeys, atomically: false)
-            if case .failure(let error)? = result.saveResults[recordID] {
-                logCloudKitError("Failed to save account seed marker", error)
-                return
-            }
+            existing = try await database.record(for: recordID)
+        } catch let error as CKError where error.code == .unknownItem {
+            existing = nil
+        } catch {
+            logCloudKitError("Failed to read account seed marker before marking", error)
+            return false
+        }
+        let storedVersion = existing?["version"] as? String
+        guard shouldWriteSeedMarker(stored: storedVersion, new: version) else {
+            AppLogger.info("Account seed marker already at version \(storedVersion ?? "nil") – not writing \(version)", category: AppLogger.cloudKit)
+            return false
+        }
+        let record = existing ?? CKRecord(recordType: seededVersionRecordName, recordID: recordID)
+        record["version"] = version as CKRecordValue
+        record["timestamp"] = now as CKRecordValue
+        do {
+            _ = try await database.save(record)
             AppLogger.info("Account marked seeded with version \(version) in \(containerIdentifier)", category: AppLogger.cloudKit)
+            return true
         } catch {
             logCloudKitError("Failed to save account seed marker", error)
+            return false
         }
+    }
+
+    /// Pure helper: write the marker only when it is missing/empty or holds an older version (numeric comparison).
+    static func shouldWriteSeedMarker(stored: String?, new: String) -> Bool {
+        guard let stored, !stored.isEmpty else { return true }
+        return stored.compare(new, options: .numeric) == .orderedAscending
     }
 
     private static func logCloudKitError(_ message: String, _ error: Error) {
