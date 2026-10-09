@@ -211,7 +211,9 @@ enum CloudKitSeedingGate {
                 logCloudKitError("Seeding lease exists but server record is missing from the error", error)
                 return false
             }
-            let leaseDate = existing["timestamp"] as? Date
+            // Prefer the server-assigned modification date so the other device's clock does not matter;
+            // the client-written `timestamp` is only a fallback.
+            let leaseDate = existing.modificationDate ?? existing["timestamp"] as? Date
             guard isLeaseStale(leaseDate: leaseDate, now: now) else {
                 AppLogger.info("Seeding lease held by another device since \(leaseDate.map { "\($0)" } ?? "unknown")", category: AppLogger.cloudKit)
                 return false
