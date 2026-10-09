@@ -8,7 +8,7 @@ protocol CloudKitSeedingService {
     /// Identifier of the CloudKit container the calls go to
     var containerIdentifier: String { get }
     func accountStatus() async throws -> CKAccountStatus
-    func isAccountSeeded(version: String) async -> Bool
+    func isAccountSeeded(version: String) async -> CloudKitSeedingGate.SeedMarkerStatus
     @MainActor func waitForImportOrRemoteEmpty(maxWait: TimeInterval) async -> CloudKitSeedingGate.GateOutcome
     func tryAcquireSeedingLease() async -> Bool
     func markAccountSeeded(version: String) async
@@ -21,7 +21,7 @@ struct LiveCloudKitSeedingService: CloudKitSeedingService {
         try await CloudKitSeedingGate.container.accountStatus()
     }
 
-    func isAccountSeeded(version: String) async -> Bool {
+    func isAccountSeeded(version: String) async -> CloudKitSeedingGate.SeedMarkerStatus {
         await CloudKitSeedingGate.isAccountSeeded(version: version)
     }
 
@@ -249,23 +249,31 @@ enum CloudKitSeedingGate {
         return now.timeIntervalSince(leaseDate) > staleAfter
     }
 
-    /// Returns true if the account already has the given seed version recorded.
-    /// The check validates the stored CloudKit record's `version` field equals the requested `version`.
-    /// If the record is missing, or the stored version differs (or is missing), returns false.
-    static func isAccountSeeded(version: String) async -> Bool {
+    enum SeedMarkerStatus: Equatable {
+        /// The marker records the requested version
+        case seeded
+        /// The marker is definitively absent or records a different version
+        case notSeeded
+        /// The marker could not be read; must not be treated as `notSeeded`
+        case unknown
+    }
+
+    /// Reads the account seed marker and compares its `version` field with the requested `version`.
+    /// A failed fetch (other than "record not found") returns `.unknown`.
+    static func isAccountSeeded(version: String) async -> SeedMarkerStatus {
         let db = container.privateCloudDatabase
         let recordID = CKRecord.ID(recordName: seededVersionRecordName)
         do {
             let record = try await db.record(for: recordID)
             let storedVersion = record["version"] as? String
             AppLogger.info("Account seed marker found with version \(storedVersion ?? "nil")", category: AppLogger.cloudKit)
-            return doesStoredSeedVersionSatisfy(stored: storedVersion, required: version)
+            return doesStoredSeedVersionSatisfy(stored: storedVersion, required: version) ? .seeded : .notSeeded
         } catch let error as CKError where error.code == .unknownItem {
             AppLogger.info("Account seed marker not found", category: AppLogger.cloudKit)
-            return false
+            return .notSeeded
         } catch {
             logCloudKitError("Failed to fetch account seed marker", error)
-            return false
+            return .unknown
         }
     }
 
@@ -297,7 +305,11 @@ enum CloudKitSeedingGate {
     }
 
     private static func logCloudKitError(_ message: String, _ error: Error) {
-        let code = (error as? CKError).map { "CKError code \($0.code.rawValue)" } ?? "non-CloudKit error"
-        AppLogger.error("\(message) [\(code), container \(containerIdentifier)]", error: error, category: AppLogger.cloudKit)
+        AppLogger.error("\(message) [\(errorCodeDescription(error)), container \(containerIdentifier)]", error: error, category: AppLogger.cloudKit)
+    }
+
+    /// "CKError code N" for CloudKit errors, for log lines
+    static func errorCodeDescription(_ error: Error) -> String {
+        (error as? CKError).map { "CKError code \($0.code.rawValue)" } ?? "non-CloudKit error"
     }
 }

@@ -155,7 +155,7 @@ final class AppStateManagerSeedingFlowTests: XCTestCase {
     }
 
     func testAccountAlreadySeededDoesNotSeedLocally() async {
-        service.isAccountSeededResult = true
+        service.isAccountSeededResult = .seeded
         service.waitOutcomes = [.remoteAppearsEmpty]
 
         let manager = makeManager()
@@ -165,6 +165,20 @@ final class AppStateManagerSeedingFlowTests: XCTestCase {
         XCTAssertTrue(rearmed)
         XCTAssertEqual(store.generateCallCount, 0)
         XCTAssertEqual(service.leaseCallCount, 0)
+        XCTAssertTrue(manager.isLoading)
+    }
+
+    func testUnreadableSeedMarkerDoesNotSeedLocally() async {
+        service.isAccountSeededResult = .unknown
+        service.waitOutcomes = [.remoteAppearsEmpty]
+        service.leaseResult = true
+
+        let manager = makeManager()
+
+        let rearmed = await waitUntil { self.service.waitCallCount == 2 }
+        XCTAssertTrue(rearmed)
+        XCTAssertEqual(service.leaseCallCount, 0)
+        XCTAssertEqual(store.generateCallCount, 0)
         XCTAssertTrue(manager.isLoading)
     }
 
@@ -234,6 +248,39 @@ final class AppStateManagerSeedingFlowTests: XCTestCase {
     }
 }
 
+// MARK: - Startup mode detection
+
+final class StartupModeDetectionTests: XCTestCase {
+    func testNormalLaunchIsCloudKitAware() {
+        XCTAssertEqual(StartupMode.detect(environment: [:], arguments: ["FamilyMenuPlanner"], isXCTestLoaded: false), .cloudKitAware)
+    }
+
+    func testCIEnvironmentIsSkipped() {
+        XCTAssertEqual(StartupMode.detect(environment: ["CI": "TRUE"], arguments: [], isXCTestLoaded: false), .skipped)
+        XCTAssertEqual(StartupMode.detect(environment: ["GITHUB_ACTIONS": "true"], arguments: [], isXCTestLoaded: false), .skipped)
+    }
+
+    func testHostedXCTestIsSkipped() {
+        XCTAssertEqual(StartupMode.detect(environment: ["XCTestConfigurationFilePath": "/tmp/x"], arguments: [], isXCTestLoaded: true), .skipped)
+    }
+
+    func testCIWinsOverUITestFlags() {
+        XCTAssertEqual(StartupMode.detect(environment: ["CI": "TRUE"], arguments: ["-UITests", "-DisableCloudKit"], isXCTestLoaded: false), .skipped)
+    }
+
+    func testUITestLaunchIsLocalOnly() {
+        XCTAssertEqual(StartupMode.detect(environment: [:], arguments: ["FamilyMenuPlanner", "-UITests", "-DisableCloudKit"], isXCTestLoaded: false), .localOnly)
+    }
+
+    func testDisableCloudKitIsLocalOnly() {
+        XCTAssertEqual(StartupMode.detect(environment: [:], arguments: ["-DisableCloudKit"], isXCTestLoaded: false), .localOnly)
+    }
+
+    func testLoadedXCTestWithoutConfigurationIsLocalOnly() {
+        XCTAssertEqual(StartupMode.detect(environment: [:], arguments: [], isXCTestLoaded: true), .localOnly)
+    }
+}
+
 // MARK: - Mocks
 
 @MainActor
@@ -244,7 +291,7 @@ private final class MockCloudKitSeedingService: CloudKitSeedingService {
     var holdsAccountStatus = false
     private var accountStatusContinuation: CheckedContinuation<Void, Never>?
     var isAccountStatusPending: Bool { accountStatusContinuation != nil }
-    var isAccountSeededResult = false
+    var isAccountSeededResult: CloudKitSeedingGate.SeedMarkerStatus = .notSeeded
     /// Outcomes returned by successive waits; once exhausted, waits suspend until cancelled
     var waitOutcomes: [CloudKitSeedingGate.GateOutcome] = []
     var onWait: (() -> Void)?
@@ -269,7 +316,7 @@ private final class MockCloudKitSeedingService: CloudKitSeedingService {
         accountStatusContinuation = nil
     }
 
-    func isAccountSeeded(version: String) async -> Bool {
+    func isAccountSeeded(version: String) async -> CloudKitSeedingGate.SeedMarkerStatus {
         isAccountSeededCallCount += 1
         return isAccountSeededResult
     }

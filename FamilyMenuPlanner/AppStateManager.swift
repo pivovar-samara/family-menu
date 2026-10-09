@@ -144,7 +144,7 @@ final class AppStateManager: ObservableObject {
                 AnalyticsManager.shared.setUserProperties([AnalyticsUserPropertyName.icloud_available: false])
             }
         } catch {
-            AppLogger.error("iCloud account check failed", error: error, category: AppLogger.cloudKit)
+            AppLogger.error("iCloud account check failed [\(CloudKitSeedingGate.errorCodeDescription(error)), container \(seedingService.containerIdentifier)]", error: error, category: AppLogger.cloudKit)
             AnalyticsManager.shared.trackError(error, domain: "iCloud", category: "iCloud account check failed")
             AnalyticsManager.shared.setUserProperties([AnalyticsUserPropertyName.icloud_available: false])
             self.isICloudAvailable = false
@@ -580,10 +580,10 @@ enum AppSeedingGating {
     }
 
     /// One round of the first-launch seeding gate. Never allows local seeding unless the remote mirror
-    /// is confirmed empty, the account is not marked seeded, and the seeding lease was acquired.
+    /// is confirmed empty, the seed marker is confirmed absent (or for another version), and the seeding lease was acquired.
     @MainActor
     static func runGateRound(service: CloudKitSeedingService, version: String, maxWait: TimeInterval) async -> GateDecision {
-        let alreadySeeded = await service.isAccountSeeded(version: version)
+        let markerStatus = await service.isAccountSeeded(version: version)
         let outcome = await service.waitForImportOrRemoteEmpty(maxWait: maxWait)
         switch outcome {
         case .importCompleted:
@@ -593,10 +593,16 @@ enum AppSeedingGating {
             AppLogger.info("CloudKit gating timed out – continue waiting without seeding", category: AppLogger.cloudKit)
             return .keepWaiting
         case .remoteAppearsEmpty:
-            if alreadySeeded {
+            switch markerStatus {
+            case .seeded:
                 // Another device seeded this version but has not exported its records yet
                 AppLogger.info("Account already seeded but remote mirror still empty – waiting for import", category: AppLogger.cloudKit)
                 return .keepWaiting
+            case .unknown:
+                AppLogger.info("Account seed marker unreadable – waiting instead of seeding", category: AppLogger.cloudKit)
+                return .keepWaiting
+            case .notSeeded:
+                break
             }
             // Acquire a seeding lease to prevent multiple devices seeding simultaneously
             if await service.tryAcquireSeedingLease() {
@@ -618,9 +624,9 @@ enum StartupMode: Equatable {
     /// Normal launch: resolve the iCloud account status before deciding on seeding
     case cloudKitAware
 
-    static func detect(processInfo: ProcessInfo = .processInfo) -> StartupMode {
-        let environment = processInfo.environment
-        let arguments = processInfo.arguments
+    static func detect(environment: [String: String] = ProcessInfo.processInfo.environment,
+                       arguments: [String] = ProcessInfo.processInfo.arguments,
+                       isXCTestLoaded: Bool = NSClassFromString("XCTestCase") != nil) -> StartupMode {
         if environment["GITHUB_ACTIONS"] != nil ||
             environment["CI"] != nil ||
             environment["XCTestConfigurationFilePath"] != nil {
@@ -628,7 +634,7 @@ enum StartupMode: Equatable {
         }
         if arguments.contains("-UITests") ||
             arguments.contains("-DisableCloudKit") ||
-            NSClassFromString("XCTestCase") != nil {
+            isXCTestLoaded {
             return .localOnly
         }
         return .cloudKitAware
