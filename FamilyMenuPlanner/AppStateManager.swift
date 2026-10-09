@@ -302,6 +302,9 @@ final class AppStateManager: ObservableObject {
                 guard !Task.isCancelled, let self else { return }
                 switch decision {
                 case .recheckDatabase:
+                    // Let the import's view-context merge settle before judging the store
+                    try? await Task.sleep(nanoseconds: UInt64(Self.cloudKitMergeSettleDelay * 1_000_000_000))
+                    guard !Task.isCancelled else { return }
                     self.seedingGateTask = nil
                     self.checkDatabaseState()
                     return
