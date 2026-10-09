@@ -288,6 +288,13 @@ final class AppStateManager: ObservableObject {
                     self.checkDatabaseState()
                     return
                 case .keepWaiting:
+                    // Imported data may have reached the store without this round seeing the import event
+                    if !self.dataStore.isDatabaseEmpty() {
+                        AppLogger.info("Local store no longer empty – proceeding without seeding", category: AppLogger.cloudKit)
+                        self.seedingGateTask = nil
+                        self.checkDatabaseState()
+                        return
+                    }
                     self.isLoading = true
                 }
                 try? await Task.sleep(nanoseconds: UInt64(retryDelay * 1_000_000_000))
@@ -619,7 +626,7 @@ enum AppSeedingGating {
 enum StartupMode: Equatable {
     /// Unit tests / CI: no startup work at all
     case skipped
-    /// UI tests or `-DisableCloudKit`: local store only, no iCloud account check
+    /// UI tests or CloudKit disabled (launch argument or environment): local store only, no iCloud account check
     case localOnly
     /// Normal launch: resolve the iCloud account status before deciding on seeding
     case cloudKitAware
@@ -634,6 +641,8 @@ enum StartupMode: Equatable {
         }
         if arguments.contains("-UITests") ||
             arguments.contains("-DisableCloudKit") ||
+            environment["UI_TESTS"] != nil ||
+            environment["DISABLE_CLOUDKIT"] != nil ||
             isXCTestLoaded {
             return .localOnly
         }

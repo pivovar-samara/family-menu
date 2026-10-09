@@ -235,6 +235,20 @@ final class AppStateManagerSeedingFlowTests: XCTestCase {
         XCTAssertTrue(manager.isLoading)
     }
 
+    func testDataArrivingWithoutImportEventEndsGate() async {
+        // The import finished but its notification was missed: the round times out with data already in the store
+        service.waitOutcomes = [.timedOut]
+        service.onWait = { [store] in store?.isEmpty = false }
+
+        let manager = makeManager()
+
+        let finished = await waitUntil { !manager.isLoading }
+        XCTAssertTrue(finished)
+        XCTAssertEqual(service.waitCallCount, 1)
+        XCTAssertEqual(store.generateCallCount, 0)
+        XCTAssertEqual(store.didFinishLoadingCallCount, 1)
+    }
+
     func testNoGatingWhenStoreDoesNotMirrorToCloudKit() async {
         store.cloudKitContainerIdentifier = nil
 
@@ -274,6 +288,11 @@ final class StartupModeDetectionTests: XCTestCase {
 
     func testDisableCloudKitIsLocalOnly() {
         XCTAssertEqual(StartupMode.detect(environment: [:], arguments: ["-DisableCloudKit"], isXCTestLoaded: false), .localOnly)
+    }
+
+    func testEnvironmentSwitchesAreLocalOnly() {
+        XCTAssertEqual(StartupMode.detect(environment: ["UI_TESTS": "1"], arguments: [], isXCTestLoaded: false), .localOnly)
+        XCTAssertEqual(StartupMode.detect(environment: ["DISABLE_CLOUDKIT": "1"], arguments: [], isXCTestLoaded: false), .localOnly)
     }
 
     func testLoadedXCTestWithoutConfigurationIsLocalOnly() {
