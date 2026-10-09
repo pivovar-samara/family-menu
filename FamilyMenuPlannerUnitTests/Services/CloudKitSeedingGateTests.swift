@@ -127,6 +127,70 @@ final class CloudKitSeedingLeaseAcquisitionTests: XCTestCase {
     }
 }
 
+final class CloudKitRemoteEmptinessProbeTests: XCTestCase {
+    private func page(records: Bool, moreComing: Bool) -> ZoneChangesPage {
+        ZoneChangesPage(hasRecords: records, moreComing: moreComing, changeToken: nil)
+    }
+
+    func testZoneWithRecordsIsNotEmpty() async {
+        let reader = MockZoneChangeReader(results: [.success(page(records: true, moreComing: false))])
+        let empty = await CloudKitSeedingGate.coreDataZoneAppearsEmpty(reader: reader)
+        XCTAssertFalse(empty)
+    }
+
+    func testZoneWithoutRecordsIsEmpty() async {
+        let reader = MockZoneChangeReader(results: [.success(page(records: false, moreComing: false))])
+        let empty = await CloudKitSeedingGate.coreDataZoneAppearsEmpty(reader: reader)
+        XCTAssertTrue(empty)
+    }
+
+    func testMissingZoneIsEmpty() async {
+        let reader = MockZoneChangeReader(results: [.failure(CKError(.zoneNotFound))])
+        let empty = await CloudKitSeedingGate.coreDataZoneAppearsEmpty(reader: reader)
+        XCTAssertTrue(empty)
+    }
+
+    func testTransportErrorIsNotEmpty() async {
+        let reader = MockZoneChangeReader(results: [.failure(CKError(.networkFailure))])
+        let empty = await CloudKitSeedingGate.coreDataZoneAppearsEmpty(reader: reader)
+        XCTAssertFalse(empty)
+    }
+
+    func testRecordOnLaterPageIsNotEmpty() async {
+        let reader = MockZoneChangeReader(results: [
+            .success(page(records: false, moreComing: true)),
+            .success(page(records: true, moreComing: false))
+        ])
+        let empty = await CloudKitSeedingGate.coreDataZoneAppearsEmpty(reader: reader)
+        XCTAssertFalse(empty)
+        XCTAssertEqual(reader.callCount, 2)
+    }
+
+    func testPagingBeyondLimitIsNotEmpty() async {
+        let pages = Array(repeating: Result<ZoneChangesPage, Error>.success(page(records: false, moreComing: true)),
+                          count: CloudKitSeedingGate.maxProbePages + 1)
+        let reader = MockZoneChangeReader(results: pages)
+        let empty = await CloudKitSeedingGate.coreDataZoneAppearsEmpty(reader: reader)
+        XCTAssertFalse(empty)
+        XCTAssertEqual(reader.callCount, CloudKitSeedingGate.maxProbePages)
+    }
+}
+
+private final class MockZoneChangeReader: CloudKitZoneChangeReading {
+    private var results: [Result<ZoneChangesPage, Error>]
+    private(set) var callCount = 0
+
+    init(results: [Result<ZoneChangesPage, Error>]) {
+        self.results = results
+    }
+
+    func zoneChangesPage(in zoneID: CKRecordZone.ID, since changeToken: CKServerChangeToken?) async throws -> ZoneChangesPage {
+        callCount += 1
+        XCTAssertEqual(zoneID, CloudKitSeedingGate.coreDataZoneID)
+        return try results.removeFirst().get()
+    }
+}
+
 /// Mimics `.ifServerRecordUnchanged` saves of a single record
 private final class MockRecordDatabase: CloudKitRecordSaving {
     /// The lease already on the server, if any

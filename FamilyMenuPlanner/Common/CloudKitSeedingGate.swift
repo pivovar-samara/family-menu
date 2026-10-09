@@ -47,6 +47,28 @@ protocol CloudKitRecordSaving {
 
 extension CKDatabase: CloudKitRecordSaving {}
 
+/// One page of record-zone changes, reduced to what the emptiness probe needs
+struct ZoneChangesPage {
+    /// Whether the page reported any record, including records that failed to download
+    let hasRecords: Bool
+    let moreComing: Bool
+    let changeToken: CKServerChangeToken?
+}
+
+/// Reads record-zone changes; lets tests drive the remote-emptiness probe without CloudKit
+protocol CloudKitZoneChangeReading {
+    func zoneChangesPage(in zoneID: CKRecordZone.ID, since changeToken: CKServerChangeToken?) async throws -> ZoneChangesPage
+}
+
+extension CKDatabase: CloudKitZoneChangeReading {
+    func zoneChangesPage(in zoneID: CKRecordZone.ID, since changeToken: CKServerChangeToken?) async throws -> ZoneChangesPage {
+        let changes = try await recordZoneChanges(inZoneWith: zoneID, since: changeToken, desiredKeys: [], resultsLimit: 1)
+        return ZoneChangesPage(hasRecords: !changes.modificationResultsByID.isEmpty,
+                               moreComing: changes.moreComing,
+                               changeToken: changes.changeToken)
+    }
+}
+
 enum CloudKitSeedingGate {
     /// The container NSPersistentCloudKitContainer mirrors to (first entry of
     /// `com.apple.developer.icloud-container-identifiers`). Do not use `CKContainer.default()` here:
@@ -71,7 +93,7 @@ enum CloudKitSeedingGate {
     /// `waitForImportOrRemoteEmpty(maxWait:)` if a different trade‑off is desired.
     static let defaultMaxWait: TimeInterval = 180
     /// Upper bound on zone-change pages read while probing the mirror for emptiness
-    private static let maxProbePages = 5
+    static let maxProbePages = 5
     /// Waits for the first NSPersistentCloudKitContainer import event or a timeout.
     /// Returns true if an import completed, false if timed out.
     static func waitForImportOrTimeout(timeout: TimeInterval) async -> Bool {
@@ -177,20 +199,25 @@ enum CloudKitSeedingGate {
             return false
         }
 
-        let db = container.privateCloudDatabase
+        return await coreDataZoneAppearsEmpty(reader: container.privateCloudDatabase)
+    }
+
+    /// Returns true only when the Core Data zone is definitively empty: it does not exist, or its changes
+    /// end (within `maxProbePages`) without any record. Records, errors and unfinished paging return false.
+    static func coreDataZoneAppearsEmpty(reader: CloudKitZoneChangeReading) async -> Bool {
         var changeToken: CKServerChangeToken? = nil
         for _ in 0..<maxProbePages {
             if Task.isCancelled { return false }
             do {
-                let changes = try await db.recordZoneChanges(inZoneWith: coreDataZoneID, since: changeToken, desiredKeys: [], resultsLimit: 1)
-                if !changes.modificationResultsByID.isEmpty {
+                let page = try await reader.zoneChangesPage(in: coreDataZoneID, since: changeToken)
+                if page.hasRecords {
                     return false
                 }
-                if !changes.moreComing {
+                if !page.moreComing {
                     AppLogger.info("Remote emptiness probe: Core Data zone has no records", category: AppLogger.cloudKit)
                     return true
                 }
-                changeToken = changes.changeToken
+                changeToken = page.changeToken
             } catch let error as CKError where error.code == .zoneNotFound {
                 AppLogger.info("Remote emptiness probe: Core Data zone does not exist yet", category: AppLogger.cloudKit)
                 return true

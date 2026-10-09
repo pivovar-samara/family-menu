@@ -249,6 +249,58 @@ final class AppStateManagerSeedingFlowTests: XCTestCase {
         XCTAssertEqual(store.didFinishLoadingCallCount, 1)
     }
 
+    func testIncompleteGenerationDoesNotMarkAccountSeeded() async {
+        service.waitOutcomes = [.remoteAppearsEmpty]
+        service.leaseResult = true
+        store.generationCompletesPreload = false
+
+        let manager = makeManager()
+
+        let finished = await waitUntil { !manager.isLoading }
+        XCTAssertTrue(finished)
+        XCTAssertEqual(store.generateCallCount, 1)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertTrue(service.markedVersions.isEmpty)
+    }
+
+    func testRetryAfterFailedSeedReacquiresLease() async {
+        service.waitOutcomes = [.remoteAppearsEmpty]
+        service.leaseResult = true
+        store.generationSucceeds = false
+
+        let manager = makeManager()
+
+        let failed = await waitUntil { manager.showPersistenceErrorAlert }
+        XCTAssertTrue(failed)
+        XCTAssertEqual(store.generateCallCount, 1)
+
+        manager.retryPersistenceSetup()
+
+        // The used lease no longer bypasses the gate: the retry starts a new gate round instead of seeding
+        let regated = await waitUntil { self.service.waitCallCount == 2 }
+        XCTAssertTrue(regated)
+        XCTAssertEqual(store.generateCallCount, 1)
+        XCTAssertTrue(manager.isLoading)
+    }
+
+    func testPartialDataDuringImportWaitsInsteadOfSeeding() async {
+        service.holdsAccountStatus = true
+        store.isEmpty = false
+        store.isPartial = true
+
+        let manager = makeManager()
+        let requested = await waitUntil { self.service.isAccountStatusPending }
+        XCTAssertTrue(requested)
+        manager.isCloudKitSyncing = true
+        service.resumeAccountStatus()
+
+        let checked = await waitUntil { self.service.accountStatusCallCount == 1 && !self.service.isAccountStatusPending }
+        XCTAssertTrue(checked)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(store.generateCallCount, 0)
+        XCTAssertTrue(manager.isLoading)
+    }
+
     func testNoGatingWhenStoreDoesNotMirrorToCloudKit() async {
         store.cloudKitContainerIdentifier = nil
 
@@ -272,6 +324,10 @@ final class StartupModeDetectionTests: XCTestCase {
     func testCIEnvironmentIsSkipped() {
         XCTAssertEqual(StartupMode.detect(environment: ["CI": "TRUE"], arguments: [], isXCTestLoaded: false), .skipped)
         XCTAssertEqual(StartupMode.detect(environment: ["GITHUB_ACTIONS": "true"], arguments: [], isXCTestLoaded: false), .skipped)
+    }
+
+    func testXcodeCloudBuildNumberIsSkipped() {
+        XCTAssertEqual(StartupMode.detect(environment: ["BUILD_NUMBER": "42"], arguments: [], isXCTestLoaded: false), .skipped)
     }
 
     func testHostedXCTestIsSkipped() {
@@ -367,18 +423,27 @@ private final class MockStartupDataStore: StartupDataStore {
     var cloudKitContainerIdentifier: String? = "iCloud.container.menu"
     let preloadDataVersion = "1.1"
     var isEmpty = true
+    /// Some reference data present but the current preload is incomplete (partial import)
+    var isPartial = false
+    var generationSucceeds = true
+    /// Whether a successful generation leaves the complete current preload in the store
+    var generationCompletesPreload = true
 
     private(set) var generateCallCount = 0
     private(set) var didFinishLoadingCallCount = 0
 
     func isDatabaseEmpty() -> Bool { isEmpty }
-    func needsDataPopulation() -> Bool { isEmpty }
+    func needsDataPopulation() -> Bool { isEmpty || isPartial }
+    func hasCurrentPreloadData() -> Bool { !isEmpty && !isPartial }
     func performStartupMaintenance() {}
 
     func generateInitialData(isCloudImportInProgress: Bool, completion: @escaping (Bool) -> Void) {
         generateCallCount += 1
-        isEmpty = false
-        completion(true)
+        if generationSucceeds {
+            isEmpty = false
+            isPartial = !generationCompletesPreload
+        }
+        completion(generationSucceeds)
     }
 
     func didFinishLoading() { didFinishLoadingCallCount += 1 }

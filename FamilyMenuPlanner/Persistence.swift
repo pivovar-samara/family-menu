@@ -867,7 +867,7 @@ class PersistenceController {
         }
     }
     
-    private func isStaticDataValid(context: NSManagedObjectContext) -> Bool {
+    func isStaticDataValid(context: NSManagedObjectContext) -> Bool {
         // Check stored version with thread safety
         let storedVersion = UserDefaults.standard.string(forKey: Self.preloadDataVersionKey)
         

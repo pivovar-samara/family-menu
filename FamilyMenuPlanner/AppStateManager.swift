@@ -33,6 +33,8 @@ final class AppStateManager: ObservableObject {
     /// Pause between gate rounds that ended without a decision, so a quick "keep waiting" does not spin
     private let seedingGateRetryDelay: TimeInterval
     private var startupTask: Task<Void, Never>?
+    /// False until the iCloud account status is known; import events must not trigger a database check before that
+    private var isAccountStatusResolved = false
     private var seedingGateTask: Task<Void, Never>?
 
     private convenience init() {
@@ -69,8 +71,11 @@ final class AppStateManager: ObservableObject {
             AppLogger.info("AppStateManager initializing...", category: AppLogger.appState)
             // The seeding decision depends on iCloud availability, so resolve the account status first
             // and keep the loading screen up meanwhile.
+            // Observe import events from the start so an import that begins during the account check is not missed
+            observeCloudKitEvents()
             startupTask = Task { [weak self] in
                 await self?.resolveICloudAccountStatus()
+                self?.isAccountStatusResolved = true
                 self?.checkPersistenceState()
             }
         }
@@ -123,16 +128,6 @@ final class AppStateManager: ObservableObject {
             let status = try await seedingService.accountStatus()
             self.isICloudAvailable = (status == .available)
             if self.isICloudAvailable {
-                // Observe CloudKit events via classic observer to avoid non-sendable Notification in Swift 6
-                self.cloudKitEventObserver = NotificationCenter.default.addObserver(
-                    forName: NSPersistentCloudKitContainer.eventChangedNotification,
-                    object: nil,
-                    queue: .main
-                ) { [weak self] notification in
-                    Task { @MainActor [weak self] in
-                        self?.handleCloudKitEvent(notification)
-                    }
-                }
                 AppLogger.info("iCloud is available - CloudKit sync enabled", category: AppLogger.cloudKit)
                 AnalyticsManager.shared.setUserProperties([AnalyticsUserPropertyName.icloud_available: true])
                 if let mirrorContainer = dataStore.cloudKitContainerIdentifier,
@@ -148,6 +143,20 @@ final class AppStateManager: ObservableObject {
             AnalyticsManager.shared.trackError(error, domain: "iCloud", category: "iCloud account check failed")
             AnalyticsManager.shared.setUserProperties([AnalyticsUserPropertyName.icloud_available: false])
             self.isICloudAvailable = false
+        }
+    }
+
+    private func observeCloudKitEvents() {
+        guard cloudKitEventObserver == nil else { return }
+        // Observe CloudKit events via classic observer to avoid non-sendable Notification in Swift 6
+        cloudKitEventObserver = NotificationCenter.default.addObserver(
+            forName: NSPersistentCloudKitContainer.eventChangedNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            Task { @MainActor [weak self] in
+                self?.handleCloudKitEvent(notification)
+            }
         }
     }
 
@@ -187,7 +196,10 @@ final class AppStateManager: ObservableObject {
                             DispatchQueue.main.async {
                                 // Notify UI layers to refresh after sync
                                 NotificationCenter.default.post(name: .appDataDidReconcileAfterCloudKitImport, object: nil)
-                                self.checkDatabaseState()
+                                // Before the account status is known, startup will run the check itself
+                                if self.isAccountStatusResolved {
+                                    self.checkDatabaseState()
+                                }
                             }
                         }
                     }
@@ -220,8 +232,20 @@ final class AppStateManager: ObservableObject {
         }
         // Data arrived by another path (e.g. the import observer) while the gate was still waiting
         cancelSeedingGate()
+        // The lease allows exactly one seeding attempt: a retry (e.g. after a failure) must gate and reacquire it,
+        // since another device may take over the lease once it is stale.
+        hasCloudKitSeedingLease = false
         
         let needsDataPopulation = dataStore.needsDataPopulation()
+        let mirrorsToCloudKit = isICloudAvailable && dataStore.cloudKitContainerIdentifier != nil
+        
+        if needsDataPopulation && mirrorsToCloudKit && isCloudKitSyncing {
+            // Partially imported data: seeding now would race the rest of the import.
+            // The import-completed handler re-runs this check.
+            AppLogger.info("CloudKit import in progress – waiting for it before populating data", category: AppLogger.cloudKit)
+            isLoading = true
+            return
+        }
         
         // Avoid global cleanup that may over-delete; reconciliation runs after import
         
@@ -237,8 +261,9 @@ final class AppStateManager: ObservableObject {
                     
                     if success {
                         // When seeded successfully in CloudKit environment, mark account seeded.
-                        // Generation can be skipped (e.g. import in progress) and still report success, so check the store.
-                        if self.isICloudAvailable, self.dataStore.cloudKitContainerIdentifier != nil, !self.dataStore.isDatabaseEmpty() {
+                        // Generation can be skipped or partially fail and still report success,
+                        // so mark only when the store holds the complete current preload data.
+                        if mirrorsToCloudKit, self.dataStore.hasCurrentPreloadData() {
                             let service = self.seedingService
                             let version = self.dataStore.preloadDataVersion
                             Task { await service.markAccountSeeded(version: version) }
@@ -246,8 +271,6 @@ final class AppStateManager: ObservableObject {
                         // Initialize static data cache after database is ready
                         // This will preload all static data to ensure immediate availability
                         self.dataStore.didFinishLoading()
-                        // Reset the lease flag now that seeding has completed
-                        self.hasCloudKitSeedingLease = false
                         self.isLoading = false
                     } else {
                         self.persistenceError = "Failed to initialize app data. Please restart the app.".localized()
@@ -636,6 +659,7 @@ enum StartupMode: Equatable {
                        isXCTestLoaded: Bool = NSClassFromString("XCTestCase") != nil) -> StartupMode {
         if environment["GITHUB_ACTIONS"] != nil ||
             environment["CI"] != nil ||
+            environment["BUILD_NUMBER"] != nil ||
             environment["XCTestConfigurationFilePath"] != nil {
             return .skipped
         }
@@ -660,6 +684,8 @@ protocol StartupDataStore {
     var preloadDataVersion: String { get }
     func isDatabaseEmpty() -> Bool
     func needsDataPopulation() -> Bool
+    /// True when the store holds the complete preload data of the current version
+    func hasCurrentPreloadData() -> Bool
     func performStartupMaintenance()
     func generateInitialData(isCloudImportInProgress: Bool, completion: @escaping (Bool) -> Void)
     /// Called once the store has data and the UI can load
@@ -682,6 +708,9 @@ struct PersistenceStartupDataStore: StartupDataStore {
 
     func isDatabaseEmpty() -> Bool { persistence.isDatabaseEmpty(context: viewContext) }
     func needsDataPopulation() -> Bool { persistence.isDatabaseEmptyOrOutdated(context: viewContext) }
+    func hasCurrentPreloadData() -> Bool {
+        !persistence.isDatabaseEmpty(context: viewContext) && persistence.isStaticDataValid(context: viewContext)
+    }
     func performStartupMaintenance() { AppStateManager.performDraftMaintenance(context: viewContext) }
 
     func generateInitialData(isCloudImportInProgress: Bool, completion: @escaping (Bool) -> Void) {
