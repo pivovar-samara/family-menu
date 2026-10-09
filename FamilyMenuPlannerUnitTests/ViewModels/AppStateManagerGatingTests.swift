@@ -133,14 +133,24 @@ final class AppStateManagerSeedingFlowTests: XCTestCase {
     }
 
     func testGateDecidesOnlyAfterAccountStatusResolves() async {
+        service.holdsAccountStatus = true
+
         let manager = makeManager()
 
-        // The account status has not resolved yet, so nothing may be seeded
+        let requested = await waitUntil { self.service.isAccountStatusPending }
+        XCTAssertTrue(requested)
+        // Give the startup task time to (wrongly) move on while the status is unresolved
+        try? await Task.sleep(nanoseconds: 100_000_000)
         XCTAssertTrue(manager.isLoading)
+        XCTAssertEqual(service.isAccountSeededCallCount, 0)
+        XCTAssertEqual(service.waitCallCount, 0)
         XCTAssertEqual(store.generateCallCount, 0)
+
+        service.resumeAccountStatus()
 
         let gated = await waitUntil { self.service.waitCallCount == 1 }
         XCTAssertTrue(gated)
+        XCTAssertTrue(manager.isICloudAvailable)
         XCTAssertEqual(store.generateCallCount, 0)
     }
 
@@ -230,6 +240,10 @@ final class AppStateManagerSeedingFlowTests: XCTestCase {
 private final class MockCloudKitSeedingService: CloudKitSeedingService {
     let containerIdentifier = "iCloud.container.menu"
     var accountStatusResult: Result<CKAccountStatus, Error> = .success(.available)
+    /// When true, `accountStatus()` suspends until `resumeAccountStatus()` is called
+    var holdsAccountStatus = false
+    private var accountStatusContinuation: CheckedContinuation<Void, Never>?
+    var isAccountStatusPending: Bool { accountStatusContinuation != nil }
     var isAccountSeededResult = false
     /// Outcomes returned by successive waits; once exhausted, waits suspend until cancelled
     var waitOutcomes: [CloudKitSeedingGate.GateOutcome] = []
@@ -244,7 +258,15 @@ private final class MockCloudKitSeedingService: CloudKitSeedingService {
 
     func accountStatus() async throws -> CKAccountStatus {
         accountStatusCallCount += 1
+        if holdsAccountStatus {
+            await withCheckedContinuation { accountStatusContinuation = $0 }
+        }
         return try accountStatusResult.get()
+    }
+
+    func resumeAccountStatus() {
+        accountStatusContinuation?.resume()
+        accountStatusContinuation = nil
     }
 
     func isAccountSeeded(version: String) async -> Bool {

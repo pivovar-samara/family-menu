@@ -39,6 +39,14 @@ struct LiveCloudKitSeedingService: CloudKitSeedingService {
     }
 }
 
+/// The record save used by the seeding lease; lets tests drive the takeover path without CloudKit.
+/// Saves must use the `.ifServerRecordUnchanged` policy, like `CKDatabase.save(_:)`.
+protocol CloudKitRecordSaving {
+    func save(_ record: CKRecord) async throws -> CKRecord
+}
+
+extension CKDatabase: CloudKitRecordSaving {}
+
 enum CloudKitSeedingGate {
     /// The container NSPersistentCloudKitContainer mirrors to (first entry of
     /// `com.apple.developer.icloud-container-identifiers`). Do not use `CKContainer.default()` here:
@@ -197,8 +205,8 @@ enum CloudKitSeedingGate {
     /// Attempts to create a small anchor record in CloudKit to "lease" seeding.
     /// Returns true if the lease was acquired: the record was created, or an existing lease older than
     /// `staleLeaseInterval` was taken over. Returns false if another device holds a fresh lease or on error.
-    static func tryAcquireSeedingLease(now: Date = Date()) async -> Bool {
-        let db = container.privateCloudDatabase
+    static func tryAcquireSeedingLease(now: Date = Date(), database: CloudKitRecordSaving = container.privateCloudDatabase) async -> Bool {
+        let db = database
         let recordID = CKRecord.ID(recordName: seedAnchorRecordName)
         let record = CKRecord(recordType: seedAnchorRecordName, recordID: recordID)
         record["timestamp"] = now as CKRecordValue
