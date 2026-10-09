@@ -101,6 +101,8 @@ enum CloudKitSeedingGate {
     static let defaultMaxWait: TimeInterval = 180
     /// Upper bound on zone-change pages read while probing the mirror for emptiness
     static let maxProbePages = 5
+    /// Upper bound on save attempts for the seed marker when other devices write it concurrently
+    static let maxMarkerWriteAttempts = 3
     /// Waits for the first NSPersistentCloudKitContainer import event or a timeout.
     /// Returns true if an import completed, false if timed out.
     static func waitForImportOrTimeout(timeout: TimeInterval) async -> Bool {
@@ -311,11 +313,11 @@ enum CloudKitSeedingGate {
         }
     }
 
-    /// Pure helper to decide whether a stored seed version satisfies the required version.
-    /// Currently strict-equality; can be extended to semantic version precedence if needed.
+    /// Pure helper: a stored seed version satisfies the required one when it is the same or newer
+    /// (numeric comparison), since a newer app may already have seeded the account.
     static func doesStoredSeedVersionSatisfy(stored: String?, required: String) -> Bool {
         guard let stored = stored, !stored.isEmpty else { return false }
-        return stored == required
+        return stored.compare(required, options: .numeric) != .orderedAscending
     }
 
     /// Marks the account as seeded for the specified version. Idempotent and never downgrades:
@@ -334,22 +336,33 @@ enum CloudKitSeedingGate {
             logCloudKitError("Failed to read account seed marker before marking", error)
             return false
         }
-        let storedVersion = existing?["version"] as? String
-        guard shouldWriteSeedMarker(stored: storedVersion, new: version) else {
-            AppLogger.info("Account seed marker already at version \(storedVersion ?? "nil") – not writing \(version)", category: AppLogger.cloudKit)
-            return false
+        var record = existing ?? CKRecord(recordType: seededVersionRecordName, recordID: recordID)
+        // Bounded retries: a conflicting write from another device is re-evaluated against its result
+        for _ in 0..<maxMarkerWriteAttempts {
+            let storedVersion = record["version"] as? String
+            guard shouldWriteSeedMarker(stored: storedVersion, new: version) else {
+                AppLogger.info("Account seed marker already at version \(storedVersion ?? "nil") – not writing \(version)", category: AppLogger.cloudKit)
+                return false
+            }
+            record["version"] = version as CKRecordValue
+            record["timestamp"] = now as CKRecordValue
+            do {
+                _ = try await database.save(record)
+                AppLogger.info("Account marked seeded with version \(version) in \(containerIdentifier)", category: AppLogger.cloudKit)
+                return true
+            } catch let error as CKError where error.code == .serverRecordChanged {
+                guard let serverRecord = error.serverRecord else {
+                    logCloudKitError("Account seed marker changed concurrently and server record is missing", error)
+                    return false
+                }
+                record = serverRecord
+            } catch {
+                logCloudKitError("Failed to save account seed marker", error)
+                return false
+            }
         }
-        let record = existing ?? CKRecord(recordType: seededVersionRecordName, recordID: recordID)
-        record["version"] = version as CKRecordValue
-        record["timestamp"] = now as CKRecordValue
-        do {
-            _ = try await database.save(record)
-            AppLogger.info("Account marked seeded with version \(version) in \(containerIdentifier)", category: AppLogger.cloudKit)
-            return true
-        } catch {
-            logCloudKitError("Failed to save account seed marker", error)
-            return false
-        }
+        AppLogger.warning("Account seed marker kept changing concurrently – giving up on \(version)", category: AppLogger.cloudKit)
+        return false
     }
 
     /// Pure helper: write the marker only when it is missing/empty or holds an older version (numeric comparison).

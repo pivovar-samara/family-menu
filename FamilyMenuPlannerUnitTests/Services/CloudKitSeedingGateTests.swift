@@ -34,6 +34,11 @@ final class CloudKitSeedingGatePureTests: XCTestCase {
         XCTAssertFalse(CloudKitSeedingGate.doesStoredSeedVersionSatisfy(stored: "", required: "1.1"))
     }
 
+    func testNewerVersionSatisfies() {
+        XCTAssertTrue(CloudKitSeedingGate.doesStoredSeedVersionSatisfy(stored: "1.2", required: "1.1"))
+        XCTAssertTrue(CloudKitSeedingGate.doesStoredSeedVersionSatisfy(stored: "1.10", required: "1.9"))
+    }
+
     func testVersionDoesNotSatisfyWhenDifferent() {
         XCTAssertFalse(CloudKitSeedingGate.doesStoredSeedVersionSatisfy(stored: "1.0", required: "1.1"))
     }
@@ -177,6 +182,31 @@ final class CloudKitSeedMarkerTests: XCTestCase {
         XCTAssertEqual(database.serverRecord?["version"] as? String, "1.2")
     }
 
+    func testRetriesWhenConcurrentWriteLeftOlderVersion() async {
+        let database = MockMarkerDatabase()
+        database.serverRecord = marker(version: "1.0")
+        // Another device writes 1.0 again between our fetch and our save
+        database.conflictingRecords = [marker(version: "1.0")]
+
+        let written = await CloudKitSeedingGate.markAccountSeeded(version: "1.1", database: database)
+
+        XCTAssertTrue(written)
+        XCTAssertEqual(database.savedRecords.count, 2)
+        XCTAssertEqual(database.serverRecord?["version"] as? String, "1.1")
+    }
+
+    func testStopsWhenConcurrentWriteLeftNewerVersion() async {
+        let database = MockMarkerDatabase()
+        database.serverRecord = marker(version: "1.0")
+        database.conflictingRecords = [marker(version: "1.2")]
+
+        let written = await CloudKitSeedingGate.markAccountSeeded(version: "1.1", database: database)
+
+        XCTAssertFalse(written)
+        XCTAssertEqual(database.savedRecords.count, 1)
+        XCTAssertEqual(database.serverRecord?["version"] as? String, "1.2")
+    }
+
     func testFetchErrorDoesNotWrite() async {
         let database = MockMarkerDatabase()
         database.fetchError = CKError(.networkUnavailable)
@@ -191,6 +221,8 @@ final class CloudKitSeedMarkerTests: XCTestCase {
 private final class MockMarkerDatabase: CloudKitRecordStoring {
     var serverRecord: CKRecord?
     var fetchError: Error?
+    /// Records another device "wins" with: each save consumes one and fails with `.serverRecordChanged`
+    var conflictingRecords: [CKRecord] = []
     private(set) var savedRecords: [CKRecord] = []
 
     func record(for recordID: CKRecord.ID) async throws -> CKRecord {
@@ -201,6 +233,11 @@ private final class MockMarkerDatabase: CloudKitRecordStoring {
 
     func save(_ record: CKRecord) async throws -> CKRecord {
         savedRecords.append(record)
+        if !conflictingRecords.isEmpty {
+            let winner = conflictingRecords.removeFirst()
+            serverRecord = winner
+            throw CKError(.serverRecordChanged, userInfo: [CKRecordChangedErrorServerRecordKey: winner])
+        }
         serverRecord = record
         return record
     }
