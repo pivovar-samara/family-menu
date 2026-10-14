@@ -659,6 +659,30 @@ final class AppStateManagerAccountChangeTests: XCTestCase {
         XCTAssertTrue(manager.isICloudAvailable)
     }
 
+    func testIntermediateSaveWithEditorOpenDoesNotRestartMirroring() async {
+        service.accountStatusResult = .success(.noAccount)
+        let manager = await launchWithData()
+
+        // The dish wizard is open (it counts as an edit in progress even when its context is clean)
+        store.hasUnsavedChanges = true
+        service.accountStatusResult = .success(.available)
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        let rechecked = await waitUntil { self.service.accountStatusCallCount == 2 }
+        XCTAssertTrue(rechecked)
+
+        // The wizard saves its ingredients step: still editing, so no restart
+        NotificationCenter.default.post(name: .NSManagedObjectContextDidSave, object: nil)
+        await waitPastRecheck()
+        XCTAssertEqual(store.storeReloadCallCount, 0)
+        XCTAssertFalse(manager.isLoading)
+
+        // The editor closes
+        store.hasUnsavedChanges = false
+        NotificationCenter.default.post(name: .editSessionsDidEnd, object: nil)
+        let restarted = await waitUntil { self.store.storeReloadCallCount == 1 && !manager.isLoading }
+        XCTAssertTrue(restarted)
+    }
+
     func testActivationWithICloudStillOffDoesNotReloadStore() async {
         service.accountStatusResult = .success(.noAccount)
         let manager = await launchWithData()

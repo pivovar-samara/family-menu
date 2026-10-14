@@ -566,14 +566,15 @@ final class AppStateManager: ObservableObject {
 
     /// Reloading the store resets the view context, which would drop an edit in progress (dish and product edits
     /// stay unsaved until Save). Keep iCloud counted as unavailable, since mirroring is not running yet, and check
-    /// the account again once the view context is clean: after a save, or after Cancel rolls the edit back
-    /// (which posts no save, only an objects-did-change notification). Activation also re-checks.
+    /// the account again once no edit is in progress: when the last editor closes, or the view context becomes
+    /// clean after a save or a Cancel rollback (which posts objects-did-change, not a save). An intermediate save
+    /// with the editor still open does not count. Activation also re-checks.
     private func deferMirroringRestartUntilSaved() {
         AppLogger.info("iCloud became available – restarting CloudKit mirroring after unsaved edits are finished", category: AppLogger.cloudKit)
         isICloudAvailable = false
         guard deferredRestartObservers.isEmpty else { return }
         let center = NotificationCenter.default
-        for name in [Notification.Name.NSManagedObjectContextDidSave, .NSManagedObjectContextObjectsDidChange] {
+        for name in [Notification.Name.NSManagedObjectContextDidSave, .NSManagedObjectContextObjectsDidChange, .editSessionsDidEnd] {
             deferredRestartObservers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     guard let self, !self.deferredRestartObservers.isEmpty, !self.dataStore.hasUnsavedChanges else { return }
@@ -986,7 +987,8 @@ protocol StartupDataStore {
     func needsDataPopulation() -> Bool
     /// `needsDataPopulation()` judged from a fresh context, without touching the view context
     func storeNeedsDataPopulation() -> Bool
-    /// Whether the view context holds unsaved edits (e.g. an open dish or product editor)
+    /// Whether an edit is in progress: the view context holds unsaved changes, or a dish or product editor is
+    /// open (editors save intermediate steps before the edit is finished)
     var hasUnsavedChanges: Bool { get }
     /// True when the store holds the complete preload data of the current version
     func hasCurrentPreloadData() -> Bool
@@ -1017,7 +1019,7 @@ struct PersistenceStartupDataStore: StartupDataStore {
 
     func isDatabaseEmpty() -> Bool { persistence.isDatabaseEmpty(context: viewContext) }
     func needsDataPopulation() -> Bool { persistence.isDatabaseEmptyOrOutdated(context: viewContext) }
-    var hasUnsavedChanges: Bool { viewContext.hasChanges }
+    var hasUnsavedChanges: Bool { viewContext.hasChanges || EditSessionTracker.shared.isEditing }
     func storeNeedsDataPopulation() -> Bool {
         let context = persistence.newBackgroundContext()
         var needsPopulation = false
