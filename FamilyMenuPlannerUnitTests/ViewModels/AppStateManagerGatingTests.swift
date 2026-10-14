@@ -759,6 +759,59 @@ final class AppStateManagerAccountChangeTests: XCTestCase {
         XCTAssertTrue(reseeded)
     }
 
+    func testAccountChangeDuringMarkerWriteCancelsIt() async {
+        service.waitOutcomes = [.remoteAppearsEmpty]
+        service.leaseResult = true
+        service.holdsMarker = true
+        let manager = makeManager()
+        let marking = await waitUntil { self.service.isMarkerPending && !manager.isLoading }
+        XCTAssertTrue(marking)
+
+        // Another account signs in while the marker write is suspended
+        NotificationCenter.default.post(name: .CKAccountChanged, object: nil)
+        let rechecked = await waitUntil { self.service.accountStatusCallCount == 2 }
+        XCTAssertTrue(rechecked)
+        service.resumeMarker()
+
+        let cancelled = await waitUntil { self.service.cancelledMarkerWrites == 1 }
+        XCTAssertTrue(cancelled)
+        XCTAssertTrue(service.markedVersions.isEmpty)
+    }
+
+    func testFailedStoreReloadIsRetriedWithoutRelaunch() async {
+        service.accountStatusResult = .success(.noAccount)
+        let manager = await launchWithData()
+        store.storeReloadSucceeds = false
+        service.accountStatusResult = .success(.available)
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        let failed = await waitUntil { manager.showPersistenceErrorAlert }
+        XCTAssertTrue(failed)
+        XCTAssertFalse(manager.isICloudAvailable)
+
+        // Retry from the alert reloads the store again
+        store.storeReloadSucceeds = true
+        manager.retryPersistenceSetup()
+        let restarted = await waitUntil { self.store.storeReloadCallCount == 2 && !manager.isLoading }
+        XCTAssertTrue(restarted)
+        XCTAssertTrue(manager.isICloudAvailable)
+        XCTAssertFalse(manager.showPersistenceErrorAlert)
+    }
+
+    func testFailedStoreReloadIsRetriedOnNextActivation() async {
+        service.accountStatusResult = .success(.noAccount)
+        let manager = await launchWithData()
+        store.storeReloadSucceeds = false
+        service.accountStatusResult = .success(.available)
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        let failed = await waitUntil { manager.showPersistenceErrorAlert }
+        XCTAssertTrue(failed)
+
+        store.storeReloadSucceeds = true
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        let restarted = await waitUntil { self.store.storeReloadCallCount == 2 && manager.isICloudAvailable }
+        XCTAssertTrue(restarted)
+    }
+
     func testFailedAccountLookupAfterPurgeRetriesInsteadOfSeeding() async {
         let manager = await launchWithData()
 
@@ -878,8 +931,26 @@ private final class MockCloudKitSeedingService: CloudKitSeedingService {
         return leaseResult
     }
 
+    /// When true, `markAccountSeeded` suspends until `resumeMarker()` is called
+    var holdsMarker = false
+    private var markerContinuation: CheckedContinuation<Void, Never>?
+    var isMarkerPending: Bool { markerContinuation != nil }
+    private(set) var cancelledMarkerWrites = 0
+
     func markAccountSeeded(version: String) async {
+        if holdsMarker {
+            await withCheckedContinuation { markerContinuation = $0 }
+        }
+        guard !Task.isCancelled else {
+            cancelledMarkerWrites += 1
+            return
+        }
         markedVersions.append(version)
+    }
+
+    func resumeMarker() {
+        markerContinuation?.resume()
+        markerContinuation = nil
     }
 }
 

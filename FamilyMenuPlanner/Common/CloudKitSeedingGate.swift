@@ -354,9 +354,18 @@ enum CloudKitSeedingGate {
             logCloudKitError("Failed to read account seed marker before marking", error)
             return false
         }
+        // Cancelled (e.g. the iCloud account changed) while fetching: the save could go to another account
+        guard !Task.isCancelled else {
+            AppLogger.info("Account seed marker write cancelled", category: AppLogger.cloudKit)
+            return false
+        }
         var record = existing ?? CKRecord(recordType: seededVersionRecordName, recordID: recordID)
         // Bounded retries: a conflicting write from another device is re-evaluated against its result
         for _ in 0..<maxMarkerWriteAttempts {
+            guard !Task.isCancelled else {
+                AppLogger.info("Account seed marker write cancelled", category: AppLogger.cloudKit)
+                return false
+            }
             let storedVersion = record["version"] as? String
             guard shouldWriteSeedMarker(stored: storedVersion, new: version) else {
                 AppLogger.info("Account seed marker already at version \(storedVersion ?? "nil") – not writing \(version)", category: AppLogger.cloudKit)

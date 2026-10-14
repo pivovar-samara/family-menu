@@ -17,6 +17,10 @@ final class AppStateManager: ObservableObject {
     private var accountChangeObserver: NSObjectProtocol? = nil
     private var storeChangeObservers: [NSObjectProtocol] = []
     private var storeChangeDebounceTask: Task<Void, Never>?
+    /// Writes the seed marker after a successful seed; cancelled on an account change so it cannot mark the new account
+    private var seedMarkerTask: Task<Void, Never>?
+    /// A mirroring restart (store reload) failed; Retry and the next recheck try it again
+    private var isMirroringRestartPending = false
     /// Incremented on every iCloud account change; a seed started before the change must not mark the new account
     private var accountGeneration = 0
     /// Set while a mirroring restart waits for unsaved edits to be saved or discarded
@@ -103,6 +107,7 @@ final class AppStateManager: ObservableObject {
     deinit {
         startupTask?.cancel()
         seedingGateTask?.cancel()
+        seedMarkerTask?.cancel()
         storeResetRecheckTask?.cancel()
         storeChangeDebounceTask?.cancel()
         storeChangeObservers.forEach { NotificationCenter.default.removeObserver($0) }
@@ -134,6 +139,20 @@ final class AppStateManager: ObservableObject {
     func retryPersistenceSetup() {
         self.persistenceError = nil
         self.showPersistenceErrorAlert = false
+        if isMirroringRestartPending {
+            // The store is still usable; what failed was reloading it to restart CloudKit mirroring
+            isLoading = true
+            Task { [weak self] in
+                guard let self else { return }
+                if await self.resolveICloudAccountStatus(keepAvailabilityOnFailure: true), self.isICloudAvailable {
+                    self.restartCloudKitMirroring()
+                } else {
+                    // iCloud off again, or the lookup failed: keep using the store; the next recheck tries again
+                    self.checkDatabaseState()
+                }
+            }
+            return
+        }
         self.isLoading = true
         
         // Use the new asynchronous recovery method to avoid blocking the UI
@@ -378,7 +397,7 @@ final class AppStateManager: ObservableObject {
                         if mirrorsToCloudKit, self.dataStore.hasCurrentPreloadData() {
                             let service = self.seedingService
                             let version = self.dataStore.preloadDataVersion
-                            Task { await service.markAccountSeeded(version: version) }
+                            self.seedMarkerTask = Task { await service.markAccountSeeded(version: version) }
                         }
                         self.finishLoading()
                     } else {
@@ -467,6 +486,8 @@ final class AppStateManager: ObservableObject {
         if accountChanged {
             // A running gate round, a held lease and an in-flight seed belong to the previous account
             accountGeneration += 1
+            seedMarkerTask?.cancel()
+            seedMarkerTask = nil
             cancelSeedingGate()
             hasCloudKitSeedingLease = false
         } else if storeResetRecheckTask != nil || seedingGateTask != nil {
@@ -570,15 +591,19 @@ final class AppStateManager: ObservableObject {
     private func restartCloudKitMirroring() {
         AppLogger.info("iCloud became available – restarting CloudKit mirroring", category: AppLogger.cloudKit)
         isLoading = true
+        isMirroringRestartPending = true
         dataStore.reloadStoreForCloudKitMirroring { [weak self] success in
             DispatchQueue.main.async {
                 guard let self else { return }
                 guard success else {
+                    // Mirroring is still down: count iCloud as unavailable so the next recheck restarts it again
+                    self.isICloudAvailable = false
                     self.persistenceError = "Failed to initialize app data. Please restart the app.".localized()
                     self.showPersistenceErrorAlert = true
                     self.isLoading = false
                     return
                 }
+                self.isMirroringRestartPending = false
                 self.dataStore.reloadAfterStoreReset()
                 self.checkDatabaseState()
             }
