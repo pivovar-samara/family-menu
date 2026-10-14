@@ -469,6 +469,8 @@ final class AppStateManagerAccountChangeTests: XCTestCase {
         XCTAssertEqual(service.accountStatusCallCount, 1)
         XCTAssertEqual(store.generateCallCount, 0)
         XCTAssertEqual(store.didFinishLoadingCallCount, 1)
+        // The view context (which may hold unsaved edits) is left alone when nothing was purged
+        XCTAssertEqual(store.reloadAfterResetCallCount, 0)
     }
 
     func testAccountChangeDuringSeedingGateReplacesGateOfPreviousAccount() async {
@@ -629,6 +631,7 @@ final class AppStateManagerAccountChangeTests: XCTestCase {
         XCTAssertFalse(manager.isLoading)
         XCTAssertEqual(service.accountStatusCallCount, 1)
         XCTAssertEqual(store.storeReloadCallCount, 0)
+        XCTAssertEqual(store.reloadAfterResetCallCount, 0)
     }
 
     func testFailedStoreReloadShowsError() async {
@@ -787,6 +790,7 @@ private final class MockStartupDataStore: StartupDataStore {
 
     func isDatabaseEmpty() -> Bool { isEmpty }
     func needsDataPopulation() -> Bool { isEmpty || isPartial }
+    func storeNeedsDataPopulation() -> Bool { needsDataPopulation() }
     func hasCurrentPreloadData() -> Bool { !isEmpty && !isPartial }
     func performStartupMaintenance() {}
 

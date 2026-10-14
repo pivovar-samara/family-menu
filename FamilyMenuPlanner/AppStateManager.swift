@@ -455,12 +455,12 @@ final class AppStateManager: ObservableObject {
             // Let the purge's merge into the view context settle before judging the store
             try? await Task.sleep(nanoseconds: UInt64(Self.cloudKitMergeSettleDelay * 1_000_000_000))
             guard !Task.isCancelled, let self, self.dataStore.isReady else { return }
-            // The purge does not necessarily merge into the view context: refresh it (and the static data cache)
-            // so the check below and the UI see the store as it is now
-            self.dataStore.reloadAfterStoreReset()
+            // The store is judged from a fresh context (`storeNeedsDataPopulation`): the view context may not have
+            // seen the purge, and it is only refreshed once recovery is confirmed, so ordinary activations do not
+            // disturb unsaved edits.
             // iCloud may have been turned on for the app (which posts no CKAccountChanged) since mirroring last failed
             let wasICloudUnavailable = !self.isICloudAvailable && self.dataStore.cloudKitContainerIdentifier != nil
-            guard accountChanged || wasICloudUnavailable || self.dataStore.needsDataPopulation() else {
+            guard accountChanged || wasICloudUnavailable || self.dataStore.storeNeedsDataPopulation() else {
                 self.storeResetRecheckTask = nil
                 return
             }
@@ -468,7 +468,7 @@ final class AppStateManager: ObservableObject {
             // CloudKit-backed, and ungated preload data could later upload into the new account's data
             while !(await self.resolveICloudAccountStatus(keepAvailabilityOnFailure: true)) {
                 guard !Task.isCancelled else { return }
-                guard self.dataStore.needsDataPopulation() else {
+                guard self.dataStore.storeNeedsDataPopulation() else {
                     // Nothing to recover (any more): the next trigger checks the account again
                     self.storeResetRecheckTask = nil
                     self.finishLoadingIfWaiting()
@@ -485,18 +485,20 @@ final class AppStateManager: ObservableObject {
                 self.restartCloudKitMirroring()
                 return
             }
-            guard self.dataStore.needsDataPopulation() else {
+            guard self.dataStore.storeNeedsDataPopulation() else {
                 // Account changed but its data is still here (the purge, if any, triggers another check),
                 // or data arrived while an earlier lookup failure kept the loading screen up
                 self.finishLoadingIfWaiting()
                 return
             }
-            AppLogger.warning("Local store was cleared after startup (iCloud account change) – re-running the database check", category: AppLogger.cloudKit)
+            // Bring the view context and the static data cache up to date with the store
+            self.dataStore.reloadAfterStoreReset()
             if trigger == .storeChanged, self.isICloudAvailable, !self.dataStore.isDatabaseEmpty() {
                 // Partly imported data with iCloud on: the import-completed check handles it
                 self.finishLoadingIfWaiting()
                 return
             }
+            AppLogger.warning("Local store was cleared after startup (iCloud account change) – re-running the database check", category: AppLogger.cloudKit)
             // Show the loading screen so the UI rebuilds once the store is populated again
             self.isLoading = true
             self.checkDatabaseState()
@@ -901,6 +903,8 @@ protocol StartupDataStore {
     var preloadDataVersion: String { get }
     func isDatabaseEmpty() -> Bool
     func needsDataPopulation() -> Bool
+    /// `needsDataPopulation()` judged from a fresh context, without touching the view context
+    func storeNeedsDataPopulation() -> Bool
     /// True when the store holds the complete preload data of the current version
     func hasCurrentPreloadData() -> Bool
     func performStartupMaintenance()
@@ -930,6 +934,14 @@ struct PersistenceStartupDataStore: StartupDataStore {
 
     func isDatabaseEmpty() -> Bool { persistence.isDatabaseEmpty(context: viewContext) }
     func needsDataPopulation() -> Bool { persistence.isDatabaseEmptyOrOutdated(context: viewContext) }
+    func storeNeedsDataPopulation() -> Bool {
+        let context = persistence.newBackgroundContext()
+        var needsPopulation = false
+        context.performAndWait {
+            needsPopulation = persistence.isDatabaseEmptyOrOutdated(context: context)
+        }
+        return needsPopulation
+    }
     func hasCurrentPreloadData() -> Bool {
         !persistence.isDatabaseEmpty(context: viewContext) && persistence.isStaticDataValid(context: viewContext)
     }
