@@ -158,6 +158,8 @@ final class AppStateManager: ObservableObject {
     private func resolveICloudAccountStatus(keepAvailabilityOnFailure: Bool = false) async -> Bool {
         do {
             let status = try await seedingService.accountStatus()
+            // A replaced recheck's lookup may finish after the current one: do not publish its result
+            guard !Task.isCancelled else { return false }
             self.isICloudAvailable = (status == .available)
             if self.isICloudAvailable {
                 AppLogger.info("iCloud is available - CloudKit sync enabled", category: AppLogger.cloudKit)
@@ -172,6 +174,7 @@ final class AppStateManager: ObservableObject {
             }
             return true
         } catch {
+            guard !Task.isCancelled else { return false }
             AppLogger.error("iCloud account check failed [\(CloudKitSeedingGate.errorCodeDescription(error)), container \(seedingService.containerIdentifier)]", error: error, category: AppLogger.cloudKit)
             AnalyticsManager.shared.trackError(error, domain: "iCloud", category: "iCloud account check failed")
             if !keepAvailabilityOnFailure {

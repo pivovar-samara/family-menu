@@ -1365,7 +1365,7 @@ class PersistenceController {
         // Save all changes
         if context.hasChanges {
             do {
-                try saveRecordingLocallySeededDishes(context: context)
+                try context.save()
             } catch {
                 AppLogger.error("Error saving CloudKit conflict resolution data generation", error: error, category: AppLogger.dataImport)
                 AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error saving CloudKit conflict resolution data generation")
@@ -1568,7 +1568,7 @@ class PersistenceController {
         // Save all data
         do {
             if context.hasChanges {
-                try saveRecordingLocallySeededDishes(context: context)
+                try context.save()
             }
             AppLogger.info("Traditional data generation completed successfully", category: AppLogger.dataImport)
         } catch {
@@ -2088,7 +2088,7 @@ class PersistenceController {
 
             // Save all data
             if context.hasChanges {
-                try saveRecordingLocallySeededDishes(context: context)
+                try context.save()
             }
             
             // Mark current version as loaded - use both keys for redundancy
@@ -2144,36 +2144,19 @@ class PersistenceController {
     }
     
     // Remove local duplicates when CloudKit import brought remote copies: decide by dish key presence in both local preseeded set and remote set.
-    /// URIs of dishes this installation created from preload data. Local only (never synced), so reconciliation
-    /// can tell a local seed copy from an imported record with the same key.
-    private static let locallySeededDishURIsKey = "LocallySeededDishURIs"
-
-    static var locallySeededDishURIs: Set<String> {
-        get { Set(UserDefaults.standard.stringArray(forKey: locallySeededDishURIsKey) ?? []) }
-        set { UserDefaults.standard.set(Array(newValue), forKey: locallySeededDishURIsKey) }
-    }
-
-    /// Saves a seeding context and records the dishes it inserted as locally seeded
-    func saveRecordingLocallySeededDishes(context: NSManagedObjectContext) throws {
-        let insertedDishes = context.insertedObjects.compactMap { $0 as? Dish }
-        if !insertedDishes.isEmpty {
-            // Record before saving, so a crash after the save cannot leave seed copies unrecorded;
-            // URIs of a failed save match no dish and are pruned by the reconciliation
-            try context.obtainPermanentIDs(for: insertedDishes)
-            Self.locallySeededDishURIs.formUnion(insertedDishes.map { $0.objectID.uriRepresentation().absoluteString })
-        }
-        try context.save()
-    }
-
-    /// Resolves dishes sharing a key after a CloudKit import. When a group mixes seed copies (recorded as seeded
-    /// here, or exact copies of their preload dish) with other records, the other record wins: it carries edits. Seed copies hand their menu
-    /// links over to it and are deleted. Groups without that mix keep the menu-linked or most connected dish.
+    /// Resolves dishes sharing a key after a CloudKit import. A seed copy (an exact copy of its preload dish:
+    /// same details, ingredients, category and meal types) is deleted when the group also holds a record that
+    /// differs from the preload, since that one carries edits; the seed copy's menu links move to it.
+    /// Groups of seed copies only keep one; differing records are left to `cleanupDuplicateDishes`, which merges.
     func removeLocallySeededDishesIfRemoteExists(context: NSManagedObjectContext) {
         context.performAndWait {
             do {
                 func norm(_ s: String?) -> String { (s ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
                 func connections(_ d: Dish) -> Int { (d.ingredientDetails?.count ?? 0) + (d.mealTypes?.count ?? 0) }
-                // Seed copies from before provenance was recorded: an exact copy of its preload dish is a seed copy
+                func preferred(_ dishes: [Dish]) -> Dish {
+                    // Prefer one linked to a menu entry, else the most connected
+                    dishes.first { ($0.menus?.count ?? 0) > 0 } ?? dishes.max { connections($0) < connections($1) }!
+                }
                 func ingredientSignature(_ pairs: [(String, Double)]) -> [String] {
                     pairs.map { "\(norm($0.0))|\(($0.1 * 1000).rounded() / 1000)" }.sorted()
                 }
@@ -2183,13 +2166,12 @@ class PersistenceController {
                 }
                 func isUnmodifiedPreloadCopy(_ d: Dish) -> Bool {
                     guard let preload = preloadByName[norm(d.name)] else { return false }
-                    guard norm(d.details) == norm(preload.details) else { return false }
+                    guard norm(d.details) == norm(preload.details),
+                          norm(d.category?.name) == norm(preload.category) else { return false }
+                    let mealTypes = (d.mealTypes as? Set<MealType> ?? []).map { norm($0.name) }.sorted()
+                    guard mealTypes == (preload.mealTypes ?? []).map({ norm($0) }).sorted() else { return false }
                     let ingredients = (d.ingredientDetails as? Set<IngredientDetail> ?? []).map { ($0.product?.name ?? "", $0.quantity) }
                     return ingredientSignature(ingredients) == ingredientSignature(preload.ingredients.map { ($0.product, $0.quantity) })
-                }
-                func preferred(_ dishes: [Dish]) -> Dish {
-                    // Prefer one linked to a menu entry, else the most connected
-                    dishes.first { ($0.menus?.count ?? 0) > 0 } ?? dishes.max { connections($0) < connections($1) }!
                 }
                 // Load all dishes and group by key
                 let fetch: NSFetchRequest<Dish> = Dish.fetchRequest()
@@ -2200,29 +2182,23 @@ class PersistenceController {
                     if k.isEmpty { continue }
                     groups[k, default: []].append(d)
                 }
-                var seededURIs = Self.locallySeededDishURIs
                 var removed = 0
                 for (_, dishes) in groups where dishes.count > 1 {
-                    let isSeeded = { (d: Dish) in
-                        seededURIs.contains(d.objectID.uriRepresentation().absoluteString) || isUnmodifiedPreloadCopy(d)
-                    }
-                    let imported = dishes.filter { !isSeeded($0) }
-                    let keep = imported.isEmpty || imported.count == dishes.count ? preferred(dishes) : preferred(imported)
-                    for d in dishes where d != keep {
+                    let seedCopies = dishes.filter(isUnmodifiedPreloadCopy)
+                    guard !seedCopies.isEmpty else { continue }
+                    let edited = dishes.filter { !seedCopies.contains($0) }
+                    let keep = edited.isEmpty ? preferred(seedCopies) : preferred(edited)
+                    for d in seedCopies where d != keep {
                         // Keep the week menus pointing at the surviving dish
                         for case let menu as Menu in d.menus ?? [] {
                             menu.addToDishes(keep)
                         }
-                        seededURIs.remove(d.objectID.uriRepresentation().absoluteString)
                         context.delete(d)
                         removed += 1
                     }
                 }
                 if context.hasChanges { try context.save() }
-                // Drop URIs of dishes that no longer exist (deleted, or purged with the old account's data)
-                let remaining = Set(all.filter { !$0.isDeleted }.map { $0.objectID.uriRepresentation().absoluteString })
-                Self.locallySeededDishURIs = seededURIs.intersection(remaining)
-                if removed > 0 { AppLogger.info("Removed \(removed) duplicate dishes after Cloud import (key-based)", category: AppLogger.persistence) }
+                if removed > 0 { AppLogger.info("Removed \(removed) duplicate seed dishes after Cloud import (key-based)", category: AppLogger.persistence) }
             } catch {
                 AppLogger.error("Failed to remove locally seeded dishes", error: error, category: AppLogger.persistence)
                 AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Failed to remove locally seeded dishes")
