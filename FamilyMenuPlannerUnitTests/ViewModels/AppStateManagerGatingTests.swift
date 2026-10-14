@@ -571,6 +571,61 @@ final class AppStateManagerAccountChangeTests: XCTestCase {
         XCTAssertEqual(service.waitCallCount, 0)
     }
 
+    func testICloudTurnedOnWhileRunningRestartsMirroring() async {
+        // Launched without iCloud (mirroring setup failed), local preload data in the store
+        service.accountStatusResult = .success(.noAccount)
+        let manager = await launchWithData()
+
+        // iCloud turned on for the app in Settings; turning it on posts no CKAccountChanged
+        service.accountStatusResult = .success(.available)
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+
+        let restarted = await waitUntil { self.store.storeReloadCallCount == 1 && !manager.isLoading }
+        XCTAssertTrue(restarted)
+        XCTAssertTrue(manager.isICloudAvailable)
+        XCTAssertEqual(store.didFinishLoadingCallCount, 2)
+        XCTAssertEqual(store.generateCallCount, 0)
+        XCTAssertEqual(service.waitCallCount, 0)
+    }
+
+    func testActivationWithICloudStillOffDoesNotReloadStore() async {
+        service.accountStatusResult = .success(.noAccount)
+        let manager = await launchWithData()
+
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+
+        let rechecked = await waitUntil { self.service.accountStatusCallCount == 2 }
+        XCTAssertTrue(rechecked)
+        await waitPastRecheck()
+        XCTAssertFalse(manager.isLoading)
+        XCTAssertEqual(store.storeReloadCallCount, 0)
+        XCTAssertEqual(store.generateCallCount, 0)
+    }
+
+    func testActivationWithICloudOnDoesNotCheckAccount() async {
+        let manager = await launchWithData()
+
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+
+        await waitPastRecheck()
+        XCTAssertFalse(manager.isLoading)
+        XCTAssertEqual(service.accountStatusCallCount, 1)
+        XCTAssertEqual(store.storeReloadCallCount, 0)
+    }
+
+    func testFailedStoreReloadShowsError() async {
+        service.accountStatusResult = .success(.noAccount)
+        let manager = await launchWithData()
+        store.storeReloadSucceeds = false
+
+        service.accountStatusResult = .success(.available)
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+
+        let failed = await waitUntil { manager.showPersistenceErrorAlert }
+        XCTAssertTrue(failed)
+        XCTAssertFalse(manager.isLoading)
+    }
+
     func testFailedAccountLookupAfterPurgeRetriesInsteadOfSeeding() async {
         let manager = await launchWithData()
 
@@ -729,6 +784,14 @@ private final class MockStartupDataStore: StartupDataStore {
     func didFinishLoading() { didFinishLoadingCallCount += 1 }
     /// Store contents the refreshed view context sees (a purge that had not reached the view context yet)
     var isEmptyAfterReload: Bool?
+
+    var storeReloadSucceeds = true
+    private(set) var storeReloadCallCount = 0
+
+    func reloadStoreForCloudKitMirroring(completion: @escaping (Bool) -> Void) {
+        storeReloadCallCount += 1
+        completion(storeReloadSucceeds)
+    }
 
     func reloadAfterStoreReset() {
         reloadAfterResetCallCount += 1

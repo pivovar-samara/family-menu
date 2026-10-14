@@ -353,6 +353,34 @@ class PersistenceController {
         }
     }
     
+    /// Removes and re-adds the store so NSPersistentCloudKitContainer sets up mirroring again. A mirroring
+    /// delegate whose setup failed without an iCloud account ("Unable to initialize without an iCloud account")
+    /// does not start syncing when the account becomes available later in the same process.
+    /// Managed objects from before the reload must not be used afterwards; the view context is reset.
+    func reloadStoreForCloudKitMirroring(completion: @escaping (Bool) -> Void) {
+        guard container is NSPersistentCloudKitContainer,
+              container.persistentStoreDescriptions.first?.cloudKitContainerOptions != nil else {
+            completion(false)
+            return
+        }
+        AppLogger.info("Reloading persistent store to restart CloudKit mirroring", category: AppLogger.persistence)
+        let coordinator = container.persistentStoreCoordinator
+        container.viewContext.performAndWait {
+            container.viewContext.reset()
+        }
+        do {
+            for store in coordinator.persistentStores {
+                try coordinator.remove(store)
+            }
+        } catch {
+            AppLogger.error("Failed to remove persistent store before reloading", error: error, category: AppLogger.persistence)
+            AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Failed to remove persistent store before reloading")
+            completion(false)
+            return
+        }
+        loadPersistentStores(completion: completion)
+    }
+
     private func handleStoreLoadingError(_ error: NSError, storeDescription: NSPersistentStoreDescription?, stateManager: PersistenceStateManager?, completion: @escaping (Bool) -> Void) {
         let persistenceError = categorizeError(error)
         stateManager?.setError(persistenceError)

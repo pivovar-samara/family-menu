@@ -458,7 +458,9 @@ final class AppStateManager: ObservableObject {
             // The purge does not necessarily merge into the view context: refresh it (and the static data cache)
             // so the check below and the UI see the store as it is now
             self.dataStore.reloadAfterStoreReset()
-            guard accountChanged || self.dataStore.needsDataPopulation() else {
+            // iCloud may have been turned on for the app (which posts no CKAccountChanged) since mirroring last failed
+            let wasICloudUnavailable = !self.isICloudAvailable && self.dataStore.cloudKitContainerIdentifier != nil
+            guard accountChanged || wasICloudUnavailable || self.dataStore.needsDataPopulation() else {
                 self.storeResetRecheckTask = nil
                 return
             }
@@ -466,15 +468,22 @@ final class AppStateManager: ObservableObject {
             // CloudKit-backed, and ungated preload data could later upload into the new account's data
             while !(await self.resolveICloudAccountStatus(keepAvailabilityOnFailure: true)) {
                 guard !Task.isCancelled else { return }
-                AppLogger.warning("iCloud account status unknown after account change or setup – retrying before the database check", category: AppLogger.cloudKit)
-                if self.dataStore.needsDataPopulation() {
-                    self.isLoading = true
+                guard self.dataStore.needsDataPopulation() else {
+                    // Nothing to recover: the next trigger checks the account again
+                    self.storeResetRecheckTask = nil
+                    return
                 }
+                AppLogger.warning("iCloud account status unknown after account change or setup – retrying before the database check", category: AppLogger.cloudKit)
+                self.isLoading = true
                 try? await Task.sleep(nanoseconds: UInt64(max(self.seedingGateRetryDelay, Self.cloudKitMergeSettleDelay) * 1_000_000_000))
                 guard !Task.isCancelled else { return }
             }
             guard !Task.isCancelled else { return }
             self.storeResetRecheckTask = nil
+            if wasICloudUnavailable && self.isICloudAvailable {
+                self.restartCloudKitMirroring()
+                return
+            }
             guard self.dataStore.needsDataPopulation() else {
                 // Account changed but its data is still here (the purge, if any, triggers another check)
                 return
@@ -487,6 +496,27 @@ final class AppStateManager: ObservableObject {
             // Show the loading screen so the UI rebuilds once the store is populated again
             self.isLoading = true
             self.checkDatabaseState()
+        }
+    }
+
+    /// iCloud became available while the app runs. Mirroring set up without an account stays off until the store
+    /// is reloaded, so reload it behind the loading screen (the UI is rebuilt afterwards), then run the usual
+    /// check: an empty store goes through the seeding gate, local data is merged by the import reconciliation.
+    private func restartCloudKitMirroring() {
+        AppLogger.info("iCloud became available – restarting CloudKit mirroring", category: AppLogger.cloudKit)
+        isLoading = true
+        dataStore.reloadStoreForCloudKitMirroring { [weak self] success in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                guard success else {
+                    self.persistenceError = "Failed to initialize app data. Please restart the app.".localized()
+                    self.showPersistenceErrorAlert = true
+                    self.isLoading = false
+                    return
+                }
+                self.dataStore.reloadAfterStoreReset()
+                self.checkDatabaseState()
+            }
         }
     }
 
@@ -870,6 +900,8 @@ protocol StartupDataStore {
     /// Brings the view context and caches up to date with the store, which may have been cleared behind
     /// the app's back (CloudKit account-change purge)
     func reloadAfterStoreReset()
+    /// Reloads the store so CloudKit mirroring is set up again (after iCloud became available)
+    func reloadStoreForCloudKitMirroring(completion: @escaping (Bool) -> Void)
     func attemptRecovery(completion: @escaping (Bool) -> Void)
 }
 
@@ -908,6 +940,10 @@ struct PersistenceStartupDataStore: StartupDataStore {
             context.refreshAllObjects()
         }
         StaticDataCacheManager.shared.invalidateCache()
+    }
+
+    func reloadStoreForCloudKitMirroring(completion: @escaping (Bool) -> Void) {
+        persistence.reloadStoreForCloudKitMirroring(completion: completion)
     }
 
     func attemptRecovery(completion: @escaping (Bool) -> Void) {
