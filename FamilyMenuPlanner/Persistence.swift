@@ -2165,14 +2165,28 @@ class PersistenceController {
         try context.save()
     }
 
-    /// Resolves dishes sharing a key after a CloudKit import. When a group mixes local seed copies with other
-    /// (imported) records, the imported record wins: it may carry the user's edits. Seed copies hand their menu
+    /// Resolves dishes sharing a key after a CloudKit import. When a group mixes seed copies (recorded as seeded
+    /// here, or exact copies of their preload dish) with other records, the other record wins: it carries edits. Seed copies hand their menu
     /// links over to it and are deleted. Groups without that mix keep the menu-linked or most connected dish.
     func removeLocallySeededDishesIfRemoteExists(context: NSManagedObjectContext) {
         context.performAndWait {
             do {
                 func norm(_ s: String?) -> String { (s ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
                 func connections(_ d: Dish) -> Int { (d.ingredientDetails?.count ?? 0) + (d.mealTypes?.count ?? 0) }
+                // Seed copies from before provenance was recorded: an exact copy of its preload dish is a seed copy
+                func ingredientSignature(_ pairs: [(String, Double)]) -> [String] {
+                    pairs.map { "\(norm($0.0))|\(($0.1 * 1000).rounded() / 1000)" }.sorted()
+                }
+                var preloadByName: [String: DishData] = [:]
+                for dishData in self.loadCurrentPreloadData()?.dishes ?? [] {
+                    preloadByName[norm(dishData.name)] = dishData
+                }
+                func isUnmodifiedPreloadCopy(_ d: Dish) -> Bool {
+                    guard let preload = preloadByName[norm(d.name)] else { return false }
+                    guard norm(d.details) == norm(preload.details) else { return false }
+                    let ingredients = (d.ingredientDetails as? Set<IngredientDetail> ?? []).map { ($0.product?.name ?? "", $0.quantity) }
+                    return ingredientSignature(ingredients) == ingredientSignature(preload.ingredients.map { ($0.product, $0.quantity) })
+                }
                 func preferred(_ dishes: [Dish]) -> Dish {
                     // Prefer one linked to a menu entry, else the most connected
                     dishes.first { ($0.menus?.count ?? 0) > 0 } ?? dishes.max { connections($0) < connections($1) }!
@@ -2189,7 +2203,9 @@ class PersistenceController {
                 var seededURIs = Self.locallySeededDishURIs
                 var removed = 0
                 for (_, dishes) in groups where dishes.count > 1 {
-                    let isSeeded = { (d: Dish) in seededURIs.contains(d.objectID.uriRepresentation().absoluteString) }
+                    let isSeeded = { (d: Dish) in
+                        seededURIs.contains(d.objectID.uriRepresentation().absoluteString) || isUnmodifiedPreloadCopy(d)
+                    }
                     let imported = dishes.filter { !isSeeded($0) }
                     let keep = imported.isEmpty || imported.count == dishes.count ? preferred(dishes) : preferred(imported)
                     for d in dishes where d != keep {

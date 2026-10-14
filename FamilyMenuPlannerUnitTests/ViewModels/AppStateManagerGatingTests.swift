@@ -672,6 +672,28 @@ final class AppStateManagerAccountChangeTests: XCTestCase {
         XCTAssertFalse(manager.isLoading)
     }
 
+    func testAccountChangeDuringSeedingDoesNotMarkNewAccountSeeded() async {
+        // First launch: the gate grants the lease and seeding starts
+        service.waitOutcomes = [.remoteAppearsEmpty]
+        service.leaseResult = true
+        store.holdsGeneration = true
+        let manager = makeManager()
+        let seeding = await waitUntil { self.store.isGenerationPending }
+        XCTAssertTrue(seeding)
+
+        // Another account signs in while the seed is being written
+        NotificationCenter.default.post(name: .CKAccountChanged, object: nil)
+        let rechecked = await waitUntil { self.service.accountStatusCallCount == 2 }
+        XCTAssertTrue(rechecked)
+        store.finishGeneration()
+
+        let finished = await waitUntil { !manager.isLoading }
+        XCTAssertTrue(finished)
+        await waitPastRecheck()
+        XCTAssertTrue(service.markedVersions.isEmpty)
+        XCTAssertEqual(store.generateCallCount, 1)
+    }
+
     func testFailedAccountLookupAfterPurgeRetriesInsteadOfSeeding() async {
         let manager = await launchWithData()
 
@@ -820,8 +842,27 @@ private final class MockStartupDataStore: StartupDataStore {
     func hasCurrentPreloadData() -> Bool { !isEmpty && !isPartial }
     func performStartupMaintenance() {}
 
+    /// When true, generation finishes only when `finishGeneration()` is called
+    var holdsGeneration = false
+    private var heldGeneration: ((Bool) -> Void)?
+    var isGenerationPending: Bool { heldGeneration != nil }
+
     func generateInitialData(isCloudImportInProgress: Bool, completion: @escaping (Bool) -> Void) {
         generateCallCount += 1
+        guard !holdsGeneration else {
+            heldGeneration = completion
+            return
+        }
+        completeGeneration(completion)
+    }
+
+    func finishGeneration() {
+        guard let completion = heldGeneration else { return }
+        heldGeneration = nil
+        completeGeneration(completion)
+    }
+
+    private func completeGeneration(_ completion: (Bool) -> Void) {
         if generationSucceeds {
             isEmpty = false
             isPartial = !generationCompletesPreload

@@ -17,6 +17,8 @@ final class AppStateManager: ObservableObject {
     private var accountChangeObserver: NSObjectProtocol? = nil
     private var storeChangeObservers: [NSObjectProtocol] = []
     private var storeChangeDebounceTask: Task<Void, Never>?
+    /// Incremented on every iCloud account change; a seed started before the change must not mark the new account
+    private var accountGeneration = 0
     /// Set while a mirroring restart waits for unsaved edits to be saved or discarded
     private var deferredRestartSaveObserver: NSObjectProtocol?
     /// Small delay that allows CloudKit merge operations to fully settle
@@ -353,11 +355,17 @@ final class AppStateManager: ObservableObject {
         if needsDataPopulation {
             // Use background context for initial data generation to avoid blocking UI
             let cloudImportSnapshot = self.isCloudKitSyncing
+            let seedGeneration = accountGeneration
             dataStore.generateInitialData(isCloudImportInProgress: cloudImportSnapshot) { [weak self] success in
                 DispatchQueue.main.async {
                     guard let self = self else { return }
                     
-                    if success {
+                    if success && seedGeneration != self.accountGeneration {
+                        // The account changed while seeding: the gate and lease were for the previous account, so do not
+                        // mark the new one seeded; re-run the database check for the new account instead
+                        AppLogger.warning("iCloud account changed during initial data generation – not marking the account seeded", category: AppLogger.cloudKit)
+                        self.checkDatabaseState()
+                    } else if success {
                         // When seeded successfully in CloudKit environment, mark account seeded.
                         // Generation can be skipped or partially fail and still report success,
                         // so mark only when the store holds the complete current preload data.
@@ -448,7 +456,8 @@ final class AppStateManager: ObservableObject {
             return
         }
         if accountChanged {
-            // A running gate round and a held lease belong to the previous account
+            // A running gate round, a held lease and an in-flight seed belong to the previous account
+            accountGeneration += 1
             cancelSeedingGate()
             hasCloudKitSeedingLease = false
         } else if storeResetRecheckTask != nil || seedingGateTask != nil {

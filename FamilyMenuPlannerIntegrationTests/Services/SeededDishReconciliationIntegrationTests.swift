@@ -53,6 +53,38 @@ final class SeededDishReconciliationIntegrationTests: BaseIntegrationTest {
         XCTAssertTrue(PersistenceController.locallySeededDishURIs.isEmpty)
     }
 
+    func testUnrecordedExactPreloadCopyLosesToEditedRecord() throws {
+        // A seed copy from before provenance was recorded: identical to its preload dish, in a menu
+        let url = try XCTUnwrap(Bundle.main.url(forResource: "preloadData", withExtension: "json"))
+        let preload = try JSONDecoder().decode(PreloadedData.self, from: Data(contentsOf: url))
+        let preloadDish = try XCTUnwrap(preload.dishes.first { !$0.ingredients.isEmpty })
+        let unit = createUnit(name: "unit")
+        let lunch = createMealType(name: "Lunch")
+
+        let legacySeed = createDish(name: preloadDish.name, details: preloadDish.details)
+        legacySeed.key = "legacy-key"
+        for ingredientData in preloadDish.ingredients {
+            let ingredient = IngredientDetail(context: context)
+            ingredient.dish = legacySeed
+            ingredient.product = createProduct(name: ingredientData.product, unit: unit)
+            ingredient.quantity = ingredientData.quantity
+        }
+        try context.save()
+        let menu = testDataFactory.createMenu(weekStartDate: Date(), dish: legacySeed, mealType: lunch)
+
+        // The user's edited version, imported from iCloud
+        let edited = createDish(name: preloadDish.name, details: "Edited by the user")
+        edited.key = "legacy-key"
+        try context.save()
+
+        PersistenceController.shared.removeLocallySeededDishesIfRemoteExists(context: context)
+
+        let dishes = try context.fetch(Dish.fetchRequest())
+        XCTAssertEqual(dishes.count, 1)
+        XCTAssertEqual(dishes.first?.details, "Edited by the user")
+        XCTAssertTrue(menu.dishes?.contains(edited) ?? false)
+    }
+
     func testDuplicatesWithoutLocalSeedKeepMenuLinkedDish() throws {
         let lunch = createMealType(name: "Lunch")
         let first = createDish(name: "Soup", details: "First")
