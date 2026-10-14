@@ -738,6 +738,13 @@ class PersistenceController {
     }
     
     private static let versionSyncKey = "PreloadDataVersionSync"
+
+    /// Whether generation can be skipped: the store holds the current static data. The stored version alone
+    /// is not enough: NSPersistentCloudKitContainer purges the store on an iCloud account change (including
+    /// iCloud turned off for the app) and leaves the version in UserDefaults behind.
+    func hasCurrentStaticData(context: NSManagedObjectContext) -> Bool {
+        !isDatabaseEmpty(context: context) && isStaticDataValid(context: context)
+    }
     
     private func loadCurrentPreloadData() -> PreloadedData? {
         guard let url = Bundle.main.url(forResource: "preloadData", withExtension: "json") else {
@@ -967,10 +974,7 @@ class PersistenceController {
         
         // Check version again within lock to prevent race conditions (skip for test environments)
         if !isRunningTests {
-            let storedVersion = UserDefaults.standard.string(forKey: Self.preloadDataVersionKey)
-            let syncVersion = UserDefaults.standard.string(forKey: Self.versionSyncKey)
-            
-            if storedVersion == Self.currentPreloadDataVersion && syncVersion == Self.currentPreloadDataVersion {
+            if hasCurrentStaticData(context: context) {
                 AppLogger.info("Data is already at current version - skipping generation", category: AppLogger.persistence)
                 return
             }
@@ -1906,11 +1910,8 @@ class PersistenceController {
             return
         }
         
-        // Check version again within lock to prevent race conditions
-        let storedVersion = UserDefaults.standard.string(forKey: Self.preloadDataVersionKey)
-        let syncVersion = UserDefaults.standard.string(forKey: Self.versionSyncKey)
-        
-        if storedVersion == Self.currentPreloadDataVersion && syncVersion == Self.currentPreloadDataVersion {
+        // Check again within lock to prevent race conditions
+        if hasCurrentStaticData(context: context) {
             AppLogger.info("Background data is already at current version - skipping generation", category: AppLogger.persistence)
             return
         }

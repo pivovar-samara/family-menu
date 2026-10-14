@@ -1,5 +1,6 @@
 import XCTest
 import CloudKit
+import UIKit
 @testable import FamilyMenuPlanner
 
 final class AppStateManagerGatingTests: XCTestCase {
@@ -520,6 +521,53 @@ final class AppStateManagerAccountChangeTests: XCTestCase {
 
         let seeded = await waitUntil { self.store.generateCallCount == 1 && !manager.isLoading }
         XCTAssertTrue(seeded)
+        XCTAssertEqual(service.waitCallCount, 0)
+    }
+
+    func testPurgeAfterAccountChangeIsCaughtWhenAppBecomesActive() async {
+        // iCloud turned off while the app is in the background: the account change is handled before the purge
+        let manager = await launchWithData()
+        service.accountStatusResult = .success(.noAccount)
+        NotificationCenter.default.post(name: .CKAccountChanged, object: nil)
+        let rechecked = await waitUntil { self.service.accountStatusCallCount == 2 }
+        XCTAssertTrue(rechecked)
+        await waitPastRecheck()
+        XCTAssertEqual(store.generateCallCount, 0)
+
+        // The purge lands later; the app comes back to the foreground
+        store.isEmpty = true
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+
+        let reseeded = await waitUntil { self.store.generateCallCount == 1 && !manager.isLoading }
+        XCTAssertTrue(reseeded)
+        XCTAssertFalse(manager.isICloudAvailable)
+        XCTAssertEqual(service.waitCallCount, 0)
+    }
+
+    func testPurgeSeenAsRemoteStoreChangeReseeds() async {
+        service.accountStatusResult = .success(.noAccount)
+        let manager = await launchWithData()
+
+        store.isEmpty = true
+        NotificationCenter.default.post(name: .NSPersistentStoreRemoteChange, object: nil)
+
+        let reseeded = await waitUntil(timeout: 5) { self.store.generateCallCount == 1 && !manager.isLoading }
+        XCTAssertTrue(reseeded)
+        XCTAssertEqual(service.waitCallCount, 0)
+    }
+
+    func testStoreChangeWithPartialDataAndICloudOnLeavesItToImport() async {
+        let manager = await launchWithData()
+
+        // Partly imported data while iCloud is on: not a purge
+        store.isPartial = true
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+
+        let rechecked = await waitUntil { self.service.accountStatusCallCount == 2 }
+        XCTAssertTrue(rechecked)
+        await waitPastRecheck()
+        XCTAssertFalse(manager.isLoading)
+        XCTAssertEqual(store.generateCallCount, 0)
         XCTAssertEqual(service.waitCallCount, 0)
     }
 
