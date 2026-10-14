@@ -808,8 +808,10 @@ final class AppStateManagerAccountChangeTests: XCTestCase {
 
         store.storeReloadSucceeds = true
         NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
-        let restarted = await waitUntil { self.store.storeReloadCallCount == 2 && manager.isICloudAvailable }
+        let restarted = await waitUntil { self.store.storeReloadCallCount == 2 && manager.isICloudAvailable && !manager.isLoading }
         XCTAssertTrue(restarted)
+        XCTAssertFalse(manager.showPersistenceErrorAlert)
+        XCTAssertNil(manager.persistenceError)
     }
 
     func testFailedAccountLookupAfterPurgeRetriesInsteadOfSeeding() async {

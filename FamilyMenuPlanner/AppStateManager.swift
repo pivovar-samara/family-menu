@@ -604,6 +604,9 @@ final class AppStateManager: ObservableObject {
                     return
                 }
                 self.isMirroringRestartPending = false
+                // An earlier failed reload may still show the error screen
+                self.persistenceError = nil
+                self.showPersistenceErrorAlert = false
                 self.dataStore.reloadAfterStoreReset()
                 self.checkDatabaseState()
             }
