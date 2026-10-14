@@ -2145,7 +2145,7 @@ class PersistenceController {
     
     // Remove local duplicates when CloudKit import brought remote copies: decide by dish key presence in both local preseeded set and remote set.
     /// Resolves dishes sharing a key after a CloudKit import. A seed copy (an exact copy of its preload dish:
-    /// same details, ingredients, category and meal types) is deleted when the group also holds a record that
+    /// same name, details, ingredients with their units, category and meal types) is deleted when the group also holds a record that
     /// differs from the preload, since that one carries edits; the seed copy's menu links move to it.
     /// Groups of seed copies only keep one; differing records are left to `cleanupDuplicateDishes`, which merges.
     func removeLocallySeededDishesIfRemoteExists(context: NSManagedObjectContext) {
@@ -2157,21 +2157,35 @@ class PersistenceController {
                     // Prefer one linked to a menu entry, else the most connected
                     dishes.first { ($0.menus?.count ?? 0) > 0 } ?? dishes.max { connections($0) < connections($1) }!
                 }
-                func ingredientSignature(_ pairs: [(String, Double)]) -> [String] {
-                    pairs.map { "\(norm($0.0))|\(($0.1 * 1000).rounded() / 1000)" }.sorted()
+                // Ingredients as exact product name, unit name and quantity
+                func ingredientSignature(_ items: [(product: String, unit: String, quantity: Double)]) -> [String] {
+                    items.map { "\($0.product)|\($0.unit)|\(($0.quantity * 1000).rounded() / 1000)" }.sorted()
                 }
+                let preloadData = self.loadCurrentPreloadData()
+                var preloadUnitByProduct: [String: String] = [:]
+                for product in preloadData?.products ?? [] {
+                    preloadUnitByProduct[product.name] = product.unit
+                }
+                // Normalized only to find the preload dish; the comparison below is exact, so any saved edit
+                // (even a case-only one) makes the dish count as edited
                 var preloadByName: [String: DishData] = [:]
-                for dishData in self.loadCurrentPreloadData()?.dishes ?? [] {
+                for dishData in preloadData?.dishes ?? [] {
                     preloadByName[norm(dishData.name)] = dishData
                 }
                 func isUnmodifiedPreloadCopy(_ d: Dish) -> Bool {
                     guard let preload = preloadByName[norm(d.name)] else { return false }
-                    guard norm(d.details) == norm(preload.details),
-                          norm(d.category?.name) == norm(preload.category) else { return false }
-                    let mealTypes = (d.mealTypes as? Set<MealType> ?? []).map { norm($0.name) }.sorted()
-                    guard mealTypes == (preload.mealTypes ?? []).map({ norm($0) }).sorted() else { return false }
-                    let ingredients = (d.ingredientDetails as? Set<IngredientDetail> ?? []).map { ($0.product?.name ?? "", $0.quantity) }
-                    return ingredientSignature(ingredients) == ingredientSignature(preload.ingredients.map { ($0.product, $0.quantity) })
+                    guard d.name == preload.name,
+                          d.details == preload.details,
+                          d.category?.name == preload.category else { return false }
+                    let mealTypes = (d.mealTypes as? Set<MealType> ?? []).map { $0.name ?? "" }.sorted()
+                    guard mealTypes == (preload.mealTypes ?? []).sorted() else { return false }
+                    let ingredients = (d.ingredientDetails as? Set<IngredientDetail> ?? []).map {
+                        (product: $0.product?.name ?? "", unit: $0.product?.unit?.name ?? "", quantity: $0.quantity)
+                    }
+                    let preloadIngredients = preload.ingredients.map {
+                        (product: $0.product, unit: preloadUnitByProduct[$0.product] ?? "", quantity: $0.quantity)
+                    }
+                    return ingredientSignature(ingredients) == ingredientSignature(preloadIngredients)
                 }
                 // Load all dishes and group by key
                 let fetch: NSFetchRequest<Dish> = Dish.fetchRequest()

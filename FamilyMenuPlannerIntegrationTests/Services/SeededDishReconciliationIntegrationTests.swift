@@ -6,7 +6,8 @@ import CoreData
 /// same key. Only an exact copy of the preload dish may be deleted; a record with edits must survive.
 final class SeededDishReconciliationIntegrationTests: BaseIntegrationTest {
     private var preloadDish: DishData!
-    private var unit: Unit!
+    private var preloadUnitByProduct: [String: String] = [:]
+    private var units: [String: Unit] = [:]
     private var products: [String: Product] = [:]
     private var mealTypes: [String: MealType] = [:]
     private var categories: [String: DishCategory] = [:]
@@ -24,16 +25,26 @@ final class SeededDishReconciliationIntegrationTests: BaseIntegrationTest {
             !$0.ingredients.isEmpty && $0.category != nil && ($0.mealTypes?.isEmpty == false)
         }
         XCTAssertNotNil(preloadDish, "Preload data needs a dish with ingredients, a category and meal types")
-        unit = createUnit(name: "unit")
+        for product in preload.products {
+            preloadUnitByProduct[product.name] = product.unit
+        }
     }
 
     override func tearDown() {
         preloadDish = nil
-        unit = nil
+        preloadUnitByProduct = [:]
+        units = [:]
         products = [:]
         mealTypes = [:]
         categories = [:]
         super.tearDown()
+    }
+
+    private func unit(_ name: String) -> Unit {
+        if let existing = units[name] { return existing }
+        let created = createUnit(name: name)
+        units[name] = created
+        return created
     }
 
     private func mealType(_ name: String) -> MealType {
@@ -56,7 +67,8 @@ final class SeededDishReconciliationIntegrationTests: BaseIntegrationTest {
             dish.addToMealTypes(mealType(name))
         }
         for ingredientData in preloadDish.ingredients {
-            let product = products[ingredientData.product] ?? createProduct(name: ingredientData.product, unit: unit)
+            let product = products[ingredientData.product]
+                ?? createProduct(name: ingredientData.product, unit: unit(preloadUnitByProduct[ingredientData.product] ?? ""))
             products[ingredientData.product] = product
             let ingredient = IngredientDetail(context: context)
             ingredient.dish = dish
@@ -100,6 +112,39 @@ final class SeededDishReconciliationIntegrationTests: BaseIntegrationTest {
         let dishes = try context.fetch(Dish.fetchRequest())
         XCTAssertEqual(dishes.count, 1)
         XCTAssertEqual(dishes.first?.category?.name, "Edited category")
+        XCTAssertTrue(menu.dishes?.contains(imported) ?? false)
+    }
+
+    func testCaseOnlyDetailsEditWinsOverMenuLinkedSeedCopy() throws {
+        let seed = try makeSeedCopy()
+        let menu = menuLinking(seed)
+        let imported = try makeSeedCopy()
+        imported.details = preloadDish.details.uppercased()
+        try context.save()
+        XCTAssertNotEqual(imported.details, preloadDish.details, "Fixture needs details with lowercase letters")
+
+        PersistenceController.shared.removeLocallySeededDishesIfRemoteExists(context: context)
+
+        let dishes = try context.fetch(Dish.fetchRequest())
+        XCTAssertEqual(dishes.count, 1)
+        XCTAssertEqual(dishes.first?.details, preloadDish.details.uppercased())
+        XCTAssertTrue(menu.dishes?.contains(imported) ?? false)
+    }
+
+    func testIngredientUnitSubstitutionWinsOverMenuLinkedSeedCopy() throws {
+        let seed = try makeSeedCopy()
+        let menu = menuLinking(seed)
+        // Same product name and quantity, but the user picked a product measured in another unit
+        let imported = try makeSeedCopy()
+        let ingredient = try XCTUnwrap((imported.ingredientDetails as? Set<IngredientDetail>)?.first)
+        let productName = try XCTUnwrap(ingredient.product?.name)
+        ingredient.product = createProduct(name: productName, unit: unit("Other unit"))
+        try context.save()
+
+        PersistenceController.shared.removeLocallySeededDishesIfRemoteExists(context: context)
+
+        let dishes = try context.fetch(Dish.fetchRequest())
+        XCTAssertEqual(dishes.count, 1)
         XCTAssertTrue(menu.dishes?.contains(imported) ?? false)
     }
 

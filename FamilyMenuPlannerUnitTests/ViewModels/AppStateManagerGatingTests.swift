@@ -694,6 +694,28 @@ final class AppStateManagerAccountChangeTests: XCTestCase {
         XCTAssertEqual(store.generateCallCount, 1)
     }
 
+    func testIndeterminateAccountStatusAfterPurgeRetriesInsteadOfSeeding() async {
+        for indeterminate in [CKAccountStatus.couldNotDetermine, .temporarilyUnavailable] {
+            service = MockCloudKitSeedingService()
+            store = MockStartupDataStore()
+            let manager = await launchWithData()
+
+            service.accountStatusResult = .success(indeterminate)
+            store.isEmpty = true
+            NotificationCenter.default.post(name: .CKAccountChanged, object: nil)
+
+            let retried = await waitUntil { self.service.accountStatusCallCount >= 3 }
+            XCTAssertTrue(retried, "status \(indeterminate.rawValue)")
+            XCTAssertEqual(store.generateCallCount, 0, "status \(indeterminate.rawValue)")
+            XCTAssertTrue(manager.isICloudAvailable, "status \(indeterminate.rawValue)")
+            XCTAssertTrue(manager.isLoading, "status \(indeterminate.rawValue)")
+
+            service.accountStatusResult = .success(.noAccount)
+            let seeded = await waitUntil { self.store.generateCallCount == 1 && !manager.isLoading }
+            XCTAssertTrue(seeded, "status \(indeterminate.rawValue)")
+        }
+    }
+
     func testFailedAccountLookupAfterPurgeRetriesInsteadOfSeeding() async {
         let manager = await launchWithData()
 

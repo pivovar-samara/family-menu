@@ -160,6 +160,11 @@ final class AppStateManager: ObservableObject {
             let status = try await seedingService.accountStatus()
             // A replaced recheck's lookup may finish after the current one: do not publish its result
             guard !Task.isCancelled else { return false }
+            if keepAvailabilityOnFailure && (status == .couldNotDetermine || status == .temporarilyUnavailable) {
+                // Not a signed-out account: treat like a failed lookup rather than unlocking ungated seeding
+                AppLogger.info("iCloud account status \(status.rawValue) is indeterminate – keeping previous availability", category: AppLogger.cloudKit)
+                return false
+            }
             self.isICloudAvailable = (status == .available)
             if self.isICloudAvailable {
                 AppLogger.info("iCloud is available - CloudKit sync enabled", category: AppLogger.cloudKit)
