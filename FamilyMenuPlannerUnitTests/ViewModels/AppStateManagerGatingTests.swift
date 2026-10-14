@@ -501,6 +501,47 @@ final class AppStateManagerAccountChangeTests: XCTestCase {
         XCTAssertTrue(loaded)
         XCTAssertEqual(service.accountStatusCallCount, 1)
         XCTAssertEqual(store.generateCallCount, 0)
+        XCTAssertEqual(store.reloadAfterResetCallCount, 1)
+    }
+
+    func testPurgeDuringSetupBeforeAccountStatusIsSeenByStartupCheck() async {
+        // iCloud off at launch; setup purges the store while the account lookup is pending,
+        // but the view context still shows the pre-purge data until it is refreshed
+        service.holdsAccountStatus = true
+        service.accountStatusResult = .success(.noAccount)
+        store.isEmpty = false
+        store.isEmptyAfterReload = true
+        let manager = makeManager()
+        let requested = await waitUntil { self.service.isAccountStatusPending }
+        XCTAssertTrue(requested)
+
+        manager.cloudKitSetupDidFinishForTesting()
+        service.resumeAccountStatus()
+
+        let seeded = await waitUntil { self.store.generateCallCount == 1 && !manager.isLoading }
+        XCTAssertTrue(seeded)
+        XCTAssertEqual(service.waitCallCount, 0)
+    }
+
+    func testFailedAccountLookupAfterPurgeRetriesInsteadOfSeeding() async {
+        let manager = await launchWithData()
+
+        // Account changed and the store was purged, but the status lookup fails (e.g. offline)
+        service.accountStatusResult = .failure(CKError(.networkUnavailable))
+        store.isEmpty = true
+        NotificationCenter.default.post(name: .CKAccountChanged, object: nil)
+
+        let retried = await waitUntil { self.service.accountStatusCallCount >= 3 }
+        XCTAssertTrue(retried)
+        XCTAssertEqual(store.generateCallCount, 0)
+        XCTAssertTrue(manager.isLoading)
+
+        // The lookup succeeds once connectivity returns: iCloud is off, so seed locally
+        service.accountStatusResult = .success(.noAccount)
+        let seeded = await waitUntil { self.store.generateCallCount == 1 && !manager.isLoading }
+        XCTAssertTrue(seeded)
+        XCTAssertFalse(manager.isICloudAvailable)
+        XCTAssertEqual(service.waitCallCount, 0)
     }
 }
 
@@ -638,7 +679,13 @@ private final class MockStartupDataStore: StartupDataStore {
     }
 
     func didFinishLoading() { didFinishLoadingCallCount += 1 }
-    func reloadAfterStoreReset() { reloadAfterResetCallCount += 1 }
+    /// Store contents the refreshed view context sees (a purge that had not reached the view context yet)
+    var isEmptyAfterReload: Bool?
+
+    func reloadAfterStoreReset() {
+        reloadAfterResetCallCount += 1
+        if let isEmptyAfterReload { isEmpty = isEmptyAfterReload }
+    }
 
     func attemptRecovery(completion: @escaping (Bool) -> Void) { completion(true) }
 }

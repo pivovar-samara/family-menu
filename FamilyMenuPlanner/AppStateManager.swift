@@ -39,6 +39,8 @@ final class AppStateManager: ObservableObject {
     private var seedingGateTask: Task<Void, Never>?
     /// Re-check after an iCloud account change or a finished CloudKit setup (see `recheckAfterStoreReset`)
     private var storeResetRecheckTask: Task<Void, Never>?
+    /// A CloudKit setup finished (and may have purged the store) before the account status was known
+    private var hasStoreResetBeforeStartupCheck = false
 
     private convenience init() {
         self.init(
@@ -79,8 +81,14 @@ final class AppStateManager: ObservableObject {
             observeAccountChanges()
             startupTask = Task { [weak self] in
                 await self?.resolveICloudAccountStatus()
-                self?.isAccountStatusResolved = true
-                self?.checkPersistenceState()
+                guard let self else { return }
+                self.isAccountStatusResolved = true
+                if self.hasStoreResetBeforeStartupCheck, self.dataStore.isReady {
+                    // The view context may still show the store from before the purge
+                    self.hasStoreResetBeforeStartupCheck = false
+                    self.dataStore.reloadAfterStoreReset()
+                }
+                self.checkPersistenceState()
             }
         }
     }
@@ -132,7 +140,10 @@ final class AppStateManager: ObservableObject {
         }
     }
 
-    private func resolveICloudAccountStatus() async {
+    /// Returns false when the status could not be read. Then iCloud counts as unavailable, unless
+    /// `keepAvailabilityOnFailure` keeps the previous value (a failed lookup must not unlock ungated seeding).
+    @discardableResult
+    private func resolveICloudAccountStatus(keepAvailabilityOnFailure: Bool = false) async -> Bool {
         do {
             let status = try await seedingService.accountStatus()
             self.isICloudAvailable = (status == .available)
@@ -147,11 +158,15 @@ final class AppStateManager: ObservableObject {
                 AppLogger.info("iCloud is not available (account status \(status.rawValue)) - running in local mode", category: AppLogger.cloudKit)
                 AnalyticsManager.shared.setUserProperties([AnalyticsUserPropertyName.icloud_available: false])
             }
+            return true
         } catch {
             AppLogger.error("iCloud account check failed [\(CloudKitSeedingGate.errorCodeDescription(error)), container \(seedingService.containerIdentifier)]", error: error, category: AppLogger.cloudKit)
             AnalyticsManager.shared.trackError(error, domain: "iCloud", category: "iCloud account check failed")
-            AnalyticsManager.shared.setUserProperties([AnalyticsUserPropertyName.icloud_available: false])
-            self.isICloudAvailable = false
+            if !keepAvailabilityOnFailure {
+                AnalyticsManager.shared.setUserProperties([AnalyticsUserPropertyName.icloud_available: false])
+                self.isICloudAvailable = false
+            }
+            return false
         }
     }
 
@@ -368,8 +383,11 @@ final class AppStateManager: ObservableObject {
     /// account status and re-runs the database check: without iCloud this seeds preload data locally,
     /// with a (different) available account it goes through the first-launch seeding gate.
     private func recheckAfterStoreReset(accountChanged: Bool) {
-        // Before the account status is known, startup runs the check itself
-        guard isAccountStatusResolved else { return }
+        // Before the account status is known, startup runs the check itself (after refreshing the view context)
+        guard isAccountStatusResolved else {
+            hasStoreResetBeforeStartupCheck = true
+            return
+        }
         if accountChanged {
             // A running gate round and a held lease belong to the previous account
             cancelSeedingGate()
@@ -390,7 +408,17 @@ final class AppStateManager: ObservableObject {
                 self.storeResetRecheckTask = nil
                 return
             }
-            await self.resolveICloudAccountStatus()
+            // Seed locally only after an explicit non-available status: on a failed lookup the store is still
+            // CloudKit-backed, and ungated preload data could later upload into the new account's data
+            while !(await self.resolveICloudAccountStatus(keepAvailabilityOnFailure: true)) {
+                guard !Task.isCancelled else { return }
+                AppLogger.warning("iCloud account status unknown after account change or setup – retrying before the database check", category: AppLogger.cloudKit)
+                if self.dataStore.needsDataPopulation() {
+                    self.isLoading = true
+                }
+                try? await Task.sleep(nanoseconds: UInt64(max(self.seedingGateRetryDelay, Self.cloudKitMergeSettleDelay) * 1_000_000_000))
+                guard !Task.isCancelled else { return }
+            }
             guard !Task.isCancelled else { return }
             self.storeResetRecheckTask = nil
             guard self.dataStore.needsDataPopulation() else {
