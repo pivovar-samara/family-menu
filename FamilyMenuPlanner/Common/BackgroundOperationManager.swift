@@ -64,6 +64,15 @@ final class BackgroundOperationManager: BackgroundOperationManagerProtocol {
     }
     
     // MARK: - Public Interface
+
+    /// Runs `work` on the main queue once the operations queued before it have finished; operations queued
+    /// meanwhile start only after `work` returns. Used to reload the persistent store without a background
+    /// operation holding objects from, or saving into, the store being removed. `work` must not wait on this queue.
+    func runExclusivelyOnMain(_ work: @escaping () -> Void) {
+        backgroundQueue.async {
+            DispatchQueue.main.sync(execute: work)
+        }
+    }
     
     /// Executes a heavy operation in a background context
     /// - Parameters:

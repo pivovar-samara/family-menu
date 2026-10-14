@@ -363,22 +363,26 @@ class PersistenceController {
             completion(false)
             return
         }
-        AppLogger.info("Reloading persistent store to restart CloudKit mirroring", category: AppLogger.persistence)
-        let coordinator = container.persistentStoreCoordinator
-        container.viewContext.performAndWait {
-            container.viewContext.reset()
-        }
-        do {
-            for store in coordinator.persistentStores {
-                try coordinator.remove(store)
+        // Background operations each run to completion on one serial queue with a fresh context: reloading as an
+        // exclusive step lets earlier writes finish first, and later ones get contexts on the reloaded store
+        BackgroundOperationManager.shared.runExclusivelyOnMain { [self] in
+            AppLogger.info("Reloading persistent store to restart CloudKit mirroring", category: AppLogger.persistence)
+            let coordinator = container.persistentStoreCoordinator
+            container.viewContext.performAndWait {
+                container.viewContext.reset()
             }
-        } catch {
-            AppLogger.error("Failed to remove persistent store before reloading", error: error, category: AppLogger.persistence)
-            AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Failed to remove persistent store before reloading")
-            completion(false)
-            return
+            do {
+                for store in coordinator.persistentStores {
+                    try coordinator.remove(store)
+                }
+            } catch {
+                AppLogger.error("Failed to remove persistent store before reloading", error: error, category: AppLogger.persistence)
+                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Failed to remove persistent store before reloading")
+                completion(false)
+                return
+            }
+            loadPersistentStores(completion: completion)
         }
-        loadPersistentStores(completion: completion)
     }
 
     private func handleStoreLoadingError(_ error: NSError, storeDescription: NSPersistentStoreDescription?, stateManager: PersistenceStateManager?, completion: @escaping (Bool) -> Void) {
