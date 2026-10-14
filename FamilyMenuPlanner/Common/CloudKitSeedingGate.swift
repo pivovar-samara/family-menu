@@ -92,6 +92,14 @@ enum CloudKitSeedingGate {
     /// A lease older than this is treated as abandoned (the seeding device crashed or went offline)
     /// and can be taken over. Local seeding takes seconds and the first export well under a minute.
     static let staleLeaseInterval: TimeInterval = 10 * 60
+    /// Identifies this installation as the owner of a seeding lease; reset by reinstalling the app
+    static var installationID: String {
+        let key = "CloudKitSeedingInstallationID"
+        if let existing = UserDefaults.standard.string(forKey: key) { return existing }
+        let id = UUID().uuidString
+        UserDefaults.standard.set(id, forKey: key)
+        return id
+    }
 
     /// Default maximum time to wait for CloudKit import before declaring timeout.
     /// 3 minutes is a conservative window observed to cover slow but healthy
@@ -241,11 +249,14 @@ enum CloudKitSeedingGate {
     /// Attempts to create a small anchor record in CloudKit to "lease" seeding.
     /// Returns true if the lease was acquired: the record was created, or an existing lease older than
     /// `staleLeaseInterval` was taken over. Returns false if another device holds a fresh lease or on error.
-    static func tryAcquireSeedingLease(now: Date = Date(), database: CloudKitRecordSaving = container.privateCloudDatabase) async -> Bool {
+    static func tryAcquireSeedingLease(now: Date = Date(),
+                                       ownerID: String = installationID,
+                                       database: CloudKitRecordSaving = container.privateCloudDatabase) async -> Bool {
         let db = database
         let recordID = CKRecord.ID(recordName: seedAnchorRecordName)
         let record = CKRecord(recordType: seedAnchorRecordName, recordID: recordID)
         record["timestamp"] = now as CKRecordValue
+        record["owner"] = ownerID as CKRecordValue
         do {
             _ = try await db.save(record)
             AppLogger.info("Seeding lease record created", category: AppLogger.cloudKit)
@@ -258,16 +269,23 @@ enum CloudKitSeedingGate {
             // Prefer the server-assigned modification date so the other device's clock does not matter;
             // the client-written `timestamp` is only a fallback.
             let leaseDate = existing.modificationDate ?? existing["timestamp"] as? Date
-            guard isLeaseStale(leaseDate: leaseDate, now: now) else {
+            // This installation's own lease (e.g. from before an import deferred seeding, or a relaunch) is renewed
+            let isOwnLease = (existing["owner"] as? String) == ownerID
+            guard isOwnLease || isLeaseStale(leaseDate: leaseDate, now: now) else {
                 AppLogger.info("Seeding lease held by another device since \(leaseDate.map { "\($0)" } ?? "unknown")", category: AppLogger.cloudKit)
                 return false
             }
             // Take over by updating the fetched record: the save carries its change tag,
             // so if another device takes over at the same time only one save succeeds.
             existing["timestamp"] = now as CKRecordValue
+            existing["owner"] = ownerID as CKRecordValue
             do {
                 _ = try await db.save(existing)
-                AppLogger.warning("Took over stale seeding lease from \(leaseDate.map { "\($0)" } ?? "unknown")", category: AppLogger.cloudKit)
+                if isOwnLease {
+                    AppLogger.info("Renewed this device's seeding lease", category: AppLogger.cloudKit)
+                } else {
+                    AppLogger.warning("Took over stale seeding lease from \(leaseDate.map { "\($0)" } ?? "unknown")", category: AppLogger.cloudKit)
+                }
                 return true
             } catch {
                 logCloudKitError("Failed to take over stale seeding lease", error)

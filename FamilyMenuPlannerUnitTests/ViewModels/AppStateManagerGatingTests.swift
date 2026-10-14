@@ -301,6 +301,33 @@ final class AppStateManagerSeedingFlowTests: XCTestCase {
         XCTAssertTrue(manager.isLoading)
     }
 
+    func testLeaseSurvivesImportInProgressAndSeedsAfterIt() async {
+        service.waitOutcomes = [.remoteAppearsEmpty]
+        service.leaseResult = true
+        service.holdsAccountStatus = true
+
+        let manager = makeManager()
+        let requested = await waitUntil { self.service.isAccountStatusPending }
+        XCTAssertTrue(requested)
+        // An import (e.g. the container's initial setup import) is running when the lease is granted
+        manager.isCloudKitSyncing = true
+        service.resumeAccountStatus()
+
+        let deferred = await waitUntil { self.service.leaseCallCount == 1 }
+        XCTAssertTrue(deferred)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(store.generateCallCount, 0)
+
+        // Import finished: the post-import check must seed with the lease still held, without a new gate round
+        manager.isCloudKitSyncing = false
+        manager.recheckDatabaseStateForTesting()
+
+        let seeded = await waitUntil { self.store.generateCallCount == 1 }
+        XCTAssertTrue(seeded)
+        XCTAssertEqual(service.waitCallCount, 1)
+        XCTAssertEqual(service.leaseCallCount, 1)
+    }
+
     func testNoGatingWhenStoreDoesNotMirrorToCloudKit() async {
         store.cloudKitContainerIdentifier = nil
 

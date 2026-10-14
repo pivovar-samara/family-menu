@@ -232,9 +232,6 @@ final class AppStateManager: ObservableObject {
         }
         // Data arrived by another path (e.g. the import observer) while the gate was still waiting
         cancelSeedingGate()
-        // The lease allows exactly one seeding attempt: a retry (e.g. after a failure) must gate and reacquire it,
-        // since another device may take over the lease once it is stale.
-        hasCloudKitSeedingLease = false
         
         let needsDataPopulation = dataStore.needsDataPopulation()
         let mirrorsToCloudKit = isICloudAvailable && dataStore.cloudKitContainerIdentifier != nil
@@ -244,8 +241,12 @@ final class AppStateManager: ObservableObject {
             // The import-completed handler re-runs this check.
             AppLogger.info("CloudKit import in progress – waiting for it before populating data", category: AppLogger.cloudKit)
             isLoading = true
+            // A held lease is kept: the post-import check must still be allowed to seed
             return
         }
+        // The lease allows exactly one seeding attempt: a retry (e.g. after a failure) must gate and reacquire it,
+        // since another device may take over the lease once it is stale.
+        hasCloudKitSeedingLease = false
         
         // Avoid global cleanup that may over-delete; reconciliation runs after import
         
@@ -327,6 +328,13 @@ final class AppStateManager: ObservableObject {
             }
         }
     }
+
+    #if DEBUG
+    /// Runs the database check the import-completed handler runs (an import event cannot be constructed in tests)
+    func recheckDatabaseStateForTesting() {
+        checkDatabaseState()
+    }
+    #endif
 
     private func cancelSeedingGate() {
         seedingGateTask?.cancel()

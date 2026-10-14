@@ -111,6 +111,30 @@ final class CloudKitSeedingLeaseAcquisitionTests: XCTestCase {
         XCTAssertEqual(server["timestamp"] as? Date, now)
     }
 
+    func testOwnFreshLeaseIsRenewed() async {
+        let database = MockRecordDatabase()
+        let server = existingLease(age: 60)
+        server["owner"] = "this-device" as CKRecordValue
+        database.serverRecord = server
+
+        let acquired = await CloudKitSeedingGate.tryAcquireSeedingLease(now: now, ownerID: "this-device", database: database)
+
+        XCTAssertTrue(acquired)
+        XCTAssertTrue(database.savedRecords.last === server)
+        XCTAssertEqual(server["timestamp"] as? Date, now)
+    }
+
+    func testFreshLeaseOfOtherOwnerIsNotAcquired() async {
+        let database = MockRecordDatabase()
+        let server = existingLease(age: 60)
+        server["owner"] = "other-device" as CKRecordValue
+        database.serverRecord = server
+
+        let acquired = await CloudKitSeedingGate.tryAcquireSeedingLease(now: now, ownerID: "this-device", database: database)
+
+        XCTAssertFalse(acquired)
+    }
+
     func testCompetingTakeoverIsRejected() async {
         let database = MockRecordDatabase()
         database.serverRecord = existingLease(age: CloudKitSeedingGate.staleLeaseInterval + 60)
