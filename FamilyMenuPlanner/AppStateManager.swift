@@ -20,7 +20,7 @@ final class AppStateManager: ObservableObject {
     /// Incremented on every iCloud account change; a seed started before the change must not mark the new account
     private var accountGeneration = 0
     /// Set while a mirroring restart waits for unsaved edits to be saved or discarded
-    private var deferredRestartSaveObserver: NSObjectProtocol?
+    private var deferredRestartObservers: [NSObjectProtocol] = []
     /// Small delay that allows CloudKit merge operations to fully settle
     private static let cloudKitMergeSettleDelay: TimeInterval = 0.5
     
@@ -106,9 +106,7 @@ final class AppStateManager: ObservableObject {
         storeResetRecheckTask?.cancel()
         storeChangeDebounceTask?.cancel()
         storeChangeObservers.forEach { NotificationCenter.default.removeObserver($0) }
-        if let token = deferredRestartSaveObserver {
-            NotificationCenter.default.removeObserver(token)
-        }
+        deferredRestartObservers.forEach { NotificationCenter.default.removeObserver($0) }
         if let token = cloudKitEventObserver {
             NotificationCenter.default.removeObserver(token)
             cloudKitEventObserver = nil
@@ -382,10 +380,7 @@ final class AppStateManager: ObservableObject {
                             let version = self.dataStore.preloadDataVersion
                             Task { await service.markAccountSeeded(version: version) }
                         }
-                        // Initialize static data cache after database is ready
-                        // This will preload all static data to ensure immediate availability
-                        self.dataStore.didFinishLoading()
-                        self.isLoading = false
+                        self.finishLoading()
                     } else {
                         self.persistenceError = "Failed to initialize app data. Please restart the app.".localized()
                         self.showPersistenceErrorAlert = true
@@ -394,10 +389,16 @@ final class AppStateManager: ObservableObject {
                 }
             }
         } else {
-            // Initialize static data cache after database is ready
-            // This will preload all static data to ensure immediate availability
-            dataStore.didFinishLoading()
-            isLoading = false
+            finishLoading()
+        }
+    }
+
+    /// Loads the static data cache for the populated store, then drops the loading screen. After a recovery the
+    /// cache is reloaded (not just initialized), and the UI waits for it so pickers do not show the cleared data.
+    private func finishLoading() {
+        dataStore.didFinishLoading { [weak self] in
+            guard let self, self.seedingGateTask == nil else { return }
+            self.isLoading = false
         }
     }
 
@@ -543,25 +544,23 @@ final class AppStateManager: ObservableObject {
     }
 
     /// Reloading the store resets the view context, which would drop an edit in progress (dish and product edits
-    /// stay unsaved until Save). Keep iCloud counted as unavailable, since mirroring is not running yet, so the
-    /// next save or activation checks the account again and restarts mirroring then.
+    /// stay unsaved until Save). Keep iCloud counted as unavailable, since mirroring is not running yet, and check
+    /// the account again once the view context is clean: after a save, or after Cancel rolls the edit back
+    /// (which posts no save, only an objects-did-change notification). Activation also re-checks.
     private func deferMirroringRestartUntilSaved() {
         AppLogger.info("iCloud became available – restarting CloudKit mirroring after unsaved edits are finished", category: AppLogger.cloudKit)
         isICloudAvailable = false
-        guard deferredRestartSaveObserver == nil else { return }
-        deferredRestartSaveObserver = NotificationCenter.default.addObserver(
-            forName: .NSManagedObjectContextDidSave,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                if let token = self.deferredRestartSaveObserver {
-                    NotificationCenter.default.removeObserver(token)
-                    self.deferredRestartSaveObserver = nil
+        guard deferredRestartObservers.isEmpty else { return }
+        let center = NotificationCenter.default
+        for name in [Notification.Name.NSManagedObjectContextDidSave, .NSManagedObjectContextObjectsDidChange] {
+            deferredRestartObservers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    guard let self, !self.deferredRestartObservers.isEmpty, !self.dataStore.hasUnsavedChanges else { return }
+                    self.deferredRestartObservers.forEach { NotificationCenter.default.removeObserver($0) }
+                    self.deferredRestartObservers = []
+                    self.recheckAfterStoreReset(trigger: .storeChanged)
                 }
-                self.recheckAfterStoreReset(trigger: .storeChanged)
-            }
+            })
         }
     }
 
@@ -965,8 +964,8 @@ protocol StartupDataStore {
     func hasCurrentPreloadData() -> Bool
     func performStartupMaintenance()
     func generateInitialData(isCloudImportInProgress: Bool, completion: @escaping (Bool) -> Void)
-    /// Called once the store has data and the UI can load
-    func didFinishLoading()
+    /// Called once the store has data; `completion` runs (on the main queue) when the UI can load
+    func didFinishLoading(completion: @escaping () -> Void)
     /// Brings the view context and caches up to date with the store, which may have been cleared behind
     /// the app's back (CloudKit account-change purge)
     func reloadAfterStoreReset()
@@ -1008,7 +1007,9 @@ struct PersistenceStartupDataStore: StartupDataStore {
         persistence.generateInitialDataInBackground(isCloudImportInProgress: isCloudImportInProgress, completion: completion)
     }
 
-    func didFinishLoading() { StaticDataCacheManager.shared.initialize(with: viewContext) }
+    func didFinishLoading(completion: @escaping () -> Void) {
+        StaticDataCacheManager.shared.reload(with: viewContext, completion: completion)
+    }
     func reloadAfterStoreReset() {
         // Synchronous (unlike `refreshAfterRemoteMerge`): the caller checks the store right after
         let context = viewContext

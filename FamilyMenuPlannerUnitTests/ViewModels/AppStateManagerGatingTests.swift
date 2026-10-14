@@ -633,6 +633,32 @@ final class AppStateManagerAccountChangeTests: XCTestCase {
         XCTAssertTrue(manager.isICloudAvailable)
     }
 
+    func testICloudTurnedOnDuringUnsavedEditRestartsMirroringAfterCancel() async {
+        service.accountStatusResult = .success(.noAccount)
+        let manager = await launchWithData()
+
+        store.hasUnsavedChanges = true
+        service.accountStatusResult = .success(.available)
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        let rechecked = await waitUntil { self.service.accountStatusCallCount == 2 }
+        XCTAssertTrue(rechecked)
+        await waitPastRecheck()
+        XCTAssertEqual(store.storeReloadCallCount, 0)
+
+        // Still editing: changes to the draft do not restart mirroring
+        NotificationCenter.default.post(name: .NSManagedObjectContextObjectsDidChange, object: nil)
+        await waitPastRecheck()
+        XCTAssertEqual(store.storeReloadCallCount, 0)
+
+        // The user taps Cancel: rollback posts objects-did-change, not a save
+        store.hasUnsavedChanges = false
+        NotificationCenter.default.post(name: .NSManagedObjectContextObjectsDidChange, object: nil)
+
+        let restarted = await waitUntil { self.store.storeReloadCallCount == 1 && !manager.isLoading }
+        XCTAssertTrue(restarted)
+        XCTAssertTrue(manager.isICloudAvailable)
+    }
+
     func testActivationWithICloudStillOffDoesNotReloadStore() async {
         service.accountStatusResult = .success(.noAccount)
         let manager = await launchWithData()
@@ -909,7 +935,10 @@ private final class MockStartupDataStore: StartupDataStore {
         completion(generationSucceeds)
     }
 
-    func didFinishLoading() { didFinishLoadingCallCount += 1 }
+    func didFinishLoading(completion: @escaping () -> Void) {
+        didFinishLoadingCallCount += 1
+        completion()
+    }
     /// Store contents the refreshed view context sees (a purge that had not reached the view context yet)
     var isEmptyAfterReload: Bool?
 
