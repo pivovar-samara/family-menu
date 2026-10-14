@@ -71,6 +71,7 @@ A feature module is `XxxView` + `XxxViewModel` + `XxxService` (Core Data) + `Xxx
 - Heavy or bulk work goes through `BackgroundOperationManager` / background contexts; pass `NSManagedObjectID` across contexts, not managed objects.
 - Model changes must be lightweight-migration and CloudKit compatible: no unique constraints, new attributes optional or defaulted, relationships optional with inverses. Entity classes are Xcode-generated (`codeGenerationType="class"`).
 - Seeding and dedup must stay correct when another device imports the same records (see `AppStateManager` seeding gate and reconciliation in `Persistence.swift`).
+- On an iCloud account change (sign-out, switch, or iCloud turned off for the app) NSPersistentCloudKitContainer purges the mirrored local data, possibly after startup has loaded the store. `AppStateManager` re-runs the database check on `CKAccountChanged` and finished `.setup` events; keep that path when touching startup. Manual check: data present → Settings → [name] → iCloud → turn off the app → relaunch → preload data present, menu editable.
 - CloudKit must stay disabled in tests/CI. Do not remove the environment checks (`XCTestConfigurationFilePath`, `CI`, `UI_TESTS`, `-UITests`, `-DisableCloudKit`).
 
 **SwiftUI state**

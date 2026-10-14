@@ -341,6 +341,169 @@ final class AppStateManagerSeedingFlowTests: XCTestCase {
     }
 }
 
+// MARK: - Recovery after an iCloud account change purges the store
+
+@MainActor
+final class AppStateManagerAccountChangeTests: XCTestCase {
+    private var service: MockCloudKitSeedingService!
+    private var store: MockStartupDataStore!
+
+    override func setUp() async throws {
+        try await super.setUp()
+        service = MockCloudKitSeedingService()
+        store = MockStartupDataStore()
+    }
+
+    override func tearDown() async throws {
+        service = nil
+        store = nil
+        try await super.tearDown()
+    }
+
+    private func makeManager() -> AppStateManager {
+        AppStateManager(
+            seedingService: service,
+            dataStore: store,
+            startupMode: .cloudKitAware,
+            seedingGateMaxWait: 1,
+            seedingGateRetryDelay: 0
+        )
+    }
+
+    private func waitUntil(timeout: TimeInterval = 3, _ condition: () -> Bool) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !condition() {
+            if Date() > deadline { return false }
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        return true
+    }
+
+    /// Launches with a populated store and waits until startup has finished loading it
+    private func launchWithData() async -> AppStateManager {
+        store.isEmpty = false
+        let manager = makeManager()
+        let loaded = await waitUntil { !manager.isLoading }
+        XCTAssertTrue(loaded)
+        XCTAssertEqual(store.generateCallCount, 0)
+        XCTAssertEqual(store.didFinishLoadingCallCount, 1)
+        return manager
+    }
+
+    /// Longer than the settle delay of the recheck, for asserting that nothing happened
+    private func waitPastRecheck() async {
+        try? await Task.sleep(nanoseconds: 800_000_000)
+    }
+
+    func testPurgeAfterICloudTurnedOffSeedsPreloadDataLocally() async {
+        // iCloud already off at launch; the container purges the old account's data during setup, after startup
+        service.accountStatusResult = .success(.noAccount)
+        let manager = await launchWithData()
+
+        store.isEmpty = true
+        manager.cloudKitSetupDidFinishForTesting()
+
+        let reseeded = await waitUntil { self.store.generateCallCount == 1 && !manager.isLoading }
+        XCTAssertTrue(reseeded)
+        XCTAssertFalse(manager.isICloudAvailable)
+        XCTAssertEqual(service.accountStatusCallCount, 2)
+        XCTAssertEqual(service.waitCallCount, 0)
+        XCTAssertTrue(service.markedVersions.isEmpty)
+        XCTAssertEqual(store.didFinishLoadingCallCount, 2)
+        XCTAssertGreaterThanOrEqual(store.reloadAfterResetCallCount, 1)
+    }
+
+    func testSignOutWhileRunningSeedsLocallyAfterPurge() async {
+        let manager = await launchWithData()
+        XCTAssertTrue(manager.isICloudAvailable)
+
+        // iCloud turned off for the app while it runs: account change, then the purge
+        service.accountStatusResult = .success(.noAccount)
+        store.isEmpty = true
+        NotificationCenter.default.post(name: .CKAccountChanged, object: nil)
+
+        let reseeded = await waitUntil { self.store.generateCallCount == 1 && !manager.isLoading }
+        XCTAssertTrue(reseeded)
+        XCTAssertFalse(manager.isICloudAvailable)
+        XCTAssertEqual(service.waitCallCount, 0)
+        XCTAssertTrue(service.markedVersions.isEmpty)
+    }
+
+    func testPurgeAfterSwitchingAccountsGoesThroughSeedingGate() async {
+        let manager = await launchWithData()
+
+        // Another account is signed in: the old account's data is purged
+        store.isEmpty = true
+        NotificationCenter.default.post(name: .CKAccountChanged, object: nil)
+
+        let gated = await waitUntil { self.service.waitCallCount == 1 }
+        XCTAssertTrue(gated)
+        XCTAssertTrue(manager.isICloudAvailable)
+        XCTAssertTrue(manager.isLoading)
+        XCTAssertEqual(service.isAccountSeededCallCount, 1)
+        XCTAssertEqual(store.generateCallCount, 0)
+    }
+
+    func testAccountChangeWithDataStillPresentDoesNotReseed() async {
+        let manager = await launchWithData()
+
+        NotificationCenter.default.post(name: .CKAccountChanged, object: nil)
+
+        let rechecked = await waitUntil { self.service.accountStatusCallCount == 2 }
+        XCTAssertTrue(rechecked)
+        await waitPastRecheck()
+        XCTAssertFalse(manager.isLoading)
+        XCTAssertEqual(store.generateCallCount, 0)
+        XCTAssertEqual(store.didFinishLoadingCallCount, 1)
+        XCTAssertEqual(service.waitCallCount, 0)
+    }
+
+    func testSetupFinishedWithPopulatedStoreDoesNothing() async {
+        let manager = await launchWithData()
+
+        manager.cloudKitSetupDidFinishForTesting()
+
+        await waitPastRecheck()
+        XCTAssertFalse(manager.isLoading)
+        XCTAssertEqual(service.accountStatusCallCount, 1)
+        XCTAssertEqual(store.generateCallCount, 0)
+        XCTAssertEqual(store.didFinishLoadingCallCount, 1)
+    }
+
+    func testAccountChangeDuringSeedingGateReplacesGateOfPreviousAccount() async {
+        // Empty store with iCloud available: startup waits in the gate (the wait never returns)
+        let manager = makeManager()
+        let gated = await waitUntil { self.service.waitCallCount == 1 }
+        XCTAssertTrue(gated)
+
+        service.accountStatusResult = .success(.noAccount)
+        NotificationCenter.default.post(name: .CKAccountChanged, object: nil)
+
+        let seeded = await waitUntil { self.store.generateCallCount == 1 && !manager.isLoading }
+        XCTAssertTrue(seeded)
+        XCTAssertEqual(service.waitCallCount, 1)
+        XCTAssertTrue(service.markedVersions.isEmpty)
+    }
+
+    func testSetupFinishedBeforeAccountStatusIsLeftToStartup() async {
+        service.holdsAccountStatus = true
+        store.isEmpty = false
+        let manager = makeManager()
+        let requested = await waitUntil { self.service.isAccountStatusPending }
+        XCTAssertTrue(requested)
+
+        manager.cloudKitSetupDidFinishForTesting()
+        await waitPastRecheck()
+        XCTAssertEqual(service.accountStatusCallCount, 1)
+
+        service.resumeAccountStatus()
+        let loaded = await waitUntil { !manager.isLoading }
+        XCTAssertTrue(loaded)
+        XCTAssertEqual(service.accountStatusCallCount, 1)
+        XCTAssertEqual(store.generateCallCount, 0)
+    }
+}
+
 // MARK: - Startup mode detection
 
 final class StartupModeDetectionTests: XCTestCase {
@@ -458,6 +621,7 @@ private final class MockStartupDataStore: StartupDataStore {
 
     private(set) var generateCallCount = 0
     private(set) var didFinishLoadingCallCount = 0
+    private(set) var reloadAfterResetCallCount = 0
 
     func isDatabaseEmpty() -> Bool { isEmpty }
     func needsDataPopulation() -> Bool { isEmpty || isPartial }
@@ -474,6 +638,7 @@ private final class MockStartupDataStore: StartupDataStore {
     }
 
     func didFinishLoading() { didFinishLoadingCallCount += 1 }
+    func reloadAfterStoreReset() { reloadAfterResetCallCount += 1 }
 
     func attemptRecovery(completion: @escaping (Bool) -> Void) { completion(true) }
 }

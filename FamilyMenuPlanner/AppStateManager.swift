@@ -14,6 +14,7 @@ import CloudKit
 final class AppStateManager: ObservableObject {
     static let shared = AppStateManager()
     private var cloudKitEventObserver: NSObjectProtocol? = nil
+    private var accountChangeObserver: NSObjectProtocol? = nil
     /// Small delay that allows CloudKit merge operations to fully settle
     private static let cloudKitMergeSettleDelay: TimeInterval = 0.5
     
@@ -36,6 +37,8 @@ final class AppStateManager: ObservableObject {
     /// False until the iCloud account status is known; import events must not trigger a database check before that
     private var isAccountStatusResolved = false
     private var seedingGateTask: Task<Void, Never>?
+    /// Re-check after an iCloud account change or a finished CloudKit setup (see `recheckAfterStoreReset`)
+    private var storeResetRecheckTask: Task<Void, Never>?
 
     private convenience init() {
         self.init(
@@ -73,6 +76,7 @@ final class AppStateManager: ObservableObject {
             // and keep the loading screen up meanwhile.
             // Observe import events from the start so an import that begins during the account check is not missed
             observeCloudKitEvents()
+            observeAccountChanges()
             startupTask = Task { [weak self] in
                 await self?.resolveICloudAccountStatus()
                 self?.isAccountStatusResolved = true
@@ -84,9 +88,14 @@ final class AppStateManager: ObservableObject {
     deinit {
         startupTask?.cancel()
         seedingGateTask?.cancel()
+        storeResetRecheckTask?.cancel()
         if let token = cloudKitEventObserver {
             NotificationCenter.default.removeObserver(token)
             cloudKitEventObserver = nil
+        }
+        if let token = accountChangeObserver {
+            NotificationCenter.default.removeObserver(token)
+            accountChangeObserver = nil
         }
         NotificationCenter.default.removeObserver(self)
     }
@@ -160,9 +169,33 @@ final class AppStateManager: ObservableObject {
         }
     }
 
+    /// Signing out of iCloud, switching accounts, or turning off iCloud for the app (which CloudKit treats as a sign-out)
+    private func observeAccountChanges() {
+        guard accountChangeObserver == nil else { return }
+        accountChangeObserver = NotificationCenter.default.addObserver(
+            forName: .CKAccountChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                AppLogger.info("iCloud account changed", category: AppLogger.cloudKit)
+                self?.recheckAfterStoreReset(accountChanged: true)
+            }
+        }
+    }
+
     private func handleCloudKitEvent(_ notification: Notification) {
         guard let event = notification.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey] as? NSPersistentCloudKitContainer.Event else { return }
         switch event.type {
+        case .setup:
+            // After an account change (or iCloud turned off for the app) the container purges the mirrored
+            // local data while setting up, which can be after startup already found the store populated
+            if event.endDate != nil {
+                if let error = event.error {
+                    AppLogger.info("CloudKit setup finished with error [\(CloudKitSeedingGate.errorCodeDescription(error))]", category: AppLogger.cloudKit)
+                }
+                recheckAfterStoreReset(accountChanged: false)
+            }
         case .import:
             if event.endDate == nil {
                 isCloudKitSyncing = true
@@ -329,10 +362,57 @@ final class AppStateManager: ObservableObject {
         }
     }
 
+    /// Recovers from NSPersistentCloudKitContainer purging the local mirror. On an iCloud account change
+    /// (sign-out, switch, or iCloud turned off for the app) the container deletes the data mirrored from the
+    /// old account, so the store can end up empty after startup has already loaded it. Re-resolves the
+    /// account status and re-runs the database check: without iCloud this seeds preload data locally,
+    /// with a (different) available account it goes through the first-launch seeding gate.
+    private func recheckAfterStoreReset(accountChanged: Bool) {
+        // Before the account status is known, startup runs the check itself
+        guard isAccountStatusResolved else { return }
+        if accountChanged {
+            // A running gate round and a held lease belong to the previous account
+            cancelSeedingGate()
+            hasCloudKitSeedingLease = false
+        } else if storeResetRecheckTask != nil || seedingGateTask != nil {
+            // A pending account-change recheck or the running seeding gate already covers this
+            return
+        }
+        storeResetRecheckTask?.cancel()
+        storeResetRecheckTask = Task { [weak self] in
+            // Let the purge's merge into the view context settle before judging the store
+            try? await Task.sleep(nanoseconds: UInt64(Self.cloudKitMergeSettleDelay * 1_000_000_000))
+            guard !Task.isCancelled, let self, self.dataStore.isReady else { return }
+            // The purge does not necessarily merge into the view context: refresh it (and the static data cache)
+            // so the check below and the UI see the store as it is now
+            self.dataStore.reloadAfterStoreReset()
+            guard accountChanged || self.dataStore.needsDataPopulation() else {
+                self.storeResetRecheckTask = nil
+                return
+            }
+            await self.resolveICloudAccountStatus()
+            guard !Task.isCancelled else { return }
+            self.storeResetRecheckTask = nil
+            guard self.dataStore.needsDataPopulation() else {
+                // Account changed but its data is still here (the purge, if any, comes with the next setup event)
+                return
+            }
+            AppLogger.warning("Local store was cleared after startup (iCloud account change) – re-running the database check", category: AppLogger.cloudKit)
+            // Show the loading screen so the UI rebuilds once the store is populated again
+            self.isLoading = true
+            self.checkDatabaseState()
+        }
+    }
+
     #if DEBUG
     /// Runs the database check the import-completed handler runs (an import event cannot be constructed in tests)
     func recheckDatabaseStateForTesting() {
         checkDatabaseState()
+    }
+
+    /// Runs what a finished CloudKit setup event triggers (a setup event cannot be constructed in tests)
+    func cloudKitSetupDidFinishForTesting() {
+        recheckAfterStoreReset(accountChanged: false)
     }
     #endif
 
@@ -701,6 +781,9 @@ protocol StartupDataStore {
     func generateInitialData(isCloudImportInProgress: Bool, completion: @escaping (Bool) -> Void)
     /// Called once the store has data and the UI can load
     func didFinishLoading()
+    /// Brings the view context and caches up to date with the store, which may have been cleared behind
+    /// the app's back (CloudKit account-change purge)
+    func reloadAfterStoreReset()
     func attemptRecovery(completion: @escaping (Bool) -> Void)
 }
 
@@ -729,6 +812,17 @@ struct PersistenceStartupDataStore: StartupDataStore {
     }
 
     func didFinishLoading() { StaticDataCacheManager.shared.initialize(with: viewContext) }
+    func reloadAfterStoreReset() {
+        // Synchronous (unlike `refreshAfterRemoteMerge`): the caller checks the store right after
+        let context = viewContext
+        context.performAndWait {
+            do { try context.setQueryGenerationFrom(.current) } catch {
+                AppLogger.warning("Failed to advance query generation after store reset: \(error.localizedDescription)", category: AppLogger.persistence)
+            }
+            context.refreshAllObjects()
+        }
+        StaticDataCacheManager.shared.invalidateCache()
+    }
 
     func attemptRecovery(completion: @escaping (Bool) -> Void) {
         persistence.attemptRecovery(completion: completion)
