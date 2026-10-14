@@ -2145,7 +2145,7 @@ class PersistenceController {
     
     // Remove local duplicates when CloudKit import brought remote copies: decide by dish key presence in both local preseeded set and remote set.
     /// Resolves dishes sharing a key after a CloudKit import. A seed copy (an exact copy of its preload dish:
-    /// same name, details, ingredients with their units, category and meal types) is deleted when the group also holds a record that
+    /// same name, details, ingredients with their units and default order, category and meal types) is deleted when the group also holds a record that
     /// differs from the preload, since that one carries edits; the seed copy's menu links move to it.
     /// Groups of seed copies only keep one; differing records are left to `cleanupDuplicateDishes`, which merges.
     func removeLocallySeededDishesIfRemoteExists(context: NSManagedObjectContext) {
@@ -2157,9 +2157,9 @@ class PersistenceController {
                     // Prefer one linked to a menu entry, else the most connected
                     dishes.first { ($0.menus?.count ?? 0) > 0 } ?? dishes.max { connections($0) < connections($1) }!
                 }
-                // Ingredients as exact product name, unit name and quantity
+                // Ingredients as exact product name, unit name and quantity (not rounded: any saved change counts)
                 func ingredientSignature(_ items: [(product: String, unit: String, quantity: Double)]) -> [String] {
-                    items.map { "\($0.product)|\($0.unit)|\(($0.quantity * 1000).rounded() / 1000)" }.sorted()
+                    items.map { "\($0.product)|\($0.unit)|\($0.quantity)" }.sorted()
                 }
                 let preloadData = self.loadCurrentPreloadData()
                 var preloadUnitByProduct: [String: String] = [:]
@@ -2179,7 +2179,10 @@ class PersistenceController {
                           d.category?.name == preload.category else { return false }
                     let mealTypes = (d.mealTypes as? Set<MealType> ?? []).map { $0.name ?? "" }.sorted()
                     guard mealTypes == (preload.mealTypes ?? []).sorted() else { return false }
-                    let ingredients = (d.ingredientDetails as? Set<IngredientDetail> ?? []).map {
+                    let details = d.ingredientDetails as? Set<IngredientDetail> ?? []
+                    // Seeding leaves the ingredient order unset; a saved custom order is an edit
+                    guard details.allSatisfy({ $0.sortOrder == 0 }) else { return false }
+                    let ingredients = details.map {
                         (product: $0.product?.name ?? "", unit: $0.product?.unit?.name ?? "", quantity: $0.quantity)
                     }
                     let preloadIngredients = preload.ingredients.map {

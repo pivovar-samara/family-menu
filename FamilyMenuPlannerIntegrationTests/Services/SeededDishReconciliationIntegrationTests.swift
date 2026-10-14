@@ -148,6 +148,36 @@ final class SeededDishReconciliationIntegrationTests: BaseIntegrationTest {
         XCTAssertTrue(menu.dishes?.contains(imported) ?? false)
     }
 
+    func testQuantityOnlyEditWinsOverMenuLinkedSeedCopy() throws {
+        let seed = try makeSeedCopy()
+        let menu = menuLinking(seed)
+        let imported = try makeSeedCopy()
+        let ingredient = try XCTUnwrap((imported.ingredientDetails as? Set<IngredientDetail>)?.first)
+        ingredient.quantity += 0.0001
+        try context.save()
+
+        PersistenceController.shared.removeLocallySeededDishesIfRemoteExists(context: context)
+
+        let dishes = try context.fetch(Dish.fetchRequest())
+        XCTAssertEqual(dishes.count, 1)
+        XCTAssertTrue(menu.dishes?.contains(imported) ?? false)
+    }
+
+    func testOrderingOnlyEditWinsOverMenuLinkedSeedCopy() throws {
+        let seed = try makeSeedCopy()
+        let menu = menuLinking(seed)
+        let imported = try makeSeedCopy()
+        let ingredient = try XCTUnwrap((imported.ingredientDetails as? Set<IngredientDetail>)?.first)
+        ingredient.sortOrder = 1
+        try context.save()
+
+        PersistenceController.shared.removeLocallySeededDishesIfRemoteExists(context: context)
+
+        let dishes = try context.fetch(Dish.fetchRequest())
+        XCTAssertEqual(dishes.count, 1)
+        XCTAssertTrue(menu.dishes?.contains(imported) ?? false)
+    }
+
     func testTwoEditedRecordsAreBothKept() throws {
         // A seed copy edited and saved locally, and a differently edited imported record
         let local = try makeSeedCopy()

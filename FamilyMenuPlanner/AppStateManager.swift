@@ -476,7 +476,12 @@ final class AppStateManager: ObservableObject {
         storeResetRecheckTask = Task { [weak self] in
             // Let the purge's merge into the view context settle before judging the store
             try? await Task.sleep(nanoseconds: UInt64(Self.cloudKitMergeSettleDelay * 1_000_000_000))
-            guard !Task.isCancelled, let self, self.dataStore.isReady else { return }
+            guard !Task.isCancelled, let self else { return }
+            guard self.dataStore.isReady else {
+                // Clear the handle so later triggers can recheck once persistence recovers
+                self.storeResetRecheckTask = nil
+                return
+            }
             // The store is judged from a fresh context (`storeNeedsDataPopulation`): the view context may not have
             // seen the purge, and it is only refreshed once recovery is confirmed, so ordinary activations do not
             // disturb unsaved edits.

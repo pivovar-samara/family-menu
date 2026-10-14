@@ -716,6 +716,23 @@ final class AppStateManagerAccountChangeTests: XCTestCase {
         }
     }
 
+    func testRecheckWhilePersistenceNotReadyDoesNotBlockLaterRechecks() async {
+        service.accountStatusResult = .success(.noAccount)
+        let manager = await launchWithData()
+
+        store.isReady = false
+        manager.cloudKitSetupDidFinishForTesting()
+        await waitPastRecheck()
+
+        // Persistence recovered; a later purge must still be recovered from
+        store.isReady = true
+        store.isEmpty = true
+        manager.cloudKitSetupDidFinishForTesting()
+
+        let reseeded = await waitUntil { self.store.generateCallCount == 1 && !manager.isLoading }
+        XCTAssertTrue(reseeded)
+    }
+
     func testFailedAccountLookupAfterPurgeRetriesInsteadOfSeeding() async {
         let manager = await launchWithData()
 
