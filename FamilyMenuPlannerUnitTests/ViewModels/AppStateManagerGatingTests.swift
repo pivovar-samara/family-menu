@@ -571,6 +571,24 @@ final class AppStateManagerAccountChangeTests: XCTestCase {
         XCTAssertEqual(service.waitCallCount, 0)
     }
 
+    func testDataArrivingDuringLookupRetryClearsLoading() async {
+        let manager = await launchWithData()
+
+        // Purged, and the account lookup fails: the loading screen stays up while retrying
+        service.accountStatusResult = .failure(CKError(.networkUnavailable))
+        store.isEmpty = true
+        NotificationCenter.default.post(name: .CKAccountChanged, object: nil)
+        let waiting = await waitUntil { self.service.accountStatusCallCount >= 2 && manager.isLoading }
+        XCTAssertTrue(waiting)
+
+        // Data arrives (e.g. imported) before the lookup succeeds
+        store.isEmpty = false
+        let loaded = await waitUntil { !manager.isLoading }
+        XCTAssertTrue(loaded)
+        XCTAssertEqual(store.generateCallCount, 0)
+        XCTAssertEqual(store.didFinishLoadingCallCount, 2)
+    }
+
     func testICloudTurnedOnWhileRunningRestartsMirroring() async {
         // Launched without iCloud (mirroring setup failed), local preload data in the store
         service.accountStatusResult = .success(.noAccount)

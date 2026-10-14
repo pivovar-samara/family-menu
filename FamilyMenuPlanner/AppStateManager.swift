@@ -469,8 +469,9 @@ final class AppStateManager: ObservableObject {
             while !(await self.resolveICloudAccountStatus(keepAvailabilityOnFailure: true)) {
                 guard !Task.isCancelled else { return }
                 guard self.dataStore.needsDataPopulation() else {
-                    // Nothing to recover: the next trigger checks the account again
+                    // Nothing to recover (any more): the next trigger checks the account again
                     self.storeResetRecheckTask = nil
+                    self.finishLoadingIfWaiting()
                     return
                 }
                 AppLogger.warning("iCloud account status unknown after account change or setup – retrying before the database check", category: AppLogger.cloudKit)
@@ -485,18 +486,27 @@ final class AppStateManager: ObservableObject {
                 return
             }
             guard self.dataStore.needsDataPopulation() else {
-                // Account changed but its data is still here (the purge, if any, triggers another check)
+                // Account changed but its data is still here (the purge, if any, triggers another check),
+                // or data arrived while an earlier lookup failure kept the loading screen up
+                self.finishLoadingIfWaiting()
                 return
             }
             AppLogger.warning("Local store was cleared after startup (iCloud account change) – re-running the database check", category: AppLogger.cloudKit)
             if trigger == .storeChanged, self.isICloudAvailable, !self.dataStore.isDatabaseEmpty() {
                 // Partly imported data with iCloud on: the import-completed check handles it
+                self.finishLoadingIfWaiting()
                 return
             }
             // Show the loading screen so the UI rebuilds once the store is populated again
             self.isLoading = true
             self.checkDatabaseState()
         }
+    }
+
+    /// Clears a loading screen this recheck put up when the store turned out not to need recovery
+    private func finishLoadingIfWaiting() {
+        guard isLoading, seedingGateTask == nil else { return }
+        checkDatabaseState()
     }
 
     /// iCloud became available while the app runs. Mirroring set up without an account stays off until the store
