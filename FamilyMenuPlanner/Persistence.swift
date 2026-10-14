@@ -2156,10 +2156,13 @@ class PersistenceController {
     /// Saves a seeding context and records the dishes it inserted as locally seeded
     func saveRecordingLocallySeededDishes(context: NSManagedObjectContext) throws {
         let insertedDishes = context.insertedObjects.compactMap { $0 as? Dish }
-        try context.obtainPermanentIDs(for: insertedDishes)
+        if !insertedDishes.isEmpty {
+            // Record before saving, so a crash after the save cannot leave seed copies unrecorded;
+            // URIs of a failed save match no dish and are pruned by the reconciliation
+            try context.obtainPermanentIDs(for: insertedDishes)
+            Self.locallySeededDishURIs.formUnion(insertedDishes.map { $0.objectID.uriRepresentation().absoluteString })
+        }
         try context.save()
-        guard !insertedDishes.isEmpty else { return }
-        Self.locallySeededDishURIs.formUnion(insertedDishes.map { $0.objectID.uriRepresentation().absoluteString })
     }
 
     /// Resolves dishes sharing a key after a CloudKit import. When a group mixes local seed copies with other

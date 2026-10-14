@@ -608,6 +608,31 @@ final class AppStateManagerAccountChangeTests: XCTestCase {
         XCTAssertEqual(service.waitCallCount, 0)
     }
 
+    func testICloudTurnedOnDuringUnsavedEditRestartsMirroringAfterSave() async {
+        service.accountStatusResult = .success(.noAccount)
+        let manager = await launchWithData()
+
+        // An edit sheet holds unsaved changes when iCloud comes back
+        store.hasUnsavedChanges = true
+        service.accountStatusResult = .success(.available)
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+
+        let rechecked = await waitUntil { self.service.accountStatusCallCount == 2 }
+        XCTAssertTrue(rechecked)
+        await waitPastRecheck()
+        XCTAssertEqual(store.storeReloadCallCount, 0)
+        XCTAssertFalse(manager.isLoading)
+        XCTAssertFalse(manager.isICloudAvailable)
+
+        // The user saves the edit
+        store.hasUnsavedChanges = false
+        NotificationCenter.default.post(name: .NSManagedObjectContextDidSave, object: nil)
+
+        let restarted = await waitUntil { self.store.storeReloadCallCount == 1 && !manager.isLoading }
+        XCTAssertTrue(restarted)
+        XCTAssertTrue(manager.isICloudAvailable)
+    }
+
     func testActivationWithICloudStillOffDoesNotReloadStore() async {
         service.accountStatusResult = .success(.noAccount)
         let manager = await launchWithData()
@@ -791,6 +816,7 @@ private final class MockStartupDataStore: StartupDataStore {
     func isDatabaseEmpty() -> Bool { isEmpty }
     func needsDataPopulation() -> Bool { isEmpty || isPartial }
     func storeNeedsDataPopulation() -> Bool { needsDataPopulation() }
+    var hasUnsavedChanges = false
     func hasCurrentPreloadData() -> Bool { !isEmpty && !isPartial }
     func performStartupMaintenance() {}
 

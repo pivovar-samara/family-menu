@@ -17,6 +17,8 @@ final class AppStateManager: ObservableObject {
     private var accountChangeObserver: NSObjectProtocol? = nil
     private var storeChangeObservers: [NSObjectProtocol] = []
     private var storeChangeDebounceTask: Task<Void, Never>?
+    /// Set while a mirroring restart waits for unsaved edits to be saved or discarded
+    private var deferredRestartSaveObserver: NSObjectProtocol?
     /// Small delay that allows CloudKit merge operations to fully settle
     private static let cloudKitMergeSettleDelay: TimeInterval = 0.5
     
@@ -102,6 +104,9 @@ final class AppStateManager: ObservableObject {
         storeResetRecheckTask?.cancel()
         storeChangeDebounceTask?.cancel()
         storeChangeObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        if let token = deferredRestartSaveObserver {
+            NotificationCenter.default.removeObserver(token)
+        }
         if let token = cloudKitEventObserver {
             NotificationCenter.default.removeObserver(token)
             cloudKitEventObserver = nil
@@ -482,7 +487,11 @@ final class AppStateManager: ObservableObject {
             guard !Task.isCancelled else { return }
             self.storeResetRecheckTask = nil
             if wasICloudUnavailable && self.isICloudAvailable {
-                self.restartCloudKitMirroring()
+                if self.dataStore.hasUnsavedChanges {
+                    self.deferMirroringRestartUntilSaved()
+                } else {
+                    self.restartCloudKitMirroring()
+                }
                 return
             }
             guard self.dataStore.storeNeedsDataPopulation() else {
@@ -509,6 +518,29 @@ final class AppStateManager: ObservableObject {
     private func finishLoadingIfWaiting() {
         guard isLoading, seedingGateTask == nil else { return }
         checkDatabaseState()
+    }
+
+    /// Reloading the store resets the view context, which would drop an edit in progress (dish and product edits
+    /// stay unsaved until Save). Keep iCloud counted as unavailable, since mirroring is not running yet, so the
+    /// next save or activation checks the account again and restarts mirroring then.
+    private func deferMirroringRestartUntilSaved() {
+        AppLogger.info("iCloud became available – restarting CloudKit mirroring after unsaved edits are finished", category: AppLogger.cloudKit)
+        isICloudAvailable = false
+        guard deferredRestartSaveObserver == nil else { return }
+        deferredRestartSaveObserver = NotificationCenter.default.addObserver(
+            forName: .NSManagedObjectContextDidSave,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if let token = self.deferredRestartSaveObserver {
+                    NotificationCenter.default.removeObserver(token)
+                    self.deferredRestartSaveObserver = nil
+                }
+                self.recheckAfterStoreReset(trigger: .storeChanged)
+            }
+        }
     }
 
     /// iCloud became available while the app runs. Mirroring set up without an account stays off until the store
@@ -905,6 +937,8 @@ protocol StartupDataStore {
     func needsDataPopulation() -> Bool
     /// `needsDataPopulation()` judged from a fresh context, without touching the view context
     func storeNeedsDataPopulation() -> Bool
+    /// Whether the view context holds unsaved edits (e.g. an open dish or product editor)
+    var hasUnsavedChanges: Bool { get }
     /// True when the store holds the complete preload data of the current version
     func hasCurrentPreloadData() -> Bool
     func performStartupMaintenance()
@@ -934,6 +968,7 @@ struct PersistenceStartupDataStore: StartupDataStore {
 
     func isDatabaseEmpty() -> Bool { persistence.isDatabaseEmpty(context: viewContext) }
     func needsDataPopulation() -> Bool { persistence.isDatabaseEmptyOrOutdated(context: viewContext) }
+    var hasUnsavedChanges: Bool { viewContext.hasChanges }
     func storeNeedsDataPopulation() -> Bool {
         let context = persistence.newBackgroundContext()
         var needsPopulation = false
