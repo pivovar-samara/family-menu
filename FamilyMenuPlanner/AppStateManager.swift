@@ -51,6 +51,8 @@ final class AppStateManager: ObservableObject {
     private var storeResetRecheckTask: Task<Void, Never>?
     /// A CloudKit setup finished (and may have purged the store) before the account status was known
     private var hasStoreResetBeforeStartupCheck = false
+    /// The account changed while startup's account lookup was pending; its result may predate the change
+    private var accountChangedDuringStartupLookup = false
 
     private convenience init() {
         self.init(
@@ -91,8 +93,12 @@ final class AppStateManager: ObservableObject {
             observeAccountChanges()
             observeStoreChanges()
             startupTask = Task { [weak self] in
-                await self?.resolveICloudAccountStatus()
                 guard let self else { return }
+                repeat {
+                    self.accountChangedDuringStartupLookup = false
+                    await self.resolveICloudAccountStatus()
+                    // An account change while the lookup was pending: look up again
+                } while self.accountChangedDuringStartupLookup && !Task.isCancelled
                 self.isAccountStatusResolved = true
                 if self.hasStoreResetBeforeStartupCheck, self.dataStore.isReady {
                     // The view context may still show the store from before the purge
@@ -481,6 +487,9 @@ final class AppStateManager: ObservableObject {
         // Before the account status is known, startup runs the check itself (after refreshing the view context)
         guard isAccountStatusResolved else {
             hasStoreResetBeforeStartupCheck = true
+            if accountChanged {
+                accountChangedDuringStartupLookup = true
+            }
             return
         }
         if accountChanged {

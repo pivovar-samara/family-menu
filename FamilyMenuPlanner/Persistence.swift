@@ -367,21 +367,42 @@ class PersistenceController {
         // exclusive step lets earlier writes finish first, and later ones get contexts on the reloaded store
         BackgroundOperationManager.shared.runExclusivelyOnMain { [self] in
             AppLogger.info("Reloading persistent store to restart CloudKit mirroring", category: AppLogger.persistence)
-            let coordinator = container.persistentStoreCoordinator
-            container.viewContext.performAndWait {
-                container.viewContext.reset()
-            }
-            do {
-                for store in coordinator.persistentStores {
-                    try coordinator.remove(store)
+            // Not `loadPersistentStores`: its startup error handling can fall back to an unattached in-memory store
+            // and report success. A failed reload must report failure so the restart stays retryable.
+            Self.reattachStores(of: container) { [self] error in
+                if let error {
+                    AppLogger.error("Failed to reload persistent store for CloudKit mirroring", error: error, category: AppLogger.persistence)
+                    AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Failed to reload persistent store for CloudKit mirroring")
+                    completion(false)
+                    return
                 }
-            } catch {
-                AppLogger.error("Failed to remove persistent store before reloading", error: error, category: AppLogger.persistence)
-                AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Failed to remove persistent store before reloading")
-                completion(false)
-                return
+                configureSuccessfulStore()
+                completion(true)
             }
-            loadPersistentStores(completion: completion)
+        }
+    }
+
+    /// Removes the container's stores and adds them again from its descriptions, resetting the view context.
+    /// Reports the first error without falling back to another store, so the caller can retry.
+    static func reattachStores(of container: NSPersistentContainer, completion: @escaping (Error?) -> Void) {
+        let coordinator = container.persistentStoreCoordinator
+        container.viewContext.performAndWait {
+            container.viewContext.reset()
+        }
+        do {
+            for store in coordinator.persistentStores {
+                try coordinator.remove(store)
+            }
+        } catch {
+            completion(error)
+            return
+        }
+        var firstError: Error?
+        var remaining = container.persistentStoreDescriptions.count
+        container.loadPersistentStores { _, error in
+            if firstError == nil { firstError = error }
+            remaining -= 1
+            if remaining == 0 { completion(firstError) }
         }
     }
 
@@ -778,6 +799,15 @@ class PersistenceController {
         !isDatabaseEmpty(context: context) && isStaticDataValid(context: context)
     }
     
+    /// Preload data of every localization bundled with the app
+    static func loadAllLocalizedPreloadData(bundle: Bundle = .main) -> [PreloadedData] {
+        bundle.localizations.compactMap { localization in
+            guard let url = bundle.url(forResource: "preloadData", withExtension: "json", subdirectory: nil, localization: localization),
+                  let data = try? Data(contentsOf: url) else { return nil }
+            return try? JSONDecoder().decode(PreloadedData.self, from: data)
+        }
+    }
+
     private func loadCurrentPreloadData() -> PreloadedData? {
         guard let url = Bundle.main.url(forResource: "preloadData", withExtension: "json") else {
             AppLogger.error("Failed to find preloadData.json in bundle", category: AppLogger.dataImport)
@@ -2165,19 +2195,25 @@ class PersistenceController {
                 func ingredientSignature(_ items: [(product: String, unit: String, quantity: Double)]) -> [String] {
                     items.map { "\($0.product)|\($0.unit)|\($0.quantity)" }.sorted()
                 }
-                let preloadData = self.loadCurrentPreloadData()
-                var preloadUnitByProduct: [String: String] = [:]
-                for product in preloadData?.products ?? [] {
-                    preloadUnitByProduct[product.name] = product.unit
+                // Every bundled language: the seed may have been made in another language than the current one
+                struct PreloadVariant {
+                    var dishesByName: [String: DishData] = [:]
+                    var unitByProduct: [String: String] = [:]
                 }
-                // Normalized only to find the preload dish; the comparison below is exact, so any saved edit
-                // (even a case-only one) makes the dish count as edited
-                var preloadByName: [String: DishData] = [:]
-                for dishData in preloadData?.dishes ?? [] {
-                    preloadByName[norm(dishData.name)] = dishData
+                let variants: [PreloadVariant] = Self.loadAllLocalizedPreloadData().map { data in
+                    var variant = PreloadVariant()
+                    for product in data.products { variant.unitByProduct[product.name] = product.unit }
+                    // Normalized only to find the preload dish; the comparison below is exact, so any saved edit
+                    // (even a case-only one) makes the dish count as edited
+                    for dishData in data.dishes { variant.dishesByName[norm(dishData.name)] = dishData }
+                    return variant
                 }
                 func isUnmodifiedPreloadCopy(_ d: Dish) -> Bool {
-                    guard let preload = preloadByName[norm(d.name)] else { return false }
+                    variants.contains { isUnmodifiedCopy(d, of: $0) }
+                }
+                func isUnmodifiedCopy(_ d: Dish, of variant: PreloadVariant) -> Bool {
+                    let preloadUnitByProduct = variant.unitByProduct
+                    guard let preload = variant.dishesByName[norm(d.name)] else { return false }
                     guard d.name == preload.name,
                           d.details == preload.details,
                           d.category?.name == preload.category else { return false }

@@ -488,6 +488,27 @@ final class AppStateManagerAccountChangeTests: XCTestCase {
         XCTAssertTrue(service.markedVersions.isEmpty)
     }
 
+    func testAccountChangeDuringStartupLookupRepeatsIt() async {
+        // Startup's lookup is pending with a pre-change snapshot (available) when iCloud is turned off
+        service.holdsAccountStatus = true
+        let manager = makeManager()
+        let requested = await waitUntil { self.service.isAccountStatusPending }
+        XCTAssertTrue(requested)
+
+        service.accountStatusResult = .success(.noAccount)
+        service.holdsAccountStatus = false
+        NotificationCenter.default.post(name: .CKAccountChanged, object: nil)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        service.resumeAccountStatus()
+
+        // The stale result is not used: the lookup repeats and the empty store is seeded locally, not gated
+        let seeded = await waitUntil { self.store.generateCallCount == 1 && !manager.isLoading }
+        XCTAssertTrue(seeded)
+        XCTAssertEqual(service.accountStatusCallCount, 2)
+        XCTAssertFalse(manager.isICloudAvailable)
+        XCTAssertEqual(service.waitCallCount, 0)
+    }
+
     func testSetupFinishedBeforeAccountStatusIsLeftToStartup() async {
         service.holdsAccountStatus = true
         store.isEmpty = false
@@ -926,10 +947,12 @@ private final class MockCloudKitSeedingService: CloudKitSeedingService {
 
     func accountStatus() async throws -> CKAccountStatus {
         accountStatusCallCount += 1
+        // The status as of the request: a held request returns it even if the account changes meanwhile
+        let result = accountStatusResult
         if holdsAccountStatus {
             await withCheckedContinuation { accountStatusContinuation = $0 }
         }
-        return try accountStatusResult.get()
+        return try result.get()
     }
 
     func resumeAccountStatus() {

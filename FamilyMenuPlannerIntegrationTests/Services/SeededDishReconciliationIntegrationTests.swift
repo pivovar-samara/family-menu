@@ -21,13 +21,23 @@ final class SeededDishReconciliationIntegrationTests: BaseIntegrationTest {
             XCTFail("Cannot load preloadData.json")
             return
         }
+        use(preload)
+    }
+
+    /// Builds fixtures from this preload variant (one language) from now on
+    private func use(_ preload: PreloadedData) {
         preloadDish = preload.dishes.first {
             !$0.ingredients.isEmpty && $0.category != nil && ($0.mealTypes?.isEmpty == false)
         }
         XCTAssertNotNil(preloadDish, "Preload data needs a dish with ingredients, a category and meal types")
+        preloadUnitByProduct = [:]
         for product in preload.products {
             preloadUnitByProduct[product.name] = product.unit
         }
+        units = [:]
+        products = [:]
+        mealTypes = [:]
+        categories = [:]
     }
 
     override func tearDown() {
@@ -96,6 +106,28 @@ final class SeededDishReconciliationIntegrationTests: BaseIntegrationTest {
         XCTAssertEqual(dishes.count, 1)
         XCTAssertEqual(dishes.first?.details, "Edited by the user")
         XCTAssertTrue(menu.dishes?.contains(imported) ?? false)
+    }
+
+    func testSeedCopyInAnyBundledLanguageLosesToEditedRecord() throws {
+        // Re-seeded in one language, app language switched before reconnecting: the seed is still recognized
+        let variants = PersistenceController.loadAllLocalizedPreloadData()
+        XCTAssertGreaterThanOrEqual(variants.count, 2, "Expected the en and ru preload data")
+        for variant in variants {
+            cleanUpTestData()
+            use(variant)
+            let seed = try makeSeedCopy()
+            let menu = menuLinking(seed)
+            let imported = try makeSeedCopy()
+            imported.details = "Edited by the user"
+            try context.save()
+
+            PersistenceController.shared.removeLocallySeededDishesIfRemoteExists(context: context)
+
+            let dishes = try context.fetch(Dish.fetchRequest())
+            XCTAssertEqual(dishes.count, 1, preloadDish.name)
+            XCTAssertEqual(dishes.first?.details, "Edited by the user", preloadDish.name)
+            XCTAssertTrue(menu.dishes?.contains(imported) ?? false, preloadDish.name)
+        }
     }
 
     func testRelationshipOnlyEditWinsOverMenuLinkedSeedCopy() throws {
