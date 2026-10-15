@@ -44,6 +44,7 @@ class MenuViewModel {
     
     @ObservationIgnored private let alertManager = AlertQueueManager()
     @ObservationIgnored private var alertCancellable: AnyCancellable?
+    @ObservationIgnored private var reconcileObserver: NSObjectProtocol?
     
     // UserDefaults key for storing selected week index
     static let selectedWeekIndexKey = "MenuSelectedWeekIndex"
@@ -82,9 +83,15 @@ class MenuViewModel {
         loadSelectedWeekIndex()
 
         // Refresh menu after CloudKit reconciliation completes
-        NotificationCenter.default.addObserver(forName: .appDataDidReconcileAfterCloudKitImport, object: nil, queue: .main) { [weak self] _ in
+        reconcileObserver = NotificationCenter.default.addObserver(forName: .appDataDidReconcileAfterCloudKitImport, object: nil, queue: .main) { [weak self] _ in
             guard let self = self else { return }
             self.loadMenu(for: self.selectedWeekIndex)
+        }
+    }
+
+    deinit {
+        if let reconcileObserver {
+            NotificationCenter.default.removeObserver(reconcileObserver)
         }
     }
     

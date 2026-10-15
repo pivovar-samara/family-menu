@@ -308,4 +308,37 @@ final class MenuUnitTests: XCTestCase {
         XCTAssertFalse(vm.showPastEditWarning)
         XCTAssertEqual(vm.selectedMealType, "Breakfast")
     }
+
+    // MARK: - View model lifetime
+
+    func testLazyViewModelBoxBuildsOnce() {
+        var builds = 0
+        let box = LazyViewModelBox<MenuViewModel> {
+            builds += 1
+            return MenuViewModel(menuService: MockMenuService())
+        }
+        XCTAssertEqual(builds, 0)
+        XCTAssertTrue(box.value === box.value)
+        XCTAssertEqual(builds, 1)
+    }
+
+    func testReconcileNotificationReloadsMenu() {
+        let mock = MockMenuService()
+        let viewModel = MenuViewModel(menuService: mock)
+        NotificationCenter.default.post(name: .appDataDidReconcileAfterCloudKitImport, object: nil)
+        XCTAssertTrue(mock.fetchMenuCalled)
+        withExtendedLifetime(viewModel) {}
+    }
+
+    func testReleasedViewModelIsDeallocatedAndStopsReloading() {
+        let mock = MockMenuService()
+        weak var weakViewModel: MenuViewModel?
+        autoreleasepool {
+            let viewModel = MenuViewModel(menuService: mock)
+            weakViewModel = viewModel
+        }
+        XCTAssertNil(weakViewModel)
+        NotificationCenter.default.post(name: .appDataDidReconcileAfterCloudKitImport, object: nil)
+        XCTAssertFalse(mock.fetchMenuCalled)
+    }
 }

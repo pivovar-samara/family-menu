@@ -11,8 +11,9 @@ struct DishListView: View {
     @StateObject private var viewModel: DishListViewModel
     @State private var showingSortOptions = false
 
-    init(viewModel: DishListViewModel) {
-        _viewModel = StateObject(wrappedValue: viewModel)
+    /// `StateObject` evaluates the autoclosure only once per view identity, so re-creating this view does not build a new view model.
+    init(viewModel: @autoclosure @escaping () -> DishListViewModel) {
+        _viewModel = StateObject(wrappedValue: viewModel())
     }
 
     var body: some View {

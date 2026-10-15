@@ -8,8 +8,8 @@
 import SwiftUI
 
 class DishListCoordinator {
-    func createDishListView(dishListService: DishListServiceProtocol = DishListService(context: PersistenceController.shared.container.viewContext)) -> some View {
-        let viewModel = DishListViewModel(dishListService: dishListService)
-        return DishListView(viewModel: viewModel)
+    /// Called from `ContentView.body` on every render; the service and view model are only built once `DishListView` needs them.
+    func createDishListView(dishListService: @autoclosure @escaping () -> DishListServiceProtocol = DishListService(context: PersistenceController.shared.container.viewContext)) -> some View {
+        DishListView(viewModel: DishListViewModel(dishListService: dishListService()))
     }
 }

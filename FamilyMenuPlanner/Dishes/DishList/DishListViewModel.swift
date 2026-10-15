@@ -76,9 +76,12 @@ class DishListViewModel: ObservableObject {
         dishListService.updateSortOption(sortOption)
 
         // Refresh dish list after CloudKit reconciliation
-        NotificationCenter.default.addObserver(forName: .appDataDidReconcileAfterCloudKitImport, object: nil, queue: .main) { [weak self] _ in
-            self?.loadDishes()
-        }
+        NotificationCenter.default.publisher(for: .appDataDidReconcileAfterCloudKitImport)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.loadDishes()
+            }
+            .store(in: &cancellables)
     }
     
     /// Loads the persistent sort preference from UserDefaults
