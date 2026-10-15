@@ -8,8 +8,8 @@
 import SwiftUI
 
 class MenuCoordinator {
-    func createMenuView(menuService: MenuServiceProtocol = MenuService(context: PersistenceController.shared.container.viewContext)) -> some View {
-        let viewModel = MenuViewModel(menuService: menuService)
-        return MenuView(viewModel: viewModel)
+    /// Called from `ContentView.body` on every render; the service and view model are only built once `MenuView` needs them.
+    func createMenuView(menuService: @autoclosure @escaping () -> MenuServiceProtocol = MenuService(context: PersistenceController.shared.container.viewContext)) -> some View {
+        MenuView(viewModel: MenuViewModel(menuService: menuService()))
     }
 }

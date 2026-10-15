@@ -13,8 +13,9 @@ struct ProductListView: View {
     @State private var showingSortOptions = false
     // Additional UI state variables can be added here as needed
 
-    init(viewModel: ProductListViewModel) {
-        _viewModel = StateObject(wrappedValue: viewModel)
+    /// `StateObject` evaluates the autoclosure only once per view identity, so re-creating this view does not build a new view model.
+    init(viewModel: @autoclosure @escaping () -> ProductListViewModel) {
+        _viewModel = StateObject(wrappedValue: viewModel())
     }
 
     var body: some View {

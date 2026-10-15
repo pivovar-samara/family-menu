@@ -73,9 +73,12 @@ class ProductListViewModel: ObservableObject {
         productListService.updateSortOption(sortOption)
 
         // Refresh after CloudKit reconciliation
-        NotificationCenter.default.addObserver(forName: .appDataDidReconcileAfterCloudKitImport, object: nil, queue: .main) { [weak self] _ in
-            self?.loadProducts()
-        }
+        NotificationCenter.default.publisher(for: .appDataDidReconcileAfterCloudKitImport)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.loadProducts()
+            }
+            .store(in: &cancellables)
     }
     
     private func setupSearchBindings() {

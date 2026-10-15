@@ -124,6 +124,11 @@ final class MenuManagementUITests: XCTestCase {
         }
     }
     
+    /// The first meal row button (Monday's on the current week) for a meal type; day cards are not list cells.
+    private func mealButton(for mealType: String) -> XCUIElement {
+        app.scrollViews["menu_scroll_view"].buttons.matching(NSPredicate(format: "label == %@", mealType)).firstMatch
+    }
+    
     // MARK: - Test Menu Display and Navigation
     
     func testMenuDisplayAndWeekNavigation() throws {
@@ -297,36 +302,19 @@ final class MenuManagementUITests: XCTestCase {
                     // Try to find the pencil icon within the same cell as this meal type
                     var tappedSuccessfully = false
                     
-                    // First approach: Try to find the cell containing this meal type and tap its pencil icon
-                    let collectionView = app.collectionViews.firstMatch
-                    if collectionView.exists {
-                        let cells = collectionView.cells
-                        print("🔍 Found collection view with \(cells.count) cells")
-                        
-                        // Look through cells to find the one containing our meal type
-                        for i in 0..<cells.count {
-                            let cell = cells.element(boundBy: i)
-                            if cell.exists {
-                                // Check if this cell contains the meal button
-                                let mealButton = cell.buttons.containing(NSPredicate(format: "label == %@", mealType)).firstMatch
-                                if mealButton.exists {
-                                    // Found the meal button, now look for its pencil icon
-                                    let pencilImage = mealButton.images["pencil"]
-                                    if pencilImage.exists {
-                                        print("✅ Found pencil icon in button for \(mealType)")
-                                        pencilImage.tap()
-                                        tappedSuccessfully = true
-                                        break
-                                    } else {
-                                        // Try tapping the meal button itself if no pencil found
-                                        print("📱 No pencil found, tapping meal button for \(mealType)")
-                                        mealButton.tap()
-                                        tappedSuccessfully = true
-                                        break
-                                    }
-                                }
-                            }
+                    // First approach: tap the pencil icon inside this meal's button
+                    let mealRow = mealButton(for: mealType)
+                    if mealRow.exists {
+                        let pencilImage = mealRow.images["pencil"]
+                        if pencilImage.exists {
+                            print("✅ Found pencil icon in button for \(mealType)")
+                            pencilImage.tap()
+                        } else {
+                            // Try tapping the meal button itself if no pencil found
+                            print("📱 No pencil found, tapping meal button for \(mealType)")
+                            mealRow.tap()
                         }
+                        tappedSuccessfully = true
                     }
                     
                     // Fallback approach: tap the meal section text directly
@@ -432,36 +420,19 @@ final class MenuManagementUITests: XCTestCase {
                     // Try to find the pencil icon within the same cell as this meal type
                     var tappedSuccessfully = false
                     
-                    // First approach: Try to find the cell containing this meal type and tap its pencil icon
-                    let collectionView = app.collectionViews.firstMatch
-                    if collectionView.exists {
-                        let cells = collectionView.cells
-                        print("🔍 Found collection view with \(cells.count) cells")
-                        
-                        // Look through cells to find the one containing our meal type
-                        for i in 0..<cells.count {
-                            let cell = cells.element(boundBy: i)
-                            if cell.exists {
-                                // Check if this cell contains the meal button
-                                let mealButton = cell.buttons.containing(NSPredicate(format: "label == %@", mealType)).firstMatch
-                                if mealButton.exists {
-                                    // Found the meal button, now look for its pencil icon
-                                    let pencilImage = mealButton.images["pencil"]
-                                    if pencilImage.exists {
-                                        print("✅ Found pencil icon in button for \(mealType)")
-                                        pencilImage.tap()
-                                        tappedSuccessfully = true
-                                        break
-                                    } else {
-                                        // Try tapping the meal button itself if no pencil found
-                                        print("📱 No pencil found, tapping meal button for \(mealType)")
-                                        mealButton.tap()
-                                        tappedSuccessfully = true
-                                        break
-                                    }
-                                }
-                            }
+                    // First approach: tap the pencil icon inside this meal's button
+                    let mealRow = mealButton(for: mealType)
+                    if mealRow.exists {
+                        let pencilImage = mealRow.images["pencil"]
+                        if pencilImage.exists {
+                            print("✅ Found pencil icon in button for \(mealType)")
+                            pencilImage.tap()
+                        } else {
+                            // Try tapping the meal button itself if no pencil found
+                            print("📱 No pencil found, tapping meal button for \(mealType)")
+                            mealRow.tap()
                         }
+                        tappedSuccessfully = true
                     }
                     
                     // Fallback approach: tap the meal section text directly
@@ -549,72 +520,23 @@ final class MenuManagementUITests: XCTestCase {
             return
         }
         
-        // Find the specific cell containing the meal type we added to
-        let collectionView = app.collectionViews.firstMatch
-        XCTAssertTrue(collectionView.exists, "Collection view should exist")
+        // Long-press the meal row: its own context menu (not the day card's) should open
+        let mealRow = mealButton(for: mealType)
+        XCTAssertTrue(mealRow.waitForExistence(timeout: 2), "\(mealType) button should exist")
+        print("🍽️ Found \(mealType) row, testing long press")
+        mealRow.press(forDuration: 1.5)
         
-        let cells = collectionView.cells
-        var foundMealWithDishes = false
+        let clearMealButton = app.buttons["Clear \(mealType)"]
+        XCTAssertTrue(clearMealButton.waitForExistence(timeout: 3), "Context menu should offer clearing \(mealType)")
+        XCTAssertFalse(app.buttons["Clear All Day"].exists, "Meal row context menu should not show the day card's actions")
+        print("✅ Found context menu for \(mealType)")
+        clearMealButton.tap()
+        print("✅ Tapped 'Clear \(mealType)' option")
         
-        // Look through cells to find the one containing our meal type
-        for i in 0..<cells.count {
-            let cell = cells.element(boundBy: i)
-            if cell.exists {
-                // Check if this cell contains our meal type text
-                let cellTexts = cell.staticTexts
-                var cellContainsMealType = false
-                var mealTypeElement: XCUIElement?
-                
-                for j in 0..<cellTexts.count {
-                    let text = cellTexts.element(boundBy: j)
-                    if text.exists && text.label == mealType {
-                        cellContainsMealType = true
-                        mealTypeElement = text
-                        break
-                    }
-                }
-                
-                // If this cell contains our meal type, long press it to trigger context menu
-                if cellContainsMealType, let mealElement = mealTypeElement {
-                    print("🍽️ Found \(mealType) cell, testing long press")
-                    mealElement.press(forDuration: 1.5)
-                    
-                    // Wait for context menu to appear
-                    let contextMenuExpectation = expectation(for: NSPredicate(format: "exists == true"), evaluatedWith: app.buttons["Clear Dishes"], handler: nil)
-                    _ = XCTWaiter().wait(for: [contextMenuExpectation], timeout: 2.0)
-                    
-                    let clearDishesButton = app.buttons["Clear Dishes"]
-                    let clearAllDayButton = app.buttons["Clear All Day"]
-                    
-                    if clearDishesButton.exists || clearAllDayButton.exists {
-                        foundMealWithDishes = true
-                        print("✅ Found context menu for \(mealType)")
-                        
-                        // Test Clear Dishes if available
-                        if clearDishesButton.exists {
-                            clearDishesButton.tap()
-                            print("✅ Tapped 'Clear Dishes' option")
-                        } else if clearAllDayButton.exists {
-                            clearAllDayButton.tap()
-                            print("✅ Tapped 'Clear All Day' option")
-                        }
-                        
-                        // Verify we're still on menu screen after clearing
-                        let menuTitle = app.navigationBars["Menu"]
-                        XCTAssertTrue(menuTitle.waitForExistence(timeout: 2), "Should remain on menu screen after clearing")
-                        
-                        print("✅ Clear dishes functionality test completed successfully")
-                        break
-                    } else {
-                        // Dismiss context menu by tapping elsewhere
-                        print("ℹ️ No context menu found, tapping elsewhere to dismiss")
-                        app.otherElements.firstMatch.tap()
-                    }
-                }
-            }
-        }
-        
-        XCTAssertTrue(foundMealWithDishes, "Should find context menu and successfully test clear functionality")
+        // Verify we're still on menu screen after clearing
+        XCTAssertTrue(app.navigationBars["Menu"].waitForExistence(timeout: 2), "Should remain on menu screen after clearing")
+        XCTAssertTrue(mealButton(for: mealType).waitForExistence(timeout: 2), "\(mealType) row should still be shown after clearing")
+        print("✅ Clear dishes functionality test completed successfully")
     }
     
     // MARK: - Test Shopping List Generation
@@ -734,47 +656,19 @@ final class MenuManagementUITests: XCTestCase {
         var openedDishSelection = false
         
         for mealType in mealTypes {
-            // Use the same cell-finding approach as other tests
-            let collectionView = app.collectionViews.firstMatch
-            if collectionView.exists {
-                let cells = collectionView.cells
-                
-                // Look through cells to find the one containing our meal type
-                for i in 0..<cells.count {
-                    let cell = cells.element(boundBy: i)
-                    if cell.exists {
-                        // Check if this cell contains our meal type text
-                        let cellTexts = cell.staticTexts
-                        var cellContainsMealType = false
-                        
-                        for j in 0..<cellTexts.count {
-                            let text = cellTexts.element(boundBy: j)
-                            if text.exists && text.label == mealType {
-                                cellContainsMealType = true
-                                break
-                            }
-                        }
-                        
-                        // If this cell contains our meal type, tap it
-                        if cellContainsMealType {
-                            print("🍽️ Found \(mealType) cell for search test")
-                            // Find the button for the meal type inside the cell
-                            let mealButton = cell.buttons.containing(NSPredicate(format: "label == %@", mealType)).firstMatch
-                            XCTAssertTrue(mealButton.exists, "Meal button for \(mealType) should exist")
-                            let pencilImage = mealButton.images["pencil"]
-                            XCTAssertTrue(pencilImage.exists, "Pencil image for \(mealType) should exist")
-                            pencilImage.tap()
-                            handlePastEditAlertIfPresent()
-                            let dishSelectionTitle = app.navigationBars["Select Dish"]
-                            if dishSelectionTitle.waitForExistence(timeout: 3) {
-                                openedDishSelection = true
-                                print("✅ Opened dish selection from \(mealType)")
-                                break
-                            }
-                        }
-                    }
+            let mealRow = mealButton(for: mealType)
+            if mealRow.waitForExistence(timeout: 2) {
+                print("🍽️ Found \(mealType) row for search test")
+                let pencilImage = mealRow.images["pencil"]
+                XCTAssertTrue(pencilImage.exists, "Pencil image for \(mealType) should exist")
+                pencilImage.tap()
+                handlePastEditAlertIfPresent()
+                let dishSelectionTitle = app.navigationBars["Select Dish"]
+                if dishSelectionTitle.waitForExistence(timeout: 3) {
+                    openedDishSelection = true
+                    print("✅ Opened dish selection from \(mealType)")
+                    break
                 }
-                if openedDishSelection { break }
             }
         }
         

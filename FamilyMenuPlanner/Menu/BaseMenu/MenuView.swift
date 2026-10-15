@@ -9,23 +9,44 @@ import SwiftUI
 import Foundation
 
 struct MenuView: View {
-    @State private var viewModel: MenuViewModel
-    @State private var isShowingGenerateMenuAlert = false
+    @State private var viewModelBox: LazyViewModelBox<MenuViewModel>
 
-    init(viewModel: MenuViewModel) {
-        _viewModel = State(initialValue: viewModel)
+    /// `ContentView` re-creates this view on every render, so the view model is built lazily and only once per view identity.
+    init(viewModel: @autoclosure @escaping () -> MenuViewModel) {
+        _viewModelBox = State(initialValue: LazyViewModelBox(make: viewModel))
     }
 
     var body: some View {
-        List {
-            weekSegmentControl
-            editingWeekBanner
-            menuContent
-            FeedbackFooterView()
+        MenuScreen(viewModel: viewModelBox.value)
+    }
+}
+
+/// Holds a view model that is created on first access. `@State(initialValue:)` evaluates its argument on every view re-init,
+/// so the box itself must stay cheap; the discarded boxes never build their view model.
+final class LazyViewModelBox<ViewModel: AnyObject> {
+    private let make: () -> ViewModel
+    private(set) lazy var value: ViewModel = make()
+
+    init(make: @escaping () -> ViewModel) {
+        self.make = make
+    }
+}
+
+private struct MenuScreen: View {
+    let viewModel: MenuViewModel
+    @State private var isShowingGenerateMenuAlert = false
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                weekSegmentControl
+                editingWeekBanner
+                menuContent
+                FeedbackFooterView()
+            }
         }
+        .accessibilityIdentifier("menu_scroll_view")
         .trackScreenAppear(name: AnalyticsScreenName.Menu)
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
         .background(Color.appBackground)
         .navigationTitle("Menu".localized())
         .onAppear {
@@ -57,11 +78,11 @@ struct MenuView: View {
             .pickerStyle(SegmentedPickerStyle())
             .frame(maxWidth: .infinity)
         }
+        // Matches the height of the List row the picker used to sit in
+        .frame(minHeight: 44)
         .centeredMaxWidth()
         .padding(.bottom, UIConstants.sectionSpacing)
-        .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
-        .listRowBackground(Color.clear)
-        .listRowSeparator(.hidden)
+        .padding(.horizontal, UIConstants.horizontalPadding)
     }
     
     private var editingWeekBanner: some View {
@@ -90,83 +111,63 @@ struct MenuView: View {
         .centeredMaxWidth()
         .padding(.bottom, UIConstants.sectionSpacing)
         .accessibilityIdentifier("menu_editing_week_banner")
-        .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
-        .listRowBackground(Color.clear)
-        .listRowSeparator(.hidden)
+        .padding(.horizontal, UIConstants.horizontalPadding)
     }
     
+    @ViewBuilder
     private var menuContent: some View {
         if viewModel.weeklyMenu.isEmpty {
-            return AnyView(
-                VStack(spacing: 0) {
-                    EmptyMenuView()
-                        .centeredMaxWidth()
-                        .accessibilityIdentifier("menu_empty_state")
-                        .onAppear {
-                            AnalyticsManager.shared.track(
-                                name: AnalyticsEventName.menu_empty_state_shown,
-                                properties: [AnalyticsPropertyKey.week_index: viewModel.selectedWeekIndex]
-                            )
-                        }
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-
-                    // Spacer to keep content above the bottom
-                    Color.clear
-                        .frame(height: 20)
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
+            EmptyMenuView()
+                .centeredMaxWidth()
+                .accessibilityIdentifier("menu_empty_state")
+                .onAppear {
+                    AnalyticsManager.shared.track(
+                        name: AnalyticsEventName.menu_empty_state_shown,
+                        properties: [AnalyticsPropertyKey.week_index: viewModel.selectedWeekIndex]
+                    )
                 }
-            )
+                .padding(.bottom, 20)
         } else {
-            return AnyView(
-                VStack(spacing: 0) {
-                    let columns = GridLayoutHelper.columns()
-                    LazyVGrid(columns: columns, spacing: UIConstants.sectionSpacing) {
-                        ForEach(Array(viewModel.weeklyMenu.enumerated()), id: \.element) { index, dailyMenu in
-                            DailyMenuCardView(
-                                dailyMenu: dailyMenu,
-                                dayIndex: index,
-                                weekDate: viewModel.selectedWeekDate,
-                                weekdays: viewModel.weekdays,
-                                onMealTap: { day, mealType, dishes in
-                                    viewModel.prepareEditFor(day: day, mealType: mealType, dishes: dishes)
-                                },
-                                onClearMeal: { day, mealType in
-                                    let dailyMeal = dailyMenu.dailyMeals.first { $0.meal == mealType }
-                                    let dishesCount = dailyMeal?.dishes.count ?? 0
-                                    viewModel.clearMealType(for: day, mealType: mealType)
-                                    AnalyticsManager.shared.track(
-                                        name: AnalyticsEventName.menu_daily_cleared,
-                                        properties: [
-                                            AnalyticsPropertyKey.day_index: index,
-                                            AnalyticsPropertyKey.meal_type: mealType,
-                                            AnalyticsPropertyKey.count: dishesCount
-                                        ])
-                                },
-                                onClearDay: { day in
-                                    viewModel.clearMealType(for: day)
-                                    let breakfastCount = dailyMenu.dailyMeals.indices.contains(0) ? dailyMenu.dailyMeals[0].dishes.count : 0
-                                    let lunchCount = dailyMenu.dailyMeals.indices.contains(1) ? dailyMenu.dailyMeals[1].dishes.count : 0
-                                    let dinnerCount = dailyMenu.dailyMeals.indices.contains(2) ? dailyMenu.dailyMeals[2].dishes.count : 0
-                                    AnalyticsManager.shared.track(name: AnalyticsEventName.menu_daily_cleared_all_day, properties: [AnalyticsPropertyKey.day_index: index, AnalyticsPropertyKey.dish_count_for_breakfast: breakfastCount, AnalyticsPropertyKey.dish_count_for_lunch: lunchCount, AnalyticsPropertyKey.dish_count_for_dinner: dinnerCount])
-                                }
-                            )
-                            .frame(maxWidth: UIConstants.maxContentWidth)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .accessibilityIdentifier("menu_day_\(dailyMenu.day)")
+            // Day cards live in a plain grid, not in List rows: List hoists `.contextMenu` to the whole row,
+            // which made the preview show the entire week instead of the pressed day.
+            LazyVGrid(columns: GridLayoutHelper.columns(), spacing: UIConstants.sectionSpacing) {
+                ForEach(Array(viewModel.weeklyMenu.enumerated()), id: \.element) { index, dailyMenu in
+                    DailyMenuCardView(
+                        dailyMenu: dailyMenu,
+                        dayIndex: index,
+                        weekDate: viewModel.selectedWeekDate,
+                        weekdays: viewModel.weekdays,
+                        onMealTap: { day, mealType, dishes in
+                            viewModel.prepareEditFor(day: day, mealType: mealType, dishes: dishes)
+                        },
+                        onClearMeal: { day, mealType in
+                            let dailyMeal = dailyMenu.dailyMeals.first { $0.meal == mealType }
+                            let dishesCount = dailyMeal?.dishes.count ?? 0
+                            viewModel.clearMealType(for: day, mealType: mealType)
+                            AnalyticsManager.shared.track(
+                                name: AnalyticsEventName.menu_daily_cleared,
+                                properties: [
+                                    AnalyticsPropertyKey.day_index: index,
+                                    AnalyticsPropertyKey.meal_type: mealType,
+                                    AnalyticsPropertyKey.count: dishesCount
+                                ])
+                        },
+                        onClearDay: { day in
+                            viewModel.clearMealType(for: day)
+                            let breakfastCount = dailyMenu.dailyMeals.indices.contains(0) ? dailyMenu.dailyMeals[0].dishes.count : 0
+                            let lunchCount = dailyMenu.dailyMeals.indices.contains(1) ? dailyMenu.dailyMeals[1].dishes.count : 0
+                            let dinnerCount = dailyMenu.dailyMeals.indices.contains(2) ? dailyMenu.dailyMeals[2].dishes.count : 0
+                            AnalyticsManager.shared.track(name: AnalyticsEventName.menu_daily_cleared_all_day, properties: [AnalyticsPropertyKey.day_index: index, AnalyticsPropertyKey.dish_count_for_breakfast: breakfastCount, AnalyticsPropertyKey.dish_count_for_lunch: lunchCount, AnalyticsPropertyKey.dish_count_for_dinner: dinnerCount])
                         }
-                    }
-                    .padding(.horizontal, UIConstants.horizontalPadding)
-
-                    // Spacer to keep content above the bottom
-                    Color.clear
-                        .frame(height: 20)
+                    )
+                    .frame(maxWidth: UIConstants.maxContentWidth)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .accessibilityIdentifier("menu_day_\(dailyMenu.day)")
                 }
-                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.appBackground)
-            )
+            }
+            .padding(.horizontal, UIConstants.horizontalPadding)
+            // Spacer to keep content above the bottom
+            .padding(.bottom, 20)
         }
     }
 }
@@ -380,6 +381,7 @@ struct DailyMenuCardView: View {
             borderWidth: UIConstants.cardBorderWidth,
             padding: UIConstants.cardPadding
         )
+        .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: UIConstants.cardCornerRadius))
         .contextMenu {
             Button(role: .destructive) {
                 onClearDay(dailyMenu.day)
