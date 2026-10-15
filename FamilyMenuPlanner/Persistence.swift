@@ -938,39 +938,83 @@ class PersistenceController {
     
     func isStaticDataValid(context: NSManagedObjectContext) -> Bool {
         // Check stored version with thread safety
-        let storedVersion = UserDefaults.standard.string(forKey: Self.preloadDataVersionKey)
+        var storedVersion = UserDefaults.standard.string(forKey: Self.preloadDataVersionKey)
         
         // Also check sync version to handle CloudKit sync race conditions
-        let syncVersion = UserDefaults.standard.string(forKey: Self.versionSyncKey)
+        var syncVersion = UserDefaults.standard.string(forKey: Self.versionSyncKey)
+        
+        // The version lives only in this device's UserDefaults. On a new device of an iCloud account the store
+        // can already hold the preload data imported from CloudKit: record the version instead of regenerating.
+        if storedVersion == nil, adoptCurrentPreloadVersionIfStoreMatches(context: context) {
+            storedVersion = Self.currentPreloadDataVersion
+            syncVersion = Self.currentPreloadDataVersion
+        }
         
         if storedVersion != Self.currentPreloadDataVersion || syncVersion != Self.currentPreloadDataVersion {
             AppLogger.info("Preload data version mismatch. Stored: \(storedVersion ?? "none"), Sync: \(syncVersion ?? "none"), Current: \(Self.currentPreloadDataVersion)", category: AppLogger.persistence)
             return false
         }
         
-        // Load current preload data to validate against
-        guard let preloadData = loadCurrentPreloadData() else {
+        // Validate against every bundled localization: the store may have been seeded by a device in another language
+        let preloadVariants = Self.bundledPreloadData
+        guard !preloadVariants.isEmpty else {
             AppLogger.error("Cannot load current preload data for validation", category: AppLogger.persistence)
             return false
         }
         
-        // Validate units
-        if !validateUnits(context: context, expectedUnits: preloadData.units) {
-            return false
-        }
-        
-        // Validate meal types
-        if !validateMealTypes(context: context, expectedMealTypes: preloadData.mealTypes) {
-            return false
-        }
-        
-        // Validate dish categories
-        if !validateDishCategories(context: context, expectedCategories: preloadData.dishCategories) {
+        guard preloadVariants.contains(where: { staticDataMatches(context: context, preloadData: $0) }) else {
             return false
         }
         
         AppLogger.info("Static data validation passed", category: AppLogger.persistence)
         return true
+    }
+    
+    /// Preload data of every bundled localization, decoded once
+    private static let bundledPreloadData = loadAllLocalizedPreloadData()
+    
+    /// Units, meal types and dish categories match `preloadData` exactly (names and sort orders)
+    private func staticDataMatches(context: NSManagedObjectContext, preloadData: PreloadedData) -> Bool {
+        validateUnits(context: context, expectedUnits: preloadData.units) &&
+            validateMealTypes(context: context, expectedMealTypes: preloadData.mealTypes) &&
+            validateDishCategories(context: context, expectedCategories: preloadData.dishCategories)
+    }
+    
+    /// Records the current preload version when no version is stored locally but the store already holds the
+    /// current preload data of a bundled localization: reference data matching exactly and every preload product
+    /// present by name. Products are checked too because a version bump may change only them; an older seed
+    /// therefore still goes through generation. Returns whether the version was recorded.
+    func adoptCurrentPreloadVersionIfStoreMatches(context: NSManagedObjectContext) -> Bool {
+        guard !isDatabaseEmpty(context: context) else { return false }
+        
+        let matches = Self.bundledPreloadData.contains { preloadData in
+            staticDataMatches(context: context, preloadData: preloadData) &&
+                containsPreloadProducts(context: context, expectedProducts: preloadData.products)
+        }
+        guard matches else {
+            AppLogger.info("No stored preload version and the store does not hold the current preload data", category: AppLogger.persistence)
+            return false
+        }
+        
+        UserDefaults.standard.set(Self.currentPreloadDataVersion, forKey: Self.preloadDataVersionKey)
+        UserDefaults.standard.set(Self.currentPreloadDataVersion, forKey: Self.versionSyncKey)
+        AppLogger.info("Store already holds preload data version \(Self.currentPreloadDataVersion) – recorded it without regenerating", category: AppLogger.persistence)
+        return true
+    }
+    
+    private func containsPreloadProducts(context: NSManagedObjectContext, expectedProducts: [ProductData]) -> Bool {
+        func norm(_ s: String?) -> String { (s ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        do {
+            let fetchRequest = NSFetchRequest<NSDictionary>(entityName: "Product")
+            fetchRequest.resultType = .dictionaryResultType
+            fetchRequest.propertiesToFetch = ["name"]
+            let existingNames = Set(try context.fetch(fetchRequest).map { norm($0["name"] as? String) })
+            return expectedProducts.allSatisfy { existingNames.contains(norm($0.name)) }
+        } catch {
+            AppLogger.error("Error checking preload products", error: error, category: AppLogger.persistence)
+            AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Error checking preload products")
+            return false
+        }
     }
     
     private func shouldWaitForCloudKitSync(context: NSManagedObjectContext) -> Bool {
