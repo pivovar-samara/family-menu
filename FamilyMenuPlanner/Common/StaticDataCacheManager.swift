@@ -115,6 +115,19 @@ final class StaticDataCacheManager: ObservableObject {
         }
     }
     
+    /// Loads the cache once the store holds data. The first call initializes; later calls (the store was cleared
+    /// and re-seeded, or reloaded) reload everything, because `initialize` keeps collections that already
+    /// loaded, possibly as empty results from before the seeding. `completion` runs on the main queue.
+    func reload(with context: NSManagedObjectContext, completion: @escaping () -> Void) {
+        guard self.context != nil else {
+            initialize(with: context)
+            completion()
+            return
+        }
+        self.context = context
+        invalidateCache(completion: completion)
+    }
+
     /// Get units (with lazy loading)
     /// Thread-safe accessor that guarantees the underlying Core Data fetch will be executed **once**
     /// even when several threads call this method concurrently. A dedicated serial queue (`cacheQueue`)

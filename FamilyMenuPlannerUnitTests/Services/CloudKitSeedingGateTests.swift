@@ -242,14 +242,30 @@ final class CloudKitSeedMarkerTests: XCTestCase {
     }
 }
 
+final class CloudKitSeedMarkerCancellationTests: XCTestCase {
+    func testMarkerWriteCancelledDuringFetchDoesNotSave() async {
+        let database = MockMarkerDatabase()
+        // The account changes while the marker is being fetched: the owning task is cancelled
+        database.onFetch = { withUnsafeCurrentTask { $0?.cancel() } }
+
+        let written = await CloudKitSeedingGate.markAccountSeeded(version: "1.1", database: database)
+
+        XCTAssertFalse(written)
+        XCTAssertTrue(database.savedRecords.isEmpty)
+    }
+}
+
 private final class MockMarkerDatabase: CloudKitRecordStoring {
     var serverRecord: CKRecord?
     var fetchError: Error?
     /// Records another device "wins" with: each save consumes one and fails with `.serverRecordChanged`
     var conflictingRecords: [CKRecord] = []
     private(set) var savedRecords: [CKRecord] = []
+    /// Runs inside the fetch, e.g. to simulate an account change while it is suspended
+    var onFetch: (() -> Void)?
 
     func record(for recordID: CKRecord.ID) async throws -> CKRecord {
+        onFetch?()
         if let fetchError { throw fetchError }
         guard let serverRecord else { throw CKError(.unknownItem) }
         return serverRecord

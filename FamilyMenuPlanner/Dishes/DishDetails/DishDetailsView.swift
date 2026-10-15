@@ -62,6 +62,7 @@ struct DishDetailsView: View {
             .padding(.bottom)
         }
         .background(Color.appBackground)
+        .tracksEditSession()
         .onAppear {
             viewModel.loadDish()
             viewModel.loadIngredients()

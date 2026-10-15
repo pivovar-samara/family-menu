@@ -353,6 +353,59 @@ class PersistenceController {
         }
     }
     
+    /// Removes and re-adds the store so NSPersistentCloudKitContainer sets up mirroring again. A mirroring
+    /// delegate whose setup failed without an iCloud account ("Unable to initialize without an iCloud account")
+    /// does not start syncing when the account becomes available later in the same process.
+    /// Managed objects from before the reload must not be used afterwards; the view context is reset.
+    func reloadStoreForCloudKitMirroring(completion: @escaping (Bool) -> Void) {
+        guard container is NSPersistentCloudKitContainer,
+              container.persistentStoreDescriptions.first?.cloudKitContainerOptions != nil else {
+            completion(false)
+            return
+        }
+        // Background operations each run to completion on one serial queue with a fresh context: reloading as an
+        // exclusive step lets earlier writes finish first, and later ones get contexts on the reloaded store
+        BackgroundOperationManager.shared.runExclusivelyOnMain { [self] in
+            AppLogger.info("Reloading persistent store to restart CloudKit mirroring", category: AppLogger.persistence)
+            // Not `loadPersistentStores`: its startup error handling can fall back to an unattached in-memory store
+            // and report success. A failed reload must report failure so the restart stays retryable.
+            Self.reattachStores(of: container) { [self] error in
+                if let error {
+                    AppLogger.error("Failed to reload persistent store for CloudKit mirroring", error: error, category: AppLogger.persistence)
+                    AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Failed to reload persistent store for CloudKit mirroring")
+                    completion(false)
+                    return
+                }
+                configureSuccessfulStore()
+                completion(true)
+            }
+        }
+    }
+
+    /// Removes the container's stores and adds them again from its descriptions, resetting the view context.
+    /// Reports the first error without falling back to another store, so the caller can retry.
+    static func reattachStores(of container: NSPersistentContainer, completion: @escaping (Error?) -> Void) {
+        let coordinator = container.persistentStoreCoordinator
+        container.viewContext.performAndWait {
+            container.viewContext.reset()
+        }
+        do {
+            for store in coordinator.persistentStores {
+                try coordinator.remove(store)
+            }
+        } catch {
+            completion(error)
+            return
+        }
+        var firstError: Error?
+        var remaining = container.persistentStoreDescriptions.count
+        container.loadPersistentStores { _, error in
+            if firstError == nil { firstError = error }
+            remaining -= 1
+            if remaining == 0 { completion(firstError) }
+        }
+    }
+
     private func handleStoreLoadingError(_ error: NSError, storeDescription: NSPersistentStoreDescription?, stateManager: PersistenceStateManager?, completion: @escaping (Bool) -> Void) {
         let persistenceError = categorizeError(error)
         stateManager?.setError(persistenceError)
@@ -738,7 +791,23 @@ class PersistenceController {
     }
     
     private static let versionSyncKey = "PreloadDataVersionSync"
+
+    /// Whether generation can be skipped: the store holds the current static data. The stored version alone
+    /// is not enough: NSPersistentCloudKitContainer purges the store on an iCloud account change (including
+    /// iCloud turned off for the app) and leaves the version in UserDefaults behind.
+    func hasCurrentStaticData(context: NSManagedObjectContext) -> Bool {
+        !isDatabaseEmpty(context: context) && isStaticDataValid(context: context)
+    }
     
+    /// Preload data of every localization bundled with the app
+    static func loadAllLocalizedPreloadData(bundle: Bundle = .main) -> [PreloadedData] {
+        bundle.localizations.compactMap { localization in
+            guard let url = bundle.url(forResource: "preloadData", withExtension: "json", subdirectory: nil, localization: localization),
+                  let data = try? Data(contentsOf: url) else { return nil }
+            return try? JSONDecoder().decode(PreloadedData.self, from: data)
+        }
+    }
+
     private func loadCurrentPreloadData() -> PreloadedData? {
         guard let url = Bundle.main.url(forResource: "preloadData", withExtension: "json") else {
             AppLogger.error("Failed to find preloadData.json in bundle", category: AppLogger.dataImport)
@@ -967,10 +1036,7 @@ class PersistenceController {
         
         // Check version again within lock to prevent race conditions (skip for test environments)
         if !isRunningTests {
-            let storedVersion = UserDefaults.standard.string(forKey: Self.preloadDataVersionKey)
-            let syncVersion = UserDefaults.standard.string(forKey: Self.versionSyncKey)
-            
-            if storedVersion == Self.currentPreloadDataVersion && syncVersion == Self.currentPreloadDataVersion {
+            if hasCurrentStaticData(context: context) {
                 AppLogger.info("Data is already at current version - skipping generation", category: AppLogger.persistence)
                 return
             }
@@ -1906,11 +1972,8 @@ class PersistenceController {
             return
         }
         
-        // Check version again within lock to prevent race conditions
-        let storedVersion = UserDefaults.standard.string(forKey: Self.preloadDataVersionKey)
-        let syncVersion = UserDefaults.standard.string(forKey: Self.versionSyncKey)
-        
-        if storedVersion == Self.currentPreloadDataVersion && syncVersion == Self.currentPreloadDataVersion {
+        // Check again within lock to prevent race conditions
+        if hasCurrentStaticData(context: context) {
             AppLogger.info("Background data is already at current version - skipping generation", category: AppLogger.persistence)
             return
         }
@@ -2115,10 +2178,58 @@ class PersistenceController {
     }
     
     // Remove local duplicates when CloudKit import brought remote copies: decide by dish key presence in both local preseeded set and remote set.
+    /// Resolves dishes sharing a key after a CloudKit import. A seed copy (an exact copy of its preload dish:
+    /// same name, details, ingredients with their units and default order, category and meal types) is deleted when the group also holds a record that
+    /// differs from the preload, since that one carries edits; the seed copy's menu links move to it.
+    /// Groups of seed copies only keep one; differing records are left to `cleanupDuplicateDishes`, which merges.
     func removeLocallySeededDishesIfRemoteExists(context: NSManagedObjectContext) {
         context.performAndWait {
             do {
                 func norm(_ s: String?) -> String { (s ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+                func connections(_ d: Dish) -> Int { (d.ingredientDetails?.count ?? 0) + (d.mealTypes?.count ?? 0) }
+                func preferred(_ dishes: [Dish]) -> Dish {
+                    // Prefer one linked to a menu entry, else the most connected
+                    dishes.first { ($0.menus?.count ?? 0) > 0 } ?? dishes.max { connections($0) < connections($1) }!
+                }
+                // Ingredients as exact product name, unit name and quantity (not rounded: any saved change counts)
+                func ingredientSignature(_ items: [(product: String, unit: String, quantity: Double)]) -> [String] {
+                    items.map { "\($0.product)|\($0.unit)|\($0.quantity)" }.sorted()
+                }
+                // Every bundled language: the seed may have been made in another language than the current one
+                struct PreloadVariant {
+                    var dishesByName: [String: DishData] = [:]
+                    var unitByProduct: [String: String] = [:]
+                }
+                let variants: [PreloadVariant] = Self.loadAllLocalizedPreloadData().map { data in
+                    var variant = PreloadVariant()
+                    for product in data.products { variant.unitByProduct[product.name] = product.unit }
+                    // Normalized only to find the preload dish; the comparison below is exact, so any saved edit
+                    // (even a case-only one) makes the dish count as edited
+                    for dishData in data.dishes { variant.dishesByName[norm(dishData.name)] = dishData }
+                    return variant
+                }
+                func isUnmodifiedPreloadCopy(_ d: Dish) -> Bool {
+                    variants.contains { isUnmodifiedCopy(d, of: $0) }
+                }
+                func isUnmodifiedCopy(_ d: Dish, of variant: PreloadVariant) -> Bool {
+                    let preloadUnitByProduct = variant.unitByProduct
+                    guard let preload = variant.dishesByName[norm(d.name)] else { return false }
+                    guard d.name == preload.name,
+                          d.details == preload.details,
+                          d.category?.name == preload.category else { return false }
+                    let mealTypes = (d.mealTypes as? Set<MealType> ?? []).map { $0.name ?? "" }.sorted()
+                    guard mealTypes == (preload.mealTypes ?? []).sorted() else { return false }
+                    let details = d.ingredientDetails as? Set<IngredientDetail> ?? []
+                    // Seeding leaves the ingredient order unset; a saved custom order is an edit
+                    guard details.allSatisfy({ $0.sortOrder == 0 }) else { return false }
+                    let ingredients = details.map {
+                        (product: $0.product?.name ?? "", unit: $0.product?.unit?.name ?? "", quantity: $0.quantity)
+                    }
+                    let preloadIngredients = preload.ingredients.map {
+                        (product: $0.product, unit: preloadUnitByProduct[$0.product] ?? "", quantity: $0.quantity)
+                    }
+                    return ingredientSignature(ingredients) == ingredientSignature(preloadIngredients)
+                }
                 // Load all dishes and group by key
                 let fetch: NSFetchRequest<Dish> = Dish.fetchRequest()
                 let all = try context.fetch(fetch)
@@ -2130,13 +2241,21 @@ class PersistenceController {
                 }
                 var removed = 0
                 for (_, dishes) in groups where dishes.count > 1 {
-                    // Keep the one that is linked to any Menu entry (assumed Cloud import), else keep the most connected
-                    let linked = dishes.filter { ($0.menus?.count ?? 0) > 0 }
-                    let keep = linked.first ?? dishes.sorted { (($0.ingredientDetails?.count ?? 0) + ($0.mealTypes?.count ?? 0)) > (($1.ingredientDetails?.count ?? 0) + ($1.mealTypes?.count ?? 0)) }.first!
-                    for d in dishes where d != keep { context.delete(d); removed += 1 }
+                    let seedCopies = dishes.filter(isUnmodifiedPreloadCopy)
+                    guard !seedCopies.isEmpty else { continue }
+                    let edited = dishes.filter { !seedCopies.contains($0) }
+                    let keep = edited.isEmpty ? preferred(seedCopies) : preferred(edited)
+                    for d in seedCopies where d != keep {
+                        // Keep the week menus pointing at the surviving dish
+                        for case let menu as Menu in d.menus ?? [] {
+                            menu.addToDishes(keep)
+                        }
+                        context.delete(d)
+                        removed += 1
+                    }
                 }
                 if context.hasChanges { try context.save() }
-                if removed > 0 { AppLogger.info("Removed \(removed) duplicate dishes after Cloud import (key-based)", category: AppLogger.persistence) }
+                if removed > 0 { AppLogger.info("Removed \(removed) duplicate seed dishes after Cloud import (key-based)", category: AppLogger.persistence) }
             } catch {
                 AppLogger.error("Failed to remove locally seeded dishes", error: error, category: AppLogger.persistence)
                 AnalyticsManager.shared.trackError(error, domain: "Persistence", category: "Failed to remove locally seeded dishes")

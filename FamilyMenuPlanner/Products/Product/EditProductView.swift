@@ -74,6 +74,7 @@ struct EditProductView: View {
                 }
             }
         }
+        .tracksEditSession()
         .onAppear {
             viewModel.loadProduct()
             viewModel.setupSelectedUnit()
