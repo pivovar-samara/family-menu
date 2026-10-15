@@ -726,6 +726,16 @@ class PersistenceController {
     private static let preloadDataVersionKey = "PreloadDataVersion"
     private static let currentPreloadDataVersion = "1.1" // Increment this when preload data changes
     
+    /// `isDatabaseEmptyOrOutdated` on a fresh background context: sees the store contents, not the view context
+    func isStoreEmptyOrOutdated() -> Bool {
+        let context = newBackgroundContext()
+        var isEmptyOrOutdated = false
+        context.performAndWait {
+            isEmptyOrOutdated = self.isDatabaseEmptyOrOutdated(context: context)
+        }
+        return isEmptyOrOutdated
+    }
+
     func isDatabaseEmptyOrOutdated(context: NSManagedObjectContext) -> Bool {
         // Thread-safe check for data generation in progress
         dataGenerationLock.lock()

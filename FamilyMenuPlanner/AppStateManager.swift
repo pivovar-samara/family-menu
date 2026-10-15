@@ -1030,12 +1030,7 @@ struct PersistenceStartupDataStore: StartupDataStore {
     func needsDataPopulation() -> Bool { persistence.isDatabaseEmptyOrOutdated(context: viewContext) }
     var hasUnsavedChanges: Bool { viewContext.hasChanges || EditSessionTracker.shared.isEditing }
     func storeNeedsDataPopulation() -> Bool {
-        let context = persistence.newBackgroundContext()
-        var needsPopulation = false
-        context.performAndWait {
-            needsPopulation = persistence.isDatabaseEmptyOrOutdated(context: context)
-        }
-        return needsPopulation
+        persistence.isStoreEmptyOrOutdated()
     }
     func hasCurrentPreloadData() -> Bool {
         !persistence.isDatabaseEmpty(context: viewContext) && persistence.isStaticDataValid(context: viewContext)
