@@ -7,6 +7,45 @@
 
 import XCTest
 
+// MARK: - Fast waiting
+
+/// Polling interval for the waits below. XCTest's own `waitForExistence` and `XCTNSPredicateExpectation`
+/// evaluate their condition about once a second, which adds ~1s to every wait even when the element is already there.
+private let fastWaitPollInterval: TimeInterval = 0.1
+
+/// Checks `condition` immediately, then polls it until it is true or `timeout` elapses.
+@discardableResult
+func pollUntil(timeout: TimeInterval, _ condition: () -> Bool) -> Bool {
+    if condition() { return true }
+    let deadline = Date().addingTimeInterval(timeout)
+    while Date() < deadline {
+        RunLoop.current.run(until: Date().addingTimeInterval(fastWaitPollInterval))
+        if condition() { return true }
+    }
+    return false
+}
+
+extension XCUIElement {
+    
+    /// Fast replacement for `waitForExistence(timeout:)`: returns as soon as the element exists.
+    @discardableResult
+    func waitToExist(timeout: TimeInterval = 5.0) -> Bool {
+        pollUntil(timeout: timeout) { exists }
+    }
+    
+    /// Waits until the element no longer exists.
+    @discardableResult
+    func waitToDisappear(timeout: TimeInterval = 5.0) -> Bool {
+        pollUntil(timeout: timeout) { !exists }
+    }
+    
+    /// Fast replacement for waiting on an `XCTNSPredicateExpectation` with this element as the object.
+    @discardableResult
+    func waitUntil(_ predicate: NSPredicate, timeout: TimeInterval) -> Bool {
+        pollUntil(timeout: timeout) { predicate.evaluate(with: self) }
+    }
+}
+
 // MARK: - XCUIElement Extensions for Test Helpers
 extension XCUIElement {
     
@@ -22,10 +61,7 @@ extension XCUIElement {
         
         // Wait for keyboard to appear and element to be ready for input
         let keyboard = XCUIApplication().keyboards.firstMatch
-        if keyboard.waitForExistence(timeout: 3) {
-            // Wait a moment for the UI to stabilize
-            XCUIApplication().waitForUIUpdate(timeout: 0.5)
-        }
+        _ = keyboard.waitToExist(timeout: 3)
         
         // Prefer fast deletion via repeated delete key simulation to avoid selection UI/animations
         if let existingText = self.value as? String, !existingText.isEmpty {
@@ -49,10 +85,7 @@ extension XCUIElement {
         
         // Wait for keyboard to appear and element to be ready for input
         let keyboard = XCUIApplication().keyboards.firstMatch
-        if keyboard.waitForExistence(timeout: 3) {
-            // Wait a moment for the UI to stabilize
-            XCUIApplication().waitForUIUpdate(timeout: 0.5)
-        }
+        _ = keyboard.waitToExist(timeout: 3)
         
         // Check if there's any actual user-entered text to clear
         // Note: placeholder text (like "Enter product name") is not user-entered text
@@ -70,9 +103,7 @@ extension XCUIElement {
             self.clearText()
             
             // Wait for the text field to become empty
-            let isFieldEmpty = XCTWaiter.wait(for: [
-                XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == '' OR value == %@", placeholderValue), object: self)
-            ], timeout: 1.0) == .completed
+            let isFieldEmpty = waitUntil(NSPredicate(format: "value == '' OR value == %@", placeholderValue), timeout: 1.0)
             
             // If clearing didn't work, try alternative approaches
             if !isFieldEmpty {
@@ -84,9 +115,7 @@ extension XCUIElement {
         
         // Verify the field is either empty or showing placeholder text
         let placeholderValue = self.placeholderValue ?? ""
-        let finalCheck = XCTWaiter.wait(for: [
-            XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == '' OR value == %@", placeholderValue, NSNull()), object: self)
-        ], timeout: 2.0) == .completed
+        let finalCheck = waitUntil(NSPredicate(format: "value == '' OR value == %@", placeholderValue, NSNull()), timeout: 2.0)
         
         if !finalCheck {
             XCTFail("Failed to clear text field after multiple attempts")
@@ -96,18 +125,14 @@ extension XCUIElement {
     /// Waits for element to become hittable with specified timeout
     @discardableResult
     func waitForHittable(timeout: TimeInterval = 5.0) -> Bool {
-        let predicate = NSPredicate(format: "isHittable == true")
-        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: self)
-        let waiter = XCTWaiter()
-        let result = waiter.wait(for: [expectation], timeout: timeout)
-        return result == .completed
+        pollUntil(timeout: timeout) { exists && isHittable }
     }
     
     /// Waits for element to exist and become hittable, then scrolls to it if needed
     @discardableResult
     func waitAndScrollToElement(timeout: TimeInterval = 10.0) -> Bool {
         // First wait for existence
-        guard self.waitForExistence(timeout: timeout) else {
+        guard self.waitToExist(timeout: timeout) else {
             return false
         }
         
@@ -224,32 +249,44 @@ extension XCUIElement {
 
 // MARK: - XCUIApplication Extensions for Better Waiting
 extension XCUIApplication {
-    
-    /// Waits for UI updates to complete using XCTWaiter instead of Thread.sleep
-    func waitForUIUpdate(timeout: TimeInterval = 1.0) {
-        let updateExpectation = XCTestExpectation(description: "Wait for UI update")
-        DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
-            updateExpectation.fulfill()
-        }
-        _ = XCTWaiter.wait(for: [updateExpectation], timeout: timeout + 0.5)
+
+    /// Finds a toolbar button by accessibility identifier or label.
+    /// Not scoped to `navigationBars`: on wide iPhone layouts (e.g. iPhone Duo on iOS 27) toolbar items
+    /// are rendered in a floating toolbar outside the navigation bar.
+    func toolbarButton(_ identifierOrLabel: String) -> XCUIElement {
+        buttons.matching(NSPredicate(format: "identifier == %@ OR label == %@", identifierOrLabel, identifierOrLabel)).firstMatch
     }
-    
+
+    /// Finds a main tab button by its identifier (`tab_menu`, `tab_products`, `tab_dishes`).
+    /// Not scoped to `tabBars`: on wide iPhone layouts the tab bar is a side rail that is not exposed as a TabBar.
+    func tabButton(_ identifier: String) -> XCUIElement {
+        buttons.matching(identifier: identifier).firstMatch
+    }
+
+    /// Returns the search field, revealing it first when search is collapsed into a toolbar "Search" button
+    /// (wide iPhone layouts on iOS 27).
+    func revealedSearchField(timeout: TimeInterval = 3.0) -> XCUIElement {
+        let searchField = searchFields.firstMatch
+        if searchField.waitToExist(timeout: timeout) {
+            return searchField
+        }
+        let searchButton = buttons.matching(NSPredicate(format: "label == %@ OR identifier == %@", "Search", "Search")).firstMatch
+        if searchButton.exists && searchButton.isHittable {
+            searchButton.tap()
+            _ = searchField.waitToExist(timeout: timeout)
+        }
+        return searchField
+    }
+
     /// Waits for an element to appear and become interactable
     @discardableResult
     func waitForElementToAppear(_ element: XCUIElement, timeout: TimeInterval = 5.0) -> Bool {
-        return element.waitForExistence(timeout: timeout) && element.waitForHittable(timeout: 1.0)
+        return element.waitToExist(timeout: timeout) && element.waitForHittable(timeout: 1.0)
     }
     
     /// Waits for multiple elements to exist
     @discardableResult
     func waitForElements(_ elements: [XCUIElement], timeout: TimeInterval = 5.0) -> Bool {
-        let expectations = elements.map { element in
-            let predicate = NSPredicate(format: "exists == true")
-            return XCTNSPredicateExpectation(predicate: predicate, object: element)
-        }
-        
-        let waiter = XCTWaiter()
-        let result = waiter.wait(for: expectations, timeout: timeout)
-        return result == .completed
+        pollUntil(timeout: timeout) { elements.allSatisfy { $0.exists } }
     }
 } 

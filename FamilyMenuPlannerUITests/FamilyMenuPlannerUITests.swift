@@ -60,7 +60,7 @@ final class FamilyMenuPlannerUITests: XCTestCase {
                 
                 // More robust verification that the app launched successfully
                 // Check for basic UI elements rather than just app state
-                let exists = app.windows.firstMatch.waitForExistence(timeout: 10)
+                let exists = app.windows.firstMatch.waitToExist(timeout: 10)
                 if !exists {
                     // If app didn't launch properly, try to get some debug info
                     print("⚠️ App window not found, app state: \(app.state)")
@@ -89,7 +89,7 @@ final class FamilyMenuPlannerUITests: XCTestCase {
             app.launch()
             
             // Simple verification
-            XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 10))
+            XCTAssertTrue(app.windows.firstMatch.waitToExist(timeout: 10))
             
             app.terminate()
             print("🚀 Launch Test Completed (Legacy)")
