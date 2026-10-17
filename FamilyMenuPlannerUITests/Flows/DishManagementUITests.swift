@@ -46,11 +46,11 @@ final class DishManagementUITests: XCTestCase {
         // Tap add button – supports floating action button or empty-state CTA
         if app.buttons["Add Your First Dish"].exists {
             app.buttons["Add Your First Dish"].tap()
-        } else if app.buttons["add_dish_button"].waitForExistence(timeout: 3) {
+        } else if app.buttons["add_dish_button"].waitToExist(timeout: 3) {
             app.buttons["add_dish_button"].tap()
-        } else if app.navigationBars.buttons["Add New Dish"].exists {
+        } else if app.toolbarButton("Add New Dish").exists {
             // Legacy fallback (should be phased out)
-            app.navigationBars.buttons["Add New Dish"].tap()
+            app.toolbarButton("Add New Dish").tap()
         } else {
             XCTFail("❌ FAILED: Could not locate add dish button (floating action or empty state CTA)")
             return
@@ -62,7 +62,7 @@ final class DishManagementUITests: XCTestCase {
         // STEP 1: Basic Information
         // Fill in dish name
         let dishNameField = app.textFields["Enter dish name"]
-        XCTAssertTrue(dishNameField.waitForExistence(timeout: 5), "Should find dish name field in Basic Info step")
+        XCTAssertTrue(dishNameField.waitToExist(timeout: 5), "Should find dish name field in Basic Info step")
         
         dishNameField.tap()
         dishNameField.typeText("Test Dish Creation")
@@ -76,7 +76,7 @@ final class DishManagementUITests: XCTestCase {
         
         // Proceed to next step
         let nextButton = app.buttons["Next"]
-        XCTAssertTrue(nextButton.waitForExistence(timeout: 3), "Next button should exist")
+        XCTAssertTrue(nextButton.waitToExist(timeout: 3), "Next button should exist")
         XCTAssertTrue(nextButton.isEnabled, "Next button should be enabled with dish name filled")
         nextButton.tap()
         
@@ -85,7 +85,7 @@ final class DishManagementUITests: XCTestCase {
         
         // Select meal type (Breakfast)
         let breakfastMealType = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Breakfast'")).firstMatch
-        if breakfastMealType.waitForExistence(timeout: 3) {
+        if breakfastMealType.waitToExist(timeout: 3) {
             breakfastMealType.tap()
             print("✅ Selected Breakfast meal type")
         }
@@ -99,7 +99,7 @@ final class DishManagementUITests: XCTestCase {
         
         // Add ingredient using the "Select Product" button
         let selectProductButton = app.buttons["Select Product"]
-        if selectProductButton.waitForExistence(timeout: 3) {
+        if selectProductButton.waitToExist(timeout: 3) {
             selectProductButton.tap()
             
             // Handle product selection
@@ -120,15 +120,15 @@ final class DishManagementUITests: XCTestCase {
         
         // Verify dish summary appears
         let dishSummaryCard = app.staticTexts["Dish Summary"]
-        XCTAssertTrue(dishSummaryCard.waitForExistence(timeout: 3), "Should show dish summary")
+        XCTAssertTrue(dishSummaryCard.waitToExist(timeout: 3), "Should show dish summary")
         
         // Save the dish
         let saveButton = app.buttons["Save"]
-        var saveAppeared = saveButton.waitForExistence(timeout: 3)
+        var saveAppeared = saveButton.waitToExist(timeout: 3)
         var scrollAttempts = 0
         while !saveAppeared && scrollAttempts < 5 {
             app.swipeUp()
-            saveAppeared = saveButton.waitForExistence(timeout: 1)
+            saveAppeared = saveButton.waitToExist(timeout: 1)
             scrollAttempts += 1
         }
         XCTAssertTrue(saveAppeared, "Quick create dish flow failed – Save button not found even after scrolling")
@@ -136,11 +136,9 @@ final class DishManagementUITests: XCTestCase {
         
         // Verify we return to dish list
         let dishListTitle = app.navigationBars["Dishes"]
-        XCTAssertTrue(dishListTitle.waitForExistence(timeout: 5), "Should return to dish list after saving")
+        XCTAssertTrue(dishListTitle.waitToExist(timeout: 5), "Should return to dish list after saving")
         
         // Verify dish count and creation success
-        app.waitForUIUpdate(timeout: 1.0) // Wait for UI to update using XCTWaiter
-        
         let newDishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
         let newCount = newDishCardsQuery.count
         print("📊 Dish count: initial=\(initialCount), new=\(newCount)")
@@ -176,7 +174,6 @@ final class DishManagementUITests: XCTestCase {
             // No dishes exist, create one for testing
             print("📝 No dishes found, creating a test dish for editing")
             dishToEdit = createTemporaryDishIfNeeded(baseName: "Test Edit Dish")
-            app.waitForUIUpdate(timeout: 1.0)
         } else {
             // Try to find an existing dish from preload data
             let candidateDishes = ["Beef Stew", "Cheese Omelette", "Cucumber Yogurt Salad"]
@@ -191,7 +188,7 @@ final class DishManagementUITests: XCTestCase {
             // If no candidate dishes found, use the first available dish
             if dishToEdit == nil {
                 let firstVisibleCard = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_")).firstMatch
-                if firstVisibleCard.waitForExistence(timeout: 3) {
+                if firstVisibleCard.waitToExist(timeout: 3) {
                     // Extract dish name from the card identifier
                     let identifier = firstVisibleCard.identifier
                     dishToEdit = identifier.replacingOccurrences(of: "dish_list_item_", with: "")
@@ -223,7 +220,7 @@ final class DishManagementUITests: XCTestCase {
         if editMenuButton.waitAndScrollToElement(timeout: 3.0) {
             editMenuButton.tap()
             let editMenuItem = app.buttons["Edit"].firstMatch
-            if editMenuItem.waitForExistence(timeout: 3) {
+            if editMenuItem.waitToExist(timeout: 3) {
                 editMenuItem.tap()
                 editButtonFound = true
                 print("✅ Opened edit via menu on the dish card")
@@ -237,11 +234,11 @@ final class DishManagementUITests: XCTestCase {
         
         // Wait for the edit screen to load
         let basicInfoStep = app.staticTexts["Basic Information"]
-        XCTAssertTrue(basicInfoStep.waitForExistence(timeout: 5), "Should be in Basic Information step for editing")
+        XCTAssertTrue(basicInfoStep.waitToExist(timeout: 5), "Should be in Basic Information step for editing")
         
         // Edit the dish name
         let dishNameField = app.textFields["Enter dish name"]
-        XCTAssertTrue(dishNameField.waitForExistence(timeout: 5), "Should find dish name field")
+        XCTAssertTrue(dishNameField.waitToExist(timeout: 5), "Should find dish name field")
         
         // Verify the original dish name is loaded
         let currentName = dishNameField.value as? String ?? ""
@@ -271,7 +268,7 @@ final class DishManagementUITests: XCTestCase {
         var mealButtonFound = false
         for identifier in mealTypeIdentifiers {
             let btn = app.buttons[identifier]
-            if btn.waitForExistence(timeout: 2) {
+            if btn.waitToExist(timeout: 2) {
                 btn.tap()
                 print("✅ Selected meal type with identifier \(identifier)")
                 mealButtonFound = true
@@ -286,7 +283,7 @@ final class DishManagementUITests: XCTestCase {
         
         // Ingredients Step – open selection and confirm using multi-select flow
         let selectProductButton = app.buttons["Select Product"]
-        if selectProductButton.waitForExistence(timeout: 3) {
+        if selectProductButton.waitToExist(timeout: 3) {
             selectProductButton.tap()
             let selectionSuccess = handleProductSelection()
             XCTAssertTrue(selectionSuccess, "Should successfully select product(s) and return to Ingredients")
@@ -307,10 +304,7 @@ final class DishManagementUITests: XCTestCase {
         
         // Verify we return to dish list
         let dishListTitle = app.navigationBars["Dishes"]
-        XCTAssertTrue(dishListTitle.waitForExistence(timeout: 5), "Should return to dish list after saving edits")
-        
-        // Wait for UI to update and verify the changes are reflected
-        app.waitForUIUpdate(timeout: 2.0)
+        XCTAssertTrue(dishListTitle.waitToExist(timeout: 5), "Should return to dish list after saving edits")
         
         // Verify the edited dish appears in the list
         let editedDishFound = findDishInList(dishName: editedName)
@@ -329,25 +323,25 @@ final class DishManagementUITests: XCTestCase {
     /// Wait for a specific step screen to appear
     private func waitForStepScreen(stepTitle: String, timeout: TimeInterval = 5) -> Bool {
         let stepText = app.staticTexts[stepTitle]
-        return stepText.waitForExistence(timeout: timeout)
+        return stepText.waitToExist(timeout: timeout)
     }
     
     /// Handle product selection in the ingredients step
     private func handleProductSelection() -> Bool {
         let productScreen = app.navigationBars.matching(NSPredicate(format: "identifier CONTAINS 'Product' OR identifier CONTAINS 'Select'")).firstMatch
-        if productScreen.waitForExistence(timeout: 3) {
+        if productScreen.waitToExist(timeout: 3) {
             print("🔍 Found product selection screen")
 
             // Prefer table/list cells, fallback to collection view cells
             var didTapProduct = false
             let firstCell = app.cells.firstMatch
-            if firstCell.waitForExistence(timeout: 2) {
+            if firstCell.waitToExist(timeout: 2) {
                 firstCell.tap()
                 didTapProduct = true
                 print("📱 Tapped first product cell (table/list)")
             } else {
                 let productCollection = app.collectionViews.firstMatch
-                if productCollection.waitForExistence(timeout: 2) {
+                if productCollection.waitToExist(timeout: 2) {
                     let productCells = productCollection.cells
                     print("🔍 Found \(productCells.count) product cells")
                     if productCells.count > 0 {
@@ -363,13 +357,18 @@ final class DishManagementUITests: XCTestCase {
                 return false
             }
 
-            // Wait for potential navigation or confirmation
-            app.waitForUIUpdate(timeout: 1.0)
-
             // Include multi-select confirmation button
-            let confirmButtons = ["Add Selected", "Done", "Add", "Select", "Confirm", "Save"]
+            let confirmButtons = ["product_selection_done_button", "Add Selected", "Done", "Add", "Select", "Confirm", "Save"]
+
+            // Wait for a confirmation button, or for the picker to close on single selection
+            pollUntil(timeout: 2.0) {
+                !productScreen.exists || confirmButtons.contains { name in
+                    let button = app.toolbarButton(name)
+                    return button.exists && button.isHittable
+                }
+            }
             for buttonName in confirmButtons {
-                let button = app.navigationBars.buttons[buttonName]
+                let button = app.toolbarButton(buttonName)
                 if button.exists && button.isHittable {
                     button.tap()
                     print("✅ Confirmed product selection with '\(buttonName)' button")
@@ -409,7 +408,7 @@ final class DishManagementUITests: XCTestCase {
             let dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
             // Wait for dish cards to appear using proper waiting mechanism
             let firstDishCard = dishCardsQuery.firstMatch
-            _ = firstDishCard.waitForExistence(timeout: 3.0)
+            _ = firstDishCard.waitToExist(timeout: 3.0)
             XCTAssertTrue(dishCardsQuery.count > 0, "No dish cards found to delete – aborting test")
             dishNameToDelete = firstDishCard.identifier.replacingOccurrences(of: "dish_list_item_", with: "")
         }
@@ -429,22 +428,18 @@ final class DishManagementUITests: XCTestCase {
         XCTAssertTrue(editMenuButton.waitAndScrollToElement(timeout: 4.0), "Edit menu button should be visible for dish \(dishNameToDeleteUnwrapped)")
         editMenuButton.tap()
         let deleteMenuItem = app.buttons["Delete"]
-        XCTAssertTrue(deleteMenuItem.waitForExistence(timeout: 3), "Delete action should appear in the Edit menu")
+        XCTAssertTrue(deleteMenuItem.waitToExist(timeout: 3), "Delete action should appear in the Edit menu")
         deleteMenuItem.tap()
 
         // Confirm deletion if dialog appears
         let confirmButton = app.buttons["Delete"].firstMatch
-        if confirmButton.waitForExistence(timeout: 3) {
+        if confirmButton.waitToExist(timeout: 3) {
             confirmButton.tap()
         }
 
         // Wait for delete button to disappear indicating the card is gone
-        let deletePredicate = NSPredicate(format: "exists == false")
         let dishCard = app.otherElements["dish_list_item_\(dishNameToDeleteUnwrapped)"]
-        let deleteExpectation = XCTNSPredicateExpectation(predicate: deletePredicate, object: dishCard)
-        let deleteWaiter = XCTWaiter()
-        let deleteResult = deleteWaiter.wait(for: [deleteExpectation], timeout: 5.0)
-        let stillExists = deleteResult != .completed
+        let stillExists = !dishCard.waitToDisappear(timeout: 5.0)
 
         XCTAssertFalse(stillExists, "Deleted dish should disappear from the list")
 
@@ -459,27 +454,24 @@ final class DishManagementUITests: XCTestCase {
             let tabBar = app.otherElements["main_tab_bar"].firstMatch
             if tabBar.exists {
                 let buttonInTabBar = tabBar.descendants(matching: .button).matching(NSPredicate(format: "identifier == %@ OR label == %@", identifier, label)).firstMatch
-                if buttonInTabBar.waitForExistence(timeout: 2) && buttonInTabBar.isHittable {
+                if buttonInTabBar.waitToExist(timeout: 2) && buttonInTabBar.isHittable {
                     buttonInTabBar.tap()
                     return true
                 }
             }
 
-            // Fallback: use tabBars scope, then disambiguate to first hittable match
-            let scoped = app.tabBars.buttons.matching(NSPredicate(format: "identifier == %@ OR label == %@", identifier, label))
-            if scoped.count > 0 {
-                let first = scoped.firstMatch
-                if first.waitForExistence(timeout: 2) && first.isHittable {
-                    first.tap()
-                    return true
-                }
+            // Fallback: tab button by identifier (bottom bar or side rail, depending on the device)
+            let tabButton = app.tabButton(identifier)
+            if tabButton.waitToExist(timeout: 2) && tabButton.isHittable {
+                tabButton.tap()
+                return true
             }
 
             // Last resort: global match, pick first hittable to avoid multiple match failure
             let global = app.buttons.matching(NSPredicate(format: "identifier == %@ OR label == %@", identifier, label))
             if global.count > 0 {
                 let first = global.firstMatch
-                if first.waitForExistence(timeout: 2) && first.isHittable {
+                if first.waitToExist(timeout: 2) && first.isHittable {
                     first.tap()
                     return true
                 }
@@ -498,17 +490,17 @@ final class DishManagementUITests: XCTestCase {
         } else {
             // Strategy 2: iPad sidebar or list cell
             let dishesSidebarButton = app.buttons[dishesLabel]
-            if dishesSidebarButton.waitForExistence(timeout: 2) && dishesSidebarButton.isHittable {
+            if dishesSidebarButton.waitToExist(timeout: 2) && dishesSidebarButton.isHittable {
                 dishesSidebarButton.tap()
                 navigated = true
             } else {
                 let dishesCell = app.cells.staticTexts[dishesLabel]
-                if dishesCell.waitForExistence(timeout: 2) && dishesCell.isHittable {
+                if dishesCell.waitToExist(timeout: 2) && dishesCell.isHittable {
                     dishesCell.tap()
                     navigated = true
                 } else {
-                    let dishesNavButton = app.navigationBars.buttons[dishesLabel]
-                    if dishesNavButton.waitForExistence(timeout: 2) && dishesNavButton.isHittable {
+                    let dishesNavButton = app.toolbarButton(dishesLabel)
+                    if dishesNavButton.waitToExist(timeout: 2) && dishesNavButton.isHittable {
                         dishesNavButton.tap()
                         navigated = true
                     }
@@ -520,10 +512,7 @@ final class DishManagementUITests: XCTestCase {
 
         // Verify we're on the dish list screen
         let dishListTitle = app.navigationBars["Dishes"]
-        XCTAssertTrue(dishListTitle.waitForExistence(timeout: 5), "Should be on dish list screen")
-
-        // Wait for content to load using proper waiting mechanism
-        app.waitForUIUpdate(timeout: 0.5)
+        XCTAssertTrue(dishListTitle.waitToExist(timeout: 5), "Should be on dish list screen")
     }
     
     func testCreateDishValidation() throws {
@@ -532,11 +521,11 @@ final class DishManagementUITests: XCTestCase {
         // Tap add button – supports new floating action button or empty-state CTA
         if app.buttons["Add Your First Dish"].exists {
             app.buttons["Add Your First Dish"].tap()
-        } else if app.buttons["add_dish_button"].waitForExistence(timeout: 3) {
+        } else if app.buttons["add_dish_button"].waitToExist(timeout: 3) {
             app.buttons["add_dish_button"].tap()
-        } else if app.navigationBars.buttons["Add New Dish"].exists {
+        } else if app.toolbarButton("Add New Dish").exists {
             // Fallback for legacy toolbar item (should no longer be used)
-            app.navigationBars.buttons["Add New Dish"].tap()
+            app.toolbarButton("Add New Dish").tap()
         } else {
             XCTFail("❌ FAILED: Could not find UI element to start dish creation (add button)")
         }
@@ -546,7 +535,7 @@ final class DishManagementUITests: XCTestCase {
         
         // Test 1: Try to proceed without dish name
         let nextButton = app.buttons["Next"]
-        XCTAssertTrue(nextButton.waitForExistence(timeout: 3), "Next button should exist")
+        XCTAssertTrue(nextButton.waitToExist(timeout: 3), "Next button should exist")
         
         // Next button should be disabled without dish name
         if nextButton.isEnabled {
@@ -565,11 +554,7 @@ final class DishManagementUITests: XCTestCase {
         dishNameField.typeText("Validation Test Dish")
         
         // Wait for the validation to update and Next button to become enabled
-        let enabledPredicate = NSPredicate(format: "isEnabled == true")
-        let enabledExpectation = XCTNSPredicateExpectation(predicate: enabledPredicate, object: nextButton)
-        let enabledWaiter = XCTWaiter()
-        let enabledResult = enabledWaiter.wait(for: [enabledExpectation], timeout: 2.0)
-        let buttonBecameEnabled = enabledResult == .completed
+        let buttonBecameEnabled = pollUntil(timeout: 2.0) { nextButton.isEnabled }
         
         XCTAssertTrue(buttonBecameEnabled, "Next button should be enabled with dish name after reasonable wait time")
         nextButton.tap()
@@ -618,7 +603,7 @@ final class DishManagementUITests: XCTestCase {
         
         // Add ingredient to proceed to review
         let selectProductButton = app.buttons["Select Product"]
-        if selectProductButton.waitForExistence(timeout: 3) {
+        if selectProductButton.waitToExist(timeout: 3) {
             selectProductButton.tap()
             let productSelectionSuccess = handleProductSelection()
             if productSelectionSuccess {
@@ -650,20 +635,14 @@ final class DishManagementUITests: XCTestCase {
         navigateToDishList()
         
         var dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
+        pollUntil(timeout: 5.0) { dishCardsQuery.count > 0 }
         var totalDishes = dishCardsQuery.count
-        var waitCount = 0
-        while totalDishes == 0 && waitCount < 10 {
-            app.waitForUIUpdate(timeout: 0.5)
-            dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
-            totalDishes = dishCardsQuery.count
-            waitCount += 1
-        }
         if totalDishes == 0 {
             print("⚠️ No dishes to search – creating a temporary dish")
             _ = createTemporaryDishIfNeeded(baseName: "Search Test Dish")
-            app.waitForUIUpdate(timeout: 1.0)
             // Refresh query/counts
             dishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
+            pollUntil(timeout: 3.0) { dishCardsQuery.count > 0 }
             totalDishes = dishCardsQuery.count
             XCTAssertTrue(totalDishes > 0, "Should have at least one dish after creation for search test")
             print("✅ Created temporary dish '")
@@ -683,7 +662,7 @@ final class DishManagementUITests: XCTestCase {
         searchField.typeText("Beef")
 
         // Allow results to update
-        app.waitForUIUpdate(timeout: 1.0)
+        pollUntil(timeout: 3.0) { dishCardsQuery.count < totalDishes }
 
         let searchResultsCount = dishCardsQuery.count
         print("📊 Search results: \(searchResultsCount) dishes found for 'Beef'")
@@ -695,7 +674,7 @@ final class DishManagementUITests: XCTestCase {
             searchField.clearText()
         }
 
-        app.waitForUIUpdate(timeout: 0.5)
+        pollUntil(timeout: 2.0) { dishCardsQuery.count > searchResultsCount }
         let restoredCount = dishCardsQuery.count
         print("📊 After clearing search: \(restoredCount) dishes shown")
 
@@ -736,14 +715,7 @@ final class DishManagementUITests: XCTestCase {
         searchField.tap()
         searchField.typeText(dishName)
         
-        var foundViaSearch = false
-        for _ in 0..<6 { // Up to ~3 seconds total wait (6*0.5)
-            if findDishInCurrentView(dishName: dishName) {
-                foundViaSearch = true
-                break
-            }
-            app.waitForUIUpdate(timeout: 0.5)
-        }
+        let foundViaSearch = pollUntil(timeout: 3.0) { findDishInCurrentView(dishName: dishName) }
 
         if foundViaSearch {
             print("✅ Found dish using search functionality")
@@ -759,7 +731,6 @@ final class DishManagementUITests: XCTestCase {
             } else {
                 searchField.clearText()
             }
-            app.waitForUIUpdate(timeout: 0.5)
         }
         
         // Prefer scroll view with dish cards
@@ -839,7 +810,6 @@ final class DishManagementUITests: XCTestCase {
                 return true
             }
             scrollView.swipeUp()
-            app.waitForUIUpdate(timeout: 0.5)
         }
         return findDishInCurrentView(dishName: dishName)
     }
@@ -874,7 +844,6 @@ final class DishManagementUITests: XCTestCase {
             
             // Scroll down to load more content
             collectionView.swipeUp()
-            app.waitForUIUpdate(timeout: 0.5) // Give time for content to load
         }
         
         // Final check after scrolling
@@ -893,7 +862,7 @@ final class DishManagementUITests: XCTestCase {
         // Tap add button (floating or empty state)
         if app.buttons["Add Your First Dish"].exists {
             app.buttons["Add Your First Dish"].tap()
-        } else if app.buttons["add_dish_button"].waitForExistence(timeout: 3) {
+        } else if app.buttons["add_dish_button"].waitToExist(timeout: 3) {
             app.buttons["add_dish_button"].tap()
         } else {
             XCTFail("❌ FAILED: Could not find button to create temporary dish")
@@ -902,7 +871,7 @@ final class DishManagementUITests: XCTestCase {
 
         // Basic Info step
         let nameField = app.textFields["Enter dish name"]
-        XCTAssertTrue(nameField.waitForExistence(timeout: 3))
+        XCTAssertTrue(nameField.waitToExist(timeout: 3))
         nameField.tap()
         nameField.typeText(uniqueName)
 
@@ -929,11 +898,11 @@ final class DishManagementUITests: XCTestCase {
 
         // Ingredients Step – tap Select Product and choose first product to satisfy validation
         let selectProductButton = app.buttons["Select Product"]
-        if selectProductButton.waitForExistence(timeout: 3) {
+        if selectProductButton.waitToExist(timeout: 3) {
             selectProductButton.tap()
             // Wait for list and pick first cell
             let firstProductCell = app.cells.firstMatch
-            XCTAssertTrue(firstProductCell.waitForExistence(timeout: 3), "Product list should appear")
+            XCTAssertTrue(firstProductCell.waitToExist(timeout: 3), "Product list should appear")
             firstProductCell.tap()
         } else {
             XCTFail("❌ FAILED: Select Product button not found in Ingredients step")
@@ -944,30 +913,30 @@ final class DishManagementUITests: XCTestCase {
         nextButton.tap() // Review step
 
         let saveButton = app.buttons["Save"]
-        var saveAppeared = saveButton.waitForExistence(timeout: 3)
+        var saveAppeared = saveButton.waitToExist(timeout: 3)
         var scrollAttempts = 0
         while !saveAppeared && scrollAttempts < 5 {
             app.swipeUp()
-            saveAppeared = saveButton.waitForExistence(timeout: 1)
+            saveAppeared = saveButton.waitToExist(timeout: 1)
             scrollAttempts += 1
         }
         XCTAssertTrue(saveAppeared, "Quick create dish flow failed – Save button not found even after scrolling")
         saveButton.tap()
         
-        XCTAssertTrue(app.navigationBars["Dishes"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Dishes"].waitToExist(timeout: 5))
         
         // Wait for dish cards to appear after save using proper waiting mechanism
         let dishCardsAfterSave = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
         let firstSavedDishCard = dishCardsAfterSave.firstMatch
-        _ = firstSavedDishCard.waitForExistence(timeout: 5.0)
+        _ = firstSavedDishCard.waitToExist(timeout: 5.0)
         if dishCardsAfterSave.count == 0 {
             // As fallback, verify dish title appears somewhere visible (after possible scrolling)
-            var titleFound = app.staticTexts[uniqueName].waitForExistence(timeout: 2)
+            var titleFound = app.staticTexts[uniqueName].waitToExist(timeout: 2)
             if !titleFound {
                 var titleScrolls = 0
                 while !titleFound && titleScrolls < 5 {
                     app.swipeUp()
-                    titleFound = app.staticTexts[uniqueName].waitForExistence(timeout: 1)
+                    titleFound = app.staticTexts[uniqueName].waitToExist(timeout: 1)
                     titleScrolls += 1
                 }
             }
@@ -984,7 +953,7 @@ final class DishManagementUITests: XCTestCase {
         
         // Verify sort button exists in navigation bar
         let sortButton = app.buttons["sort_dishes_button"]
-        XCTAssertTrue(sortButton.waitForExistence(timeout: 5), "Sort button should exist in navigation bar")
+        XCTAssertTrue(sortButton.waitToExist(timeout: 5), "Sort button should exist in navigation bar")
         
         // Verify sort button has accessibility label
         XCTAssertEqual(sortButton.label, "Sort dishes", "Sort button should have correct accessibility label")
@@ -997,7 +966,7 @@ final class DishManagementUITests: XCTestCase {
         
         // Tap sort button
         let sortButton = app.buttons["sort_dishes_button"]
-        XCTAssertTrue(sortButton.waitForExistence(timeout: 5), "Sort button should exist")
+        XCTAssertTrue(sortButton.waitToExist(timeout: 5), "Sort button should exist")
         sortButton.tap()
         
         // Verify sort menu appears with all options
@@ -1005,7 +974,7 @@ final class DishManagementUITests: XCTestCase {
         
         for option in sortMenuExpected {
             let menuOption = app.buttons[option]
-            XCTAssertTrue(menuOption.waitForExistence(timeout: 3), "Sort option '\(option)' should appear in menu")
+            XCTAssertTrue(menuOption.waitToExist(timeout: 3), "Sort option '\(option)' should appear in menu")
         }
         
         print("✅ Sort menu opens with all expected options")
@@ -1029,15 +998,15 @@ final class DishManagementUITests: XCTestCase {
         
         // Open sort menu and select Name A-Z
         let sortButton = app.buttons["sort_dishes_button"]
-        XCTAssertTrue(sortButton.waitForExistence(timeout: 5), "Sort button should exist")
+        XCTAssertTrue(sortButton.waitToExist(timeout: 5), "Sort button should exist")
         sortButton.tap()
         
         let nameAscOption = app.buttons["Name A-Z"].firstMatch
-        XCTAssertTrue(nameAscOption.waitForExistence(timeout: 3), "Name A-Z option should exist")
+        XCTAssertTrue(nameAscOption.waitToExist(timeout: 3), "Name A-Z option should exist")
         nameAscOption.tap()
         
-        // Wait for sort to take effect
-        app.waitForUIUpdate(timeout: 1.0)
+        // Wait for the sort menu to close
+        nameAscOption.waitToDisappear(timeout: 2.0)
         
         // Verify dishes are sorted alphabetically
         let updatedDishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
@@ -1083,15 +1052,15 @@ final class DishManagementUITests: XCTestCase {
         
         // Open sort menu and select Name Z-A
         let sortButton = app.buttons["sort_dishes_button"]
-        XCTAssertTrue(sortButton.waitForExistence(timeout: 5), "Sort button should exist")
+        XCTAssertTrue(sortButton.waitToExist(timeout: 5), "Sort button should exist")
         sortButton.tap()
         
         let nameDescOption = app.buttons["Name Z-A"].firstMatch
-        XCTAssertTrue(nameDescOption.waitForExistence(timeout: 3), "Name Z-A option should exist")
+        XCTAssertTrue(nameDescOption.waitToExist(timeout: 3), "Name Z-A option should exist")
         nameDescOption.tap()
         
-        // Wait for sort to take effect
-        app.waitForUIUpdate(timeout: 1.0)
+        // Wait for the sort menu to close
+        nameDescOption.waitToDisappear(timeout: 2.0)
         
         // Verify dishes are sorted reverse alphabetically
         let updatedDishCardsQuery = app.otherElements.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "dish_list_item_"))
@@ -1126,15 +1095,15 @@ final class DishManagementUITests: XCTestCase {
         
         // Open sort menu and select Category
         let sortButton = app.buttons["sort_dishes_button"]
-        XCTAssertTrue(sortButton.waitForExistence(timeout: 5), "Sort button should exist")
+        XCTAssertTrue(sortButton.waitToExist(timeout: 5), "Sort button should exist")
         sortButton.tap()
         
         let categoryOption = app.buttons["Category"].firstMatch
-        XCTAssertTrue(categoryOption.waitForExistence(timeout: 3), "Category option should exist")
+        XCTAssertTrue(categoryOption.waitToExist(timeout: 3), "Category option should exist")
         categoryOption.tap()
         
-        // Wait for sort to take effect
-        app.waitForUIUpdate(timeout: 1.0)
+        // Wait for the sort menu to close
+        categoryOption.waitToDisappear(timeout: 2.0)
         
         // Verify dishes are sorted by category
         // For this test, we just verify that the sort action completed successfully
@@ -1150,15 +1119,15 @@ final class DishManagementUITests: XCTestCase {
         
         // Open sort menu and select Name Z-A
         let sortButton = app.buttons["sort_dishes_button"]
-        XCTAssertTrue(sortButton.waitForExistence(timeout: 5), "Sort button should exist")
+        XCTAssertTrue(sortButton.waitToExist(timeout: 5), "Sort button should exist")
         sortButton.tap()
         
         let nameDescOption = app.buttons["Name Z-A"].firstMatch
-        XCTAssertTrue(nameDescOption.waitForExistence(timeout: 3), "Name Z-A option should exist")
+        XCTAssertTrue(nameDescOption.waitToExist(timeout: 3), "Name Z-A option should exist")
         nameDescOption.tap()
         
-        // Wait for sort to take effect
-        app.waitForUIUpdate(timeout: 0.5)
+        // Wait for the sort menu to close
+        nameDescOption.waitToDisappear(timeout: 2.0)
         
         // Open sort menu again
         sortButton.tap()
@@ -1166,7 +1135,7 @@ final class DishManagementUITests: XCTestCase {
         // Verify selected option shows checkmark
         // Note: In the actual implementation, we check for the presence of the option
         // The checkmark is part of the button's internal structure
-        XCTAssertTrue(nameDescOption.waitForExistence(timeout: 3), "Selected sort option should still be visible")
+        XCTAssertTrue(nameDescOption.waitToExist(timeout: 3), "Selected sort option should still be visible")
         
         print("✅ Sort menu shows selected option correctly")
         
@@ -1179,31 +1148,31 @@ final class DishManagementUITests: XCTestCase {
         
         // Set sort to Name Z-A
         let sortButton = app.buttons["sort_dishes_button"]
-        XCTAssertTrue(sortButton.waitForExistence(timeout: 5), "Sort button should exist")
+        XCTAssertTrue(sortButton.waitToExist(timeout: 5), "Sort button should exist")
         sortButton.tap()
         
         let nameDescOption = app.buttons["Name Z-A"].firstMatch
-        XCTAssertTrue(nameDescOption.waitForExistence(timeout: 3), "Name Z-A option should exist")
+        XCTAssertTrue(nameDescOption.waitToExist(timeout: 3), "Name Z-A option should exist")
         nameDescOption.tap()
         
         // Navigate away and back
         // Go to Products tab
-        let productsTab = app.tabBars.buttons["Products"]
-        if productsTab.waitForExistence(timeout: 3) {
+        let productsTab = app.tabButton("tab_products")
+        if productsTab.waitToExist(timeout: 3) {
             productsTab.tap()
             
             // Navigate back to Dishes
-            let dishesTab = app.tabBars.buttons["Dishes"]
-            XCTAssertTrue(dishesTab.waitForExistence(timeout: 3), "Dishes tab should exist")
+            let dishesTab = app.tabButton("tab_dishes")
+            XCTAssertTrue(dishesTab.waitToExist(timeout: 3), "Dishes tab should exist")
             dishesTab.tap()
         }
         
         // Verify sort option is still selected
-        XCTAssertTrue(sortButton.waitForExistence(timeout: 5), "Sort button should exist after navigation")
+        XCTAssertTrue(sortButton.waitToExist(timeout: 5), "Sort button should exist after navigation")
         sortButton.tap()
         
         // The selected option should still be Name Z-A
-        XCTAssertTrue(nameDescOption.waitForExistence(timeout: 3), "Name Z-A option should still be available")
+        XCTAssertTrue(nameDescOption.waitToExist(timeout: 3), "Name Z-A option should still be available")
         
         print("✅ Sort preference persisted after navigation")
         
@@ -1216,7 +1185,7 @@ final class DishManagementUITests: XCTestCase {
     private func obtainSearchField() -> XCUIElement? {
         // 1) Preferred: a standard search field if it exists and is hittable
         let searchField = app.searchFields.firstMatch
-        if searchField.exists && (searchField.isHittable || searchField.waitForExistence(timeout: 2)) {
+        if searchField.exists && (searchField.isHittable || searchField.waitToExist(timeout: 2)) {
             return searchField
         }
 
@@ -1226,31 +1195,29 @@ final class DishManagementUITests: XCTestCase {
             return textFieldSearch.firstMatch
         }
 
-        // 3) Try a navigation bar search button (magnifying glass)
-        let navBar = app.navigationBars.firstMatch
-        if navBar.exists {
-            // Common identifiers/labels
-            let possibleSearchButtons: [XCUIElement] = [
-                navBar.buttons["Search"],
-                navBar.buttons["search"],
-                navBar.buttons["Search Dishes"],
-                navBar.buttons.matching(NSPredicate(format: "identifier CONTAINS[c] 'search' OR label CONTAINS[c] 'search'" )).firstMatch
-            ]
-            for btn in possibleSearchButtons where btn.exists && btn.isHittable {
-                btn.tap()
-                // After tapping, check again for a search field or text field
-                if app.searchFields.firstMatch.waitForExistence(timeout: 2) {
-                    return app.searchFields.firstMatch
-                }
-                let tf = app.textFields.matching(NSPredicate(format: "placeholderValue CONTAINS[c] 'Search' OR label CONTAINS[c] 'Search'"))
-                if tf.firstMatch.exists {
-                    return tf.firstMatch
-                }
+        // 3) Try a search button (magnifying glass); not scoped to the navigation bar because
+        // wide iPhone layouts render it in a floating toolbar
+        let possibleSearchButtons: [XCUIElement] = [
+            app.toolbarButton("Search"),
+            app.toolbarButton("search"),
+            app.toolbarButton("Search Dishes"),
+            app.buttons.matching(NSPredicate(format: "identifier CONTAINS[c] 'search' OR label CONTAINS[c] 'search'" )).firstMatch
+        ]
+        for btn in possibleSearchButtons where btn.exists && btn.isHittable {
+            btn.tap()
+            // After tapping, check again for a search field or text field
+            if app.searchFields.firstMatch.waitToExist(timeout: 2) {
+                return app.searchFields.firstMatch
+            }
+            let tf = app.textFields.matching(NSPredicate(format: "placeholderValue CONTAINS[c] 'Search' OR label CONTAINS[c] 'Search'"))
+            if tf.firstMatch.exists {
+                return tf.firstMatch
             }
         }
 
         // 4) As a last resort, pull the list down to reveal the search field hidden under the large title.
         // Drag from the navigation bar: a swipe starting mid-list can land on a dish card and open it.
+        let navBar = app.navigationBars.firstMatch
         if navBar.exists {
             for _ in 0..<2 {
                 let start = navBar.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9))

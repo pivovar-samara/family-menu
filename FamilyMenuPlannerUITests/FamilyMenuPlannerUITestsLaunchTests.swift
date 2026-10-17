@@ -44,27 +44,27 @@ final class FamilyMenuPlannerUITestsLaunchTests: XCTestCase {
         
         app.launch()
 
-        // Wait for either a tab bar (iPhone) or a sidebar-like container (iPad/macCatalyst) to appear
-        let tabBar = app.tabBars.firstMatch
+        // Wait for either a tab bar (iPhone: bottom bar or side rail) or a sidebar-like container (iPad/macCatalyst) to appear
+        let tabBar = app.tabButton("tab_menu")
         // Common sidebar containers in SwiftUI apps: a collection view or a table with identifier "Sidebar"
         let sidebarCollection = app.collectionViews["Sidebar"].firstMatch
         let sidebarTable = app.tables["Sidebar"].firstMatch
 
         let uiElementAppeared: Bool
         if tabBar.exists {
-            uiElementAppeared = tabBar.waitForExistence(timeout: 10)
+            uiElementAppeared = tabBar.waitToExist(timeout: 10)
         } else if sidebarCollection.exists {
-            uiElementAppeared = sidebarCollection.waitForExistence(timeout: 10)
+            uiElementAppeared = sidebarCollection.waitToExist(timeout: 10)
         } else if sidebarTable.exists {
-            uiElementAppeared = sidebarTable.waitForExistence(timeout: 10)
+            uiElementAppeared = sidebarTable.waitToExist(timeout: 10)
         } else {
             // Fall back to other common containers that indicate primary navigation is present
             let maybeNavBar = app.navigationBars.firstMatch
             let maybeOutline = app.outlines.firstMatch
             if maybeNavBar.exists {
-                uiElementAppeared = maybeNavBar.waitForExistence(timeout: 10)
+                uiElementAppeared = maybeNavBar.waitToExist(timeout: 10)
             } else {
-                uiElementAppeared = maybeOutline.waitForExistence(timeout: 10)
+                uiElementAppeared = maybeOutline.waitToExist(timeout: 10)
             }
         }
 

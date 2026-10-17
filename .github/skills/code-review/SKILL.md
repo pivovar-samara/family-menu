@@ -41,7 +41,7 @@ Project conventions (architecture, modules, utilities) are described in `.github
 ## Tests
 
 - New ViewModel/helper logic needs unit tests; new Service + Core Data behavior needs integration tests. Use `TestDataFactory` (`FamilyMenuPlannerIntegrationTests/BaseIntegrationTests/`) for entities.
-- UI tests: locate elements by accessibility identifier, wait with `waitForExistence`, and avoid gestures that start mid-list (they can tap a card instead of scrolling). A search field under a large title is hidden until the list is pulled down from the navigation bar.
+- UI tests: locate elements by accessibility identifier, wait with the fast helpers in `Helpers/XCUIElement+Extensions.swift` (`waitToExist`, `waitToDisappear`, `pollUntil`) rather than `waitForExistence`, predicate expectations or fixed sleeps, locate toolbar and tab buttons with `app.toolbarButton`/`app.tabButton` rather than scoping to `navigationBars`/`tabBars` (wide iPhones move them into floating bars), and avoid gestures that start mid-list (they can tap a card instead of scrolling). A search field under a large title is hidden until the list is pulled down from the navigation bar.
 - Flag tests that pass vacuously (`XCTAssertTrue(true)` in the branch where the feature wasn't found).
 - Test plans: `FamilyMenuPlanner-PR.xctestplan` (Unit + Integration, default) and `FamilyMenuPlanner-Full.xctestplan` (all suites). A new test target must be added to the right plan, otherwise CI never runs it.
 

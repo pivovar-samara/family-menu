@@ -46,22 +46,22 @@ final class ProductManagementUITests: XCTestCase {
         // Wait for the product list to load
         // Try different element types since SwiftUI List can render as table, collection view, or other types
         var productList: XCUIElement?
-        if app.collectionViews["ProductList"].waitForExistence(timeout: 2) {
+        if app.collectionViews["ProductList"].waitToExist(timeout: 2) {
             productList = app.collectionViews["ProductList"]
         } else {
             productList = app.otherElements["ProductList"]
         }
         
-        XCTAssertTrue(productList?.waitForExistence(timeout: 3) ?? false, "Product list should exist")
+        XCTAssertTrue(productList?.waitToExist(timeout: 3) ?? false, "Product list should exist")
         
         // Find and tap any visible "Add Product" entry point: floating button or empty state CTA
         let addProductButton = app.buttons["add_product_button"]
-        if addProductButton.waitForExistence(timeout: 3) {
+        if addProductButton.waitToExist(timeout: 3) {
             addProductButton.tap()
         } else {
             // Try empty state CTA on selection or list screens
             let emptyStateCTA = app.buttons["Add Product"]
-            if emptyStateCTA.waitForExistence(timeout: 2) {
+            if emptyStateCTA.waitToExist(timeout: 2) {
                 emptyStateCTA.tap()
             } else {
                 XCTFail("No Add Product entry point found")
@@ -70,11 +70,11 @@ final class ProductManagementUITests: XCTestCase {
         
         // Wait for the add product sheet to appear
         let addProductNavBar = app.navigationBars["Add Product"]
-        XCTAssertTrue(addProductNavBar.waitForExistence(timeout: 3), "Add Product sheet should appear")
+        XCTAssertTrue(addProductNavBar.waitToExist(timeout: 3), "Add Product sheet should appear")
         
         // Find the product name text field in the form
         let productNameField = app.textFields["product_name_field"]
-        XCTAssertTrue(productNameField.waitForExistence(timeout: 3), "Product Name field should exist in the add form")
+        XCTAssertTrue(productNameField.waitToExist(timeout: 3), "Product Name field should exist in the add form")
         
         // Fill in the product name
         productNameField.tap()
@@ -95,12 +95,12 @@ final class ProductManagementUITests: XCTestCase {
         }
         
         // Find and tap the Save button
-        let saveButton = app.navigationBars["Add Product"].buttons["Save"]
-        XCTAssertTrue(saveButton.exists, "Save button should exist in the navigation bar")
+        let saveButton = app.toolbarButton("Save")
+        XCTAssertTrue(saveButton.waitToExist(timeout: 3), "Save button should exist")
         saveButton.tap()
         
         // Wait for the sheet to dismiss and return to product list
-        XCTAssertTrue(app.navigationBars["Products"].waitForExistence(timeout: 5), "Should return to Products list after saving")
+        XCTAssertTrue(app.navigationBars["Products"].waitToExist(timeout: 5), "Should return to Products list after saving")
         
         // Verify the product was created by checking if it appears in the list
         // The product might be added below the visible area, so scroll to find it
@@ -108,15 +108,13 @@ final class ProductManagementUITests: XCTestCase {
         let createdProduct = list.staticTexts["Test Product UI"]
         
         // First try to find it without scrolling
-        if !createdProduct.waitForExistence(timeout: 2) {
+        if !createdProduct.waitToExist(timeout: 2) {
             // If not found, scroll down to look for the product
             // Scroll down a few times to find the new product
             for _ in 0..<5 {
                 list.swipeUp()
                 // Wait for scroll animation to complete
-                let scrollExpectation = expectation(for: NSPredicate(format: "exists == true"), evaluatedWith: createdProduct, handler: nil)
-                let scrollResult = XCTWaiter().wait(for: [scrollExpectation], timeout: 1.0)
-                if scrollResult == .completed {
+                if createdProduct.waitToExist(timeout: 1.0) {
                     break
                 }
             }
@@ -127,19 +125,19 @@ final class ProductManagementUITests: XCTestCase {
         // Additional verification: Test creating another product to ensure functionality still works
         let addProductButton2 = app.buttons["add_product_button"]
         addProductButton2.tap()
-        XCTAssertTrue(addProductNavBar.waitForExistence(timeout: 3), "Add Product sheet should appear again")
+        XCTAssertTrue(addProductNavBar.waitToExist(timeout: 3), "Add Product sheet should appear again")
         
         let secondProductNameField = app.textFields["product_name_field"]
         secondProductNameField.tap()
         secondProductNameField.typeText("Second Test Product")
         
-        let secondSaveButton = app.navigationBars["Add Product"].buttons["Save"]
+        let secondSaveButton = app.toolbarButton("Save")
         secondSaveButton.tap()
         
         // Verify return to list and second product creation
-        XCTAssertTrue(app.navigationBars["Products"].waitForExistence(timeout: 5), "Should return to Products list after second save")
+        XCTAssertTrue(app.navigationBars["Products"].waitToExist(timeout: 5), "Should return to Products list after second save")
         let secondCreatedProduct = list.staticTexts["Second Test Product"]
-        XCTAssertTrue(secondCreatedProduct.waitForExistence(timeout: 3), "Second product should also appear in the list")
+        XCTAssertTrue(secondCreatedProduct.waitToExist(timeout: 3), "Second product should also appear in the list")
     }
     
     func testCreateProductValidation() throws {
@@ -147,12 +145,12 @@ final class ProductManagementUITests: XCTestCase {
 
         // Wait for the product list to load
         var productList: XCUIElement?
-        if app.collectionViews["ProductList"].waitForExistence(timeout: 4) {
+        if app.collectionViews["ProductList"].waitToExist(timeout: 4) {
             productList = app.collectionViews["ProductList"]
         } else {
             productList = app.otherElements["ProductList"]
         }
-        XCTAssertTrue(productList?.waitForExistence(timeout: 4) ?? false, "Product list should exist")
+        XCTAssertTrue(productList?.waitToExist(timeout: 4) ?? false, "Product list should exist")
 
         // Find and tap the floating "Add Product" button
         let addProductButton = app.buttons["add_product_button"]
@@ -161,7 +159,7 @@ final class ProductManagementUITests: XCTestCase {
 
         // Wait for the add product sheet to appear
         let addProductNavBar = app.navigationBars["Add Product"]
-        XCTAssertTrue(addProductNavBar.waitForExistence(timeout: 4), "Add Product sheet should appear")
+        XCTAssertTrue(addProductNavBar.waitToExist(timeout: 4), "Add Product sheet should appear")
 
         // Find the product name text field in the form
         let productNameField = app.textFields["product_name_field"]
@@ -171,13 +169,13 @@ final class ProductManagementUITests: XCTestCase {
         productNameField.clearTextWithFallback()
 
         // Try to save without entering a name
-        let saveButton = app.navigationBars["Add Product"].buttons["Save"]
-        XCTAssertTrue(saveButton.waitForHittable(timeout: 3), "Save button should be hittable in the navigation bar")
+        let saveButton = app.toolbarButton("Save")
+        XCTAssertTrue(saveButton.waitForHittable(timeout: 3), "Save button should be hittable")
         saveButton.tap()
 
         // Wait for validation response - use a more robust approach
         let alert = app.alerts.firstMatch
-        let alertAppeared = alert.waitForExistence(timeout: 3)
+        let alertAppeared = alert.waitToExist(timeout: 3)
         
         if alertAppeared {
             // Look for validation error texts in the alert
@@ -221,24 +219,24 @@ final class ProductManagementUITests: XCTestCase {
         
         // Wait for initial data to load by waiting until at least one product's edit button appears
         let initialEditButton = app.buttons["EditProductButton"].firstMatch
-        XCTAssertTrue(initialEditButton.waitForExistence(timeout: 8), "Product list did not load in time")
+        XCTAssertTrue(initialEditButton.waitToExist(timeout: 8), "Product list did not load in time")
         
         // Locate first product's edit button
         let editButton = app.buttons["EditProductButton"].firstMatch
-        XCTAssertTrue(editButton.waitForExistence(timeout: 8), "EditProductButton should be present")
+        XCTAssertTrue(editButton.waitToExist(timeout: 8), "EditProductButton should be present")
         
         // Open edit menu then select Edit
         editButton.tap()
         let editMenuItem = app.buttons["Edit"].firstMatch
-        XCTAssertTrue(editMenuItem.waitForExistence(timeout: 3), "Edit menu item should appear")
+        XCTAssertTrue(editMenuItem.waitToExist(timeout: 3), "Edit menu item should appear")
         editMenuItem.tap()
         
         // Wait for edit screen
         let editNav = app.navigationBars["Edit Product"]
-        XCTAssertTrue(editNav.waitForExistence(timeout: 5))
+        XCTAssertTrue(editNav.waitToExist(timeout: 5))
         
         let nameField = app.textFields["product_name_field"]
-        XCTAssertTrue(nameField.waitForExistence(timeout: 3))
+        XCTAssertTrue(nameField.waitToExist(timeout: 3))
         
         // Capture original name from the text field's current value
         let originalName = (nameField.value as? String) ?? ""
@@ -248,50 +246,37 @@ final class ProductManagementUITests: XCTestCase {
         
         // Wait for keyboard to appear and UI to stabilize
         let keyboard = app.keyboards.firstMatch
-        XCTAssertTrue(keyboard.waitForExistence(timeout: 3), "Keyboard should appear")
+        XCTAssertTrue(keyboard.waitToExist(timeout: 3), "Keyboard should appear")
         
         // Select all text first (more reliable than trying to clear)
         nameField.doubleTap() // This should select all text
         
         // Wait for selection (all text selected) to complete using predicate expectation
         let selectionPredicate = NSPredicate(format: "value CONTAINS %@", originalName)
-        let selectionExpectation = expectation(for: selectionPredicate, evaluatedWith: nameField, handler: nil)
-        let selectionResult = XCTWaiter().wait(for: [selectionExpectation], timeout: 3)
-        XCTAssertEqual(selectionResult, .completed, "Text field selection did not stabilize in time")
+        XCTAssertTrue(nameField.waitUntil(selectionPredicate, timeout: 3), "Text field selection did not stabilize in time")
 
         // Type the new text (this should replace the selected text)
         nameField.typeText("Updated " + originalName)
 
         // Wait for text input to complete
         let updatedPredicate = NSPredicate(format: "value CONTAINS %@", "Updated " + originalName)
-        let updatedExpectation = expectation(for: updatedPredicate, evaluatedWith: nameField, handler: nil)
-        let updatedResult = XCTWaiter().wait(for: [updatedExpectation], timeout: 3)
-        XCTAssertEqual(updatedResult, .completed, "Text update did not complete in time")
+        XCTAssertTrue(nameField.waitUntil(updatedPredicate, timeout: 3), "Text update did not complete in time")
         
         // Verify we're still on the edit screen
         XCTAssertTrue(editNav.exists, "Should still be on edit screen after typing")
         
-        // Try multiple ways to find the Save button
-        var saveButton: XCUIElement
-        if app.navigationBars["Edit Product"].buttons["Save"].exists {
-            saveButton = app.navigationBars["Edit Product"].buttons["Save"]
-        } else if app.buttons["Save"].exists {
-            saveButton = app.buttons["Save"]
-        } else {
-            // Last resort - look for any button with Save accessibility identifier
-            saveButton = app.buttons.matching(identifier: "Save").firstMatch
-        }
+        let saveButton = app.toolbarButton("Save")
         
-        XCTAssertTrue(saveButton.waitForExistence(timeout: 5), "Save button should exist")
+        XCTAssertTrue(saveButton.waitToExist(timeout: 5), "Save button should exist")
         saveButton.tap()
         
         // Return to list
-        XCTAssertTrue(app.navigationBars["Products"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Products"].waitToExist(timeout: 5))
         
         // Verify updated name appears in the list (scroll if necessary)
         let updatedText = app.staticTexts["Updated " + originalName]
         
-        var updatedFound = updatedText.waitForExistence(timeout: 2)
+        var updatedFound = updatedText.waitToExist(timeout: 2)
         if !updatedFound {
             // Try scrolling through the product list container only
             let list = productListContainer()
@@ -314,7 +299,7 @@ final class ProductManagementUITests: XCTestCase {
         
         // Wait for product list to appear instead of using a fixed sleep
         let anyProductName = app.staticTexts["ProductNameLabel"]
-        XCTAssertTrue(anyProductName.waitForExistence(timeout: 8), "Product list did not load in time")
+        XCTAssertTrue(anyProductName.waitToExist(timeout: 8), "Product list did not load in time")
         
         var foundProductToDelete = false
         var productToDeleteName = ""
@@ -412,20 +397,17 @@ final class ProductManagementUITests: XCTestCase {
             
             // Open the Edit menu from the visible Edit button, then choose Delete
             let editMenuButton = app.buttons["EditProductButton"].firstMatch
-            if editMenuButton.waitForExistence(timeout: 3) {
+            if editMenuButton.waitToExist(timeout: 3) {
                 editMenuButton.tap()
                 let deleteMenuItem = app.buttons["Delete"].firstMatch
-                if deleteMenuItem.waitForExistence(timeout: 3) {
+                if deleteMenuItem.waitToExist(timeout: 3) {
                     deleteMenuItem.tap()
                     let confirmDelete = app.buttons["Delete"].firstMatch
-                    if confirmDelete.waitForExistence(timeout: 3) {
+                    if confirmDelete.waitToExist(timeout: 3) {
                         confirmDelete.tap()
                         // Wait for the specific card to disappear
                         let targetCard = list.otherElements["product_list_item_\(productToDeleteName)"]
-                        let gonePredicate = NSPredicate(format: "exists == false")
-                        let goneExpectation = XCTNSPredicateExpectation(predicate: gonePredicate, object: targetCard)
-                        let waiter = XCTWaiter()
-                        productDeleted = waiter.wait(for: [goneExpectation], timeout: 5.0) == .completed
+                        productDeleted = targetCard.waitToDisappear(timeout: 5.0)
                     }
                 }
             }
@@ -444,7 +426,7 @@ final class ProductManagementUITests: XCTestCase {
         
         // Look for search bar
         let searchField = app.searchFields.firstMatch
-        if searchField.waitForExistence(timeout: 5) {
+        if searchField.waitToExist(timeout: 5) {
             searchField.tap()
             searchField.typeText("Test")
             
@@ -480,7 +462,7 @@ final class ProductManagementUITests: XCTestCase {
         // Wait for the table to finish updating by ensuring a cell exists inside the product list container
         let list = productListContainer()
         let firstProductCellAsc = list.cells.firstMatch
-        XCTAssertTrue(firstProductCellAsc.waitForExistence(timeout: 5), "Sorting did not complete in time")
+        XCTAssertTrue(firstProductCellAsc.waitToExist(timeout: 5), "Sorting did not complete in time")
 
         let names = fetchVisibleProductNames(maxCount: 5)
         let sorted = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
@@ -495,7 +477,7 @@ final class ProductManagementUITests: XCTestCase {
 
         let list = productListContainer()
         let firstProductCellDesc = list.cells.firstMatch
-        XCTAssertTrue(firstProductCellDesc.waitForExistence(timeout: 5), "Sorting did not complete in time")
+        XCTAssertTrue(firstProductCellDesc.waitToExist(timeout: 5), "Sorting did not complete in time")
 
         let names = fetchVisibleProductNames(maxCount: 5)
         let sorted = names.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedDescending }
@@ -508,7 +490,7 @@ final class ProductManagementUITests: XCTestCase {
         openSortDialogAndSelect(optionLabel: "Unit")
         let list = productListContainer()
         let firstProductCellUnit = list.cells.firstMatch
-        XCTAssertTrue(firstProductCellUnit.waitForExistence(timeout: 5), "Sorting did not complete in time")
+        XCTAssertTrue(firstProductCellUnit.waitToExist(timeout: 5), "Sorting did not complete in time")
 
         // Collect a broader window of unit labels by scrolling through the list
         let units = collectVisibleUnitLabels(maxCount: 20)
@@ -526,13 +508,10 @@ final class ProductManagementUITests: XCTestCase {
     // MARK: - Helper Methods
     
     private func navigateToProductList() {
-        // Try iPhone-style Tab Bar first
-        let tabBar = app.tabBars.firstMatch
-        if tabBar.waitForExistence(timeout: 3) {
-            let productsTab = tabBar.buttons["Products"]
-            if productsTab.exists {
-                productsTab.tap()
-            }
+        // Tab bar on iPhone (bottom bar or side rail, depending on the device)
+        let productsTab = app.tabButton("tab_products")
+        if productsTab.waitToExist(timeout: 3) {
+            productsTab.tap()
         } else {
             // iPad/sidebar layout: look for a sidebar or menu item labeled "Products"
             // Try common container types for sidebars
@@ -542,13 +521,13 @@ final class ProductManagementUITests: XCTestCase {
 
             var navigated = false
 
-            if productsSidebarButton.waitForExistence(timeout: 3) && productsSidebarButton.isHittable {
+            if productsSidebarButton.waitToExist(timeout: 3) && productsSidebarButton.isHittable {
                 productsSidebarButton.tap()
                 navigated = true
-            } else if productsCell.waitForExistence(timeout: 3) && productsCell.isHittable {
+            } else if productsCell.waitToExist(timeout: 3) && productsCell.isHittable {
                 productsCell.tap()
                 navigated = true
-            } else if productsAny.waitForExistence(timeout: 2) && productsAny.isHittable {
+            } else if productsAny.waitToExist(timeout: 2) && productsAny.isHittable {
                 productsAny.tap()
                 navigated = true
             }
@@ -556,7 +535,7 @@ final class ProductManagementUITests: XCTestCase {
             // As a fallback, try a toolbar/tab-like button with accessibility identifier
             if !navigated {
                 let productsButtonById = app.buttons["products_tab_button"].firstMatch
-                if productsButtonById.waitForExistence(timeout: 2) && productsButtonById.isHittable {
+                if productsButtonById.waitToExist(timeout: 2) && productsButtonById.isHittable {
                     productsButtonById.tap()
                 }
             }
@@ -566,7 +545,7 @@ final class ProductManagementUITests: XCTestCase {
         let productListTitle = app.navigationBars["Products"]
         // If navigation bar doesn't exist (SwiftUI can render differently on iPad), also accept a static title
         let titleLabel = app.staticTexts["Products"].firstMatch
-        let onProducts = productListTitle.waitForExistence(timeout: 5) || titleLabel.waitForExistence(timeout: 5)
+        let onProducts = productListTitle.waitToExist(timeout: 5) || titleLabel.waitToExist(timeout: 5)
         XCTAssertTrue(onProducts, "Should navigate to Products screen")
     }
     
@@ -589,11 +568,11 @@ final class ProductManagementUITests: XCTestCase {
     
     private func openSortDialogAndSelect(optionLabel: String) {
         let sortButton = app.buttons["sort_products_button"]
-        XCTAssertTrue(sortButton.waitForExistence(timeout: 5), "Sort button should exist")
+        XCTAssertTrue(sortButton.waitToExist(timeout: 5), "Sort button should exist")
         sortButton.tap()
 
         let option = app.buttons[optionLabel].firstMatch
-        XCTAssertTrue(option.waitForExistence(timeout: 3), "Sort option \(optionLabel) should exist")
+        XCTAssertTrue(option.waitToExist(timeout: 3), "Sort option \(optionLabel) should exist")
         option.tap()
     }
 
@@ -673,22 +652,22 @@ final class ProductManagementUITests: XCTestCase {
         // Try to add simple products until reaching required count
         let addButton = app.buttons["add_product_button"]
         let addNav = app.navigationBars["Add Product"]
-        let saveFromAdd = app.navigationBars["Add Product"].buttons["Save"]
+        let saveFromAdd = app.toolbarButton("Save")
         let nameField = app.textFields["product_name_field"]
 
         var index = 1
         while currentCount < requiredCount && index <= 5 { // safety cap
-            if addButton.waitForExistence(timeout: 2) {
+            if addButton.waitToExist(timeout: 2) {
                 addButton.tap()
             } else {
                 // Fallback to an alternate entry point
                 let emptyCTA = app.buttons["Add Product"]
-                if emptyCTA.waitForExistence(timeout: 2) {
+                if emptyCTA.waitToExist(timeout: 2) {
                     emptyCTA.tap()
                 }
             }
 
-            if addNav.waitForExistence(timeout: 3) && nameField.waitForExistence(timeout: 2) {
+            if addNav.waitToExist(timeout: 3) && nameField.waitToExist(timeout: 2) {
                 nameField.tap()
                 nameField.clearTextWithFallback()
                 nameField.typeText("Auto Product \(UUID().uuidString.prefix(6))")
@@ -708,7 +687,7 @@ final class ProductManagementUITests: XCTestCase {
                 }
 
                 if saveFromAdd.exists { saveFromAdd.tap() }
-                _ = app.navigationBars["Products"].waitForExistence(timeout: 3)
+                _ = app.navigationBars["Products"].waitToExist(timeout: 3)
 
                 // Recount
                 currentCount = app.staticTexts.matching(identifier: "ProductNameLabel").count

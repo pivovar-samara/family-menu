@@ -44,10 +44,7 @@ final class MenuManagementUITests: XCTestCase {
             app.buttons["Sidebar"],
             app.buttons["Show Sidebar"],
             app.buttons["Toggle Sidebar"],
-            app.buttons["sidebar"],
-            app.navigationBars.buttons["Sidebar"],
-            app.navigationBars.buttons["Show Sidebar"],
-            app.navigationBars.buttons["Toggle Sidebar"]
+            app.buttons["sidebar"]
         ]
         if !app.staticTexts["Menu"].exists && !app.navigationBars["Menu"].exists {
             if let toggle = sidebarButtons.first(where: { $0.exists }) {
@@ -62,7 +59,7 @@ final class MenuManagementUITests: XCTestCase {
             app.staticTexts["Menu"],
             app.buttons["Menu"]
         ]
-        if let menuListItem = possibleMenuListItems.first(where: { $0.waitForExistence(timeout: 1.0) }) {
+        if let menuListItem = possibleMenuListItems.first(where: { $0.waitToExist(timeout: 1.0) }) {
             // If it's inside a cell (common for sidebars), try to tap the containing cell
             var tapped = false
             let tables = app.tables
@@ -84,17 +81,15 @@ final class MenuManagementUITests: XCTestCase {
                 print("✅ Navigated to Menu via direct element tap")
             }
         } else {
-            // 3) Fall back to tab bar on iPhone layouts
-            let tabBar = app.tabBars.firstMatch
-            if tabBar.exists {
-                let menuTab = tabBar.buttons["Menu"]
-                XCTAssertTrue(menuTab.waitForExistence(timeout: 3), "Menu tab should exist")
+            // 3) Fall back to the tab bar on iPhone layouts (bottom bar or side rail)
+            let menuTab = app.tabButton("tab_menu")
+            if menuTab.waitToExist(timeout: 3) {
                 menuTab.tap()
                 print("✅ Navigated to Menu via tab bar")
             } else {
                 // 4) As a last resort, try any button labeled "Menu" in the UI
                 let anyMenuButton = app.buttons["Menu"].firstMatch
-                if anyMenuButton.waitForExistence(timeout: 1.0) {
+                if anyMenuButton.waitToExist(timeout: 1.0) {
                     anyMenuButton.tap()
                     print("✅ Navigated to Menu via fallback button")
                 }
@@ -104,7 +99,7 @@ final class MenuManagementUITests: XCTestCase {
         // Verify we're on the menu screen (either nav bar title or prominent label)
         let menuNavBar = app.navigationBars["Menu"]
         let menuLabel = app.staticTexts["Menu"]
-        let onMenu = menuNavBar.waitForExistence(timeout: 3) || menuLabel.waitForExistence(timeout: 3)
+        let onMenu = menuNavBar.waitToExist(timeout: 3) || menuLabel.waitToExist(timeout: 3)
         XCTAssertTrue(onMenu, "Should be on Menu screen")
         print("✅ Successfully navigated to Menu screen")
     }
@@ -112,7 +107,7 @@ final class MenuManagementUITests: XCTestCase {
     // Handles optional past-date confirmation alert introduced in Menu flow
     private func handlePastEditAlertIfPresent() {
         let warningAlert = app.alerts["Warning"]
-        if warningAlert.waitForExistence(timeout: 1.0) {
+        if warningAlert.waitToExist(timeout: 1.0) {
             let continueButton = warningAlert.buttons["Continue"]
             if continueButton.exists {
                 continueButton.tap()
@@ -136,7 +131,7 @@ final class MenuManagementUITests: XCTestCase {
         
         // Verify week selector is present
         let weekPicker = app.segmentedControls.firstMatch
-        XCTAssertTrue(weekPicker.waitForExistence(timeout: 3), "Week selector should exist")
+        XCTAssertTrue(weekPicker.waitToExist(timeout: 3), "Week selector should exist")
         
         // Verify we have at least current week option
         let firstWeekOption = weekPicker.buttons.firstMatch
@@ -152,9 +147,7 @@ final class MenuManagementUITests: XCTestCase {
             if secondWeek.exists {
                 secondWeek.tap()
                 // Wait for content refresh using predicate expectation
-                let refreshExpectation = expectation(for: NSPredicate(format: "exists == true"), evaluatedWith: secondWeek, handler: nil)
-                let refreshResult = XCTWaiter().wait(for: [refreshExpectation], timeout: 2.0)
-                XCTAssertEqual(refreshResult, .completed, "Second week selection should complete")
+                XCTAssertTrue(secondWeek.waitToExist(timeout: 2.0), "Second week selection should complete")
                 print("✅ Successfully navigated to second week")
             }
             
@@ -162,9 +155,7 @@ final class MenuManagementUITests: XCTestCase {
             let firstWeek = weekButtons.element(boundBy: 0)
             firstWeek.tap()
             // Wait for navigation back to complete
-            let backExpectation = expectation(for: NSPredicate(format: "exists == true"), evaluatedWith: firstWeek, handler: nil)
-            let backResult = XCTWaiter().wait(for: [backExpectation], timeout: 2.0)
-            XCTAssertEqual(backResult, .completed, "Navigation back to first week should complete")
+            XCTAssertTrue(firstWeek.waitToExist(timeout: 2.0), "Navigation back to first week should complete")
             print("✅ Successfully navigated back to first week")
         }
         
@@ -175,7 +166,7 @@ final class MenuManagementUITests: XCTestCase {
         // First try exact matches
         for day in expectedDays {
             let daySection = app.staticTexts[day]
-            if daySection.waitForExistence(timeout: 2) {
+            if daySection.waitToExist(timeout: 2) {
                 foundDays += 1
                 print("📅 Found day section: \(day)")
             }
@@ -264,7 +255,7 @@ final class MenuManagementUITests: XCTestCase {
         
         for mealType in expectedMealTypes {
             let mealTypeText = app.staticTexts[mealType]
-            if mealTypeText.waitForExistence(timeout: 2) {
+            if mealTypeText.waitToExist(timeout: 2) {
                 foundMealTypes += 1
                 print("🍽️ Found meal type: \(mealType)")
             }
@@ -274,7 +265,7 @@ final class MenuManagementUITests: XCTestCase {
         
         // Verify "Choose a dish" placeholder appears for empty meal slots
         let chooseDishText = app.staticTexts["Choose a dish"]
-        if chooseDishText.waitForExistence(timeout: 2) {
+        if chooseDishText.waitToExist(timeout: 2) {
             print("✅ Found 'Choose a dish' placeholder for empty meal slots")
         }
         
@@ -293,7 +284,7 @@ final class MenuManagementUITests: XCTestCase {
         let mealTypes = ["Breakfast", "Lunch", "Dinner"]
         for mealType in mealTypes {
             let mealSection = app.staticTexts[mealType]
-            if mealSection.waitForExistence(timeout: 2) {
+            if mealSection.waitToExist(timeout: 2) {
                 // Look for the parent container that can be tapped
                 let mealContainer = mealSection.firstMatch
                 if mealContainer.exists {
@@ -338,7 +329,7 @@ final class MenuManagementUITests: XCTestCase {
         
         // Verify dish selection screen appears
         let dishSelectionTitle = app.navigationBars["Select Dish"]
-        XCTAssertTrue(dishSelectionTitle.waitForExistence(timeout: 5), "Dish selection screen should appear")
+        XCTAssertTrue(dishSelectionTitle.waitToExist(timeout: 5), "Dish selection screen should appear")
         print("✅ Dish selection screen opened successfully")
         
         // Look for available dishes to select
@@ -384,13 +375,13 @@ final class MenuManagementUITests: XCTestCase {
         }
         
         // Done the selection
-        let doneButton = app.navigationBars.buttons.matching(identifier: "dish_selection_done_button").firstMatch
-        XCTAssertTrue(doneButton.exists, "Done button should exist in dish selection")
+        let doneButton = app.toolbarButton("dish_selection_done_button")
+        XCTAssertTrue(doneButton.waitToExist(timeout: 3), "Done button should exist in dish selection")
         doneButton.tap()
         
         // Verify return to menu
         let menuTitle = app.navigationBars["Menu"]
-        XCTAssertTrue(menuTitle.waitForExistence(timeout: 5), "Should return to menu after dish selection")
+        XCTAssertTrue(menuTitle.waitToExist(timeout: 5), "Should return to menu after dish selection")
         
         print("✅ Add dishes to menu test completed successfully")
     }
@@ -411,7 +402,7 @@ final class MenuManagementUITests: XCTestCase {
         let mealTypes = ["Breakfast", "Lunch", "Dinner"]
         for mealType in mealTypes {
             let mealSection = app.staticTexts[mealType]
-            if mealSection.waitForExistence(timeout: 2) {
+            if mealSection.waitToExist(timeout: 2) {
                 // Look for the parent container that can be tapped
                 let mealContainer = mealSection.firstMatch
                 if mealContainer.exists {
@@ -457,7 +448,7 @@ final class MenuManagementUITests: XCTestCase {
         
         // Verify dish selection screen appears
         let dishSelectionTitle = app.navigationBars["Select Dish"]
-        XCTAssertTrue(dishSelectionTitle.waitForExistence(timeout: 5), "Dish selection screen should appear")
+        XCTAssertTrue(dishSelectionTitle.waitToExist(timeout: 5), "Dish selection screen should appear")
         print("✅ Dish selection screen opened successfully")
         
         // Look for available dishes to select (reusing logic from testAddDishesToMenu)
@@ -503,13 +494,13 @@ final class MenuManagementUITests: XCTestCase {
         }
         
         // Done the selection
-        let doneButton = app.navigationBars.buttons.matching(identifier: "dish_selection_done_button").firstMatch
-        XCTAssertTrue(doneButton.exists, "Done button should exist in dish selection")
+        let doneButton = app.toolbarButton("dish_selection_done_button")
+        XCTAssertTrue(doneButton.waitToExist(timeout: 3), "Done button should exist in dish selection")
         doneButton.tap()
         
         // Verify return to menu
         let menuTitle = app.navigationBars["Menu"]
-        XCTAssertTrue(menuTitle.waitForExistence(timeout: 5), "Should return to menu after dish selection")
+        XCTAssertTrue(menuTitle.waitToExist(timeout: 5), "Should return to menu after dish selection")
         print("✅ Setup complete - dish added to menu")
         
         // Step 2: Now test the clear functionality on the meal type we just added to
@@ -522,20 +513,20 @@ final class MenuManagementUITests: XCTestCase {
         
         // Long-press the meal row: its own context menu (not the day card's) should open
         let mealRow = mealButton(for: mealType)
-        XCTAssertTrue(mealRow.waitForExistence(timeout: 2), "\(mealType) button should exist")
+        XCTAssertTrue(mealRow.waitToExist(timeout: 2), "\(mealType) button should exist")
         print("🍽️ Found \(mealType) row, testing long press")
         mealRow.press(forDuration: 1.5)
         
         let clearMealButton = app.buttons["Clear \(mealType)"]
-        XCTAssertTrue(clearMealButton.waitForExistence(timeout: 3), "Context menu should offer clearing \(mealType)")
+        XCTAssertTrue(clearMealButton.waitToExist(timeout: 3), "Context menu should offer clearing \(mealType)")
         XCTAssertFalse(app.buttons["Clear All Day"].exists, "Meal row context menu should not show the day card's actions")
         print("✅ Found context menu for \(mealType)")
         clearMealButton.tap()
         print("✅ Tapped 'Clear \(mealType)' option")
         
         // Verify we're still on menu screen after clearing
-        XCTAssertTrue(app.navigationBars["Menu"].waitForExistence(timeout: 2), "Should remain on menu screen after clearing")
-        XCTAssertTrue(mealButton(for: mealType).waitForExistence(timeout: 2), "\(mealType) row should still be shown after clearing")
+        XCTAssertTrue(app.navigationBars["Menu"].waitToExist(timeout: 2), "Should remain on menu screen after clearing")
+        XCTAssertTrue(mealButton(for: mealType).waitToExist(timeout: 2), "\(mealType) row should still be shown after clearing")
         print("✅ Clear dishes functionality test completed successfully")
     }
     
@@ -545,19 +536,18 @@ final class MenuManagementUITests: XCTestCase {
         navigateToMenu()
         
         // Find and tap the shopping list button
-        let shoppingListButton = app.navigationBars.buttons["Shopping List"]
-        XCTAssertTrue(shoppingListButton.waitForExistence(timeout: 3), "Shopping List button should exist")
+        let shoppingListButton = app.toolbarButton("Shopping List")
+        XCTAssertTrue(shoppingListButton.waitToExist(timeout: 3), "Shopping List button should exist")
         shoppingListButton.tap()
         
         // Verify shopping list screen appears
         let shoppingListScreen = app.navigationBars.firstMatch
-        XCTAssertTrue(shoppingListScreen.waitForExistence(timeout: 5), "Shopping list screen should appear")
+        XCTAssertTrue(shoppingListScreen.waitToExist(timeout: 5), "Shopping list screen should appear")
         print("✅ Shopping list screen opened successfully")
         
         // The shopping list might be empty or contain items based on menu content
         // Wait for shopping list content to load
-        let contentExpectation = expectation(for: NSPredicate(format: "exists == true"), evaluatedWith: app.tables.firstMatch, handler: nil)
-        _ = XCTWaiter().wait(for: [contentExpectation], timeout: 3.0)
+        app.tables.firstMatch.waitToExist(timeout: 3.0)
         
         // Look for shopping list content or empty state
         let listContent = app.tables.firstMatch
@@ -575,9 +565,9 @@ final class MenuManagementUITests: XCTestCase {
         }
         
         // Close shopping list
-        let doneButton = app.navigationBars.buttons["Done"]
-        let closeButton = app.navigationBars.buttons["Close"]
-        let backButton = app.navigationBars.buttons["Back"]
+        let doneButton = app.toolbarButton("Done")
+        let closeButton = app.toolbarButton("Close")
+        let backButton = app.toolbarButton("Back")
         
         if doneButton.exists {
             doneButton.tap()
@@ -592,7 +582,7 @@ final class MenuManagementUITests: XCTestCase {
         
         // Verify return to menu
         let menuTitle = app.navigationBars["Menu"]
-        XCTAssertTrue(menuTitle.waitForExistence(timeout: 3), "Should return to menu after closing shopping list")
+        XCTAssertTrue(menuTitle.waitToExist(timeout: 3), "Should return to menu after closing shopping list")
         
         print("✅ Generate shopping list test completed successfully")
     }
@@ -603,13 +593,13 @@ final class MenuManagementUITests: XCTestCase {
         navigateToMenu()
         
         // Find and tap the generate menu button
-        let generateMenuButton = app.navigationBars.buttons["Generate Menu"]
-        XCTAssertTrue(generateMenuButton.waitForExistence(timeout: 3), "Generate Menu button should exist")
+        let generateMenuButton = app.toolbarButton("Generate Menu")
+        XCTAssertTrue(generateMenuButton.waitToExist(timeout: 3), "Generate Menu button should exist")
         generateMenuButton.tap()
         
         // Verify confirmation alert appears
         let generateAlert = app.alerts["Generate New Menu"]
-        XCTAssertTrue(generateAlert.waitForExistence(timeout: 3), "Generate menu confirmation alert should appear")
+        XCTAssertTrue(generateAlert.waitToExist(timeout: 3), "Generate menu confirmation alert should appear")
         
         // Check alert message
         let alertMessage = generateAlert.staticTexts["This will overwrite the current menu. Are you sure?"]
@@ -628,16 +618,14 @@ final class MenuManagementUITests: XCTestCase {
         
         // Test Generate action
         generateMenuButton.tap() // Tap generate button again
-        XCTAssertTrue(generateAlert.waitForExistence(timeout: 3), "Generate menu alert should appear again")
+        XCTAssertTrue(generateAlert.waitToExist(timeout: 3), "Generate menu alert should appear again")
         
         let generateButton = generateAlert.buttons["Generate"]
         XCTAssertTrue(generateButton.exists, "Generate button should exist in alert")
         generateButton.tap()
         
         // Wait for menu generation to complete
-        let generationExpectation = expectation(for: NSPredicate(format: "exists == true"), evaluatedWith: app.navigationBars["Menu"], handler: nil)
-        let generationResult = XCTWaiter().wait(for: [generationExpectation], timeout: 5.0)
-        XCTAssertEqual(generationResult, .completed, "Menu generation should complete")
+        XCTAssertTrue(app.navigationBars["Menu"].waitToExist(timeout: 5.0), "Menu generation should complete")
         
         // Verify we're still on menu screen
         let menuTitle = app.navigationBars["Menu"]
@@ -657,14 +645,14 @@ final class MenuManagementUITests: XCTestCase {
         
         for mealType in mealTypes {
             let mealRow = mealButton(for: mealType)
-            if mealRow.waitForExistence(timeout: 2) {
+            if mealRow.waitToExist(timeout: 2) {
                 print("🍽️ Found \(mealType) row for search test")
                 let pencilImage = mealRow.images["pencil"]
                 XCTAssertTrue(pencilImage.exists, "Pencil image for \(mealType) should exist")
                 pencilImage.tap()
                 handlePastEditAlertIfPresent()
                 let dishSelectionTitle = app.navigationBars["Select Dish"]
-                if dishSelectionTitle.waitForExistence(timeout: 3) {
+                if dishSelectionTitle.waitToExist(timeout: 3) {
                     openedDishSelection = true
                     print("✅ Opened dish selection from \(mealType)")
                     break
@@ -675,7 +663,8 @@ final class MenuManagementUITests: XCTestCase {
         XCTAssertTrue(openedDishSelection, "Should successfully open dish selection screen")
         
         // Obtain search field robustly across iPhone/iPad layouts
-        var searchField: XCUIElement = app.searchFields.firstMatch
+        // (on wide iPhone layouts search is collapsed into a toolbar "Search" button)
+        var searchField: XCUIElement = app.revealedSearchField()
 
         // Prefer search field embedded in navigation bar (common on iPad)
         let navBarSearch = app.navigationBars.firstMatch.searchFields.firstMatch
@@ -706,16 +695,14 @@ final class MenuManagementUITests: XCTestCase {
             }
         }
 
-        XCTAssertTrue(searchField.waitForExistence(timeout: 5), "Search field should exist")
+        XCTAssertTrue(searchField.waitToExist(timeout: 5), "Search field should exist")
         
         // Tap search field and enter search term
         searchField.tap()
         searchField.typeText("test")
         
         // Wait for search results to update
-        let searchExpectation = expectation(for: NSPredicate(format: "value CONTAINS %@", "test"), evaluatedWith: searchField, handler: nil)
-        let searchResult = XCTWaiter().wait(for: [searchExpectation], timeout: 3.0)
-        XCTAssertEqual(searchResult, .completed, "Search input should be processed")
+        XCTAssertTrue(searchField.waitUntil(NSPredicate(format: "value CONTAINS %@", "test"), timeout: 3.0), "Search input should be processed")
         
         // Clear search to see all results again
         let clearButton = searchField.buttons["Clear text"]
@@ -723,11 +710,8 @@ final class MenuManagementUITests: XCTestCase {
             clearButton.tap()
             
             // Wait for the clear button to disappear (indicating clearing is in progress)
-            let clearButtonDisappearExpectation = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: clearButton, handler: nil)
-            let clearButtonResult = XCTWaiter().wait(for: [clearButtonDisappearExpectation], timeout: 2.0)
-            
             // If clear button didn't disappear, try alternative approach
-            if clearButtonResult != .completed {
+            if !clearButton.waitToDisappear(timeout: 2.0) {
                 // Try tapping the clear button again
                 clearButton.tap()
             }
@@ -737,13 +721,11 @@ final class MenuManagementUITests: XCTestCase {
         }
         
         // Wait for search to clear using the helper method's built-in waiting
-        let clearResult = XCTWaiter.wait(for: [
-            XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == ''"), object: searchField)
-        ], timeout: 3.0)
+        let searchCleared = searchField.waitUntil(NSPredicate(format: "value == ''"), timeout: 3.0)
         
         // Verify the search field is cleared, but don't fail if it's not
         // The important part is that the search functionality works, not necessarily that it clears perfectly
-        if clearResult == .completed {
+        if searchCleared {
             print("✅ Search field cleared successfully")
         } else {
             print("⚠️ Search field may not be completely cleared, but continuing with test")
@@ -758,7 +740,7 @@ final class MenuManagementUITests: XCTestCase {
         }
         
         // Robust dismissal on iPad/iPhone: consider multiple button titles/locations and popover close
-        var cancelButton = app.navigationBars.buttons["Cancel"].firstMatch
+        var cancelButton = app.toolbarButton("Cancel")
 
         // Try common alternates in nav bar
         let navBar = app.navigationBars.firstMatch
@@ -808,7 +790,7 @@ final class MenuManagementUITests: XCTestCase {
         }
 
         // Wait briefly for any of the above to appear before failing
-        let appeared = cancelButton.waitForExistence(timeout: 2)
+        let appeared = cancelButton.waitToExist(timeout: 2)
         if appeared {
             cancelButton.tap()
         } else {
@@ -816,14 +798,14 @@ final class MenuManagementUITests: XCTestCase {
             // Attempt swipe down (sheet style)
             app.swipeDown()
             // If still not dismissed, tap outside popover area
-            if app.navigationBars["Menu"].waitForExistence(timeout: 1) == false {
+            if app.navigationBars["Menu"].waitToExist(timeout: 1) == false {
                 app.otherElements.firstMatch.tap()
             }
         }
         
         // Verify return to menu
         let menuTitle = app.navigationBars["Menu"]
-        XCTAssertTrue(menuTitle.waitForExistence(timeout: 3), "Should return to menu after canceling")
+        XCTAssertTrue(menuTitle.waitToExist(timeout: 3), "Should return to menu after canceling")
         
         print("✅ Search functionality test completed successfully")
     }
