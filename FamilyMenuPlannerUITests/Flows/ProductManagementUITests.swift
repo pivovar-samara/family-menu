@@ -136,6 +136,8 @@ final class ProductManagementUITests: XCTestCase {
     func testNewProductCardRendersAtTopOfPopulatedList() throws {
         navigateToProductList()
         XCTAssertTrue(waitForProductList(timeout: 5), "Product list should exist")
+        // The sort preference persists across launches, so set A-Z explicitly
+        openSortDialogAndSelect(optionLabel: "Name A-Z")
 
         let addProductButton = app.buttons["add_product_button"]
         XCTAssertTrue(addProductButton.waitToExist(timeout: 3), "Add Product button should exist")

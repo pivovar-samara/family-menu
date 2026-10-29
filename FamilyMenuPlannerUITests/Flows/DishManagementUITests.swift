@@ -163,6 +163,14 @@ final class DishManagementUITests: XCTestCase {
     func testNewDishCardRendersAtTopOfPopulatedList() throws {
         navigateToDishList()
 
+        // The sort preference persists across launches, so set A-Z explicitly
+        let sortButton = app.buttons["sort_dishes_button"]
+        XCTAssertTrue(sortButton.waitToExist(timeout: 5), "Sort button should exist")
+        sortButton.tap()
+        let nameAscOption = app.buttons["Name A-Z"].firstMatch
+        XCTAssertTrue(nameAscOption.waitToExist(timeout: 3), "Name A-Z option should exist")
+        nameAscOption.tap()
+
         let addDishButton = app.buttons["add_dish_button"]
         XCTAssertTrue(addDishButton.waitToExist(timeout: 3), "Add Dish button should exist")
         addDishButton.tap()
