@@ -117,7 +117,9 @@ struct ProductListView: View {
         let onEdit: (Product) -> Void
         let onDelete: (Product) -> Void
         var body: some View {
-            List {
+            // A plain ScrollView, not a List: a LazyVGrid inside a single List row left a blank slot
+            // where a newly inserted card should be, because the row's grid did not render the inserted item.
+            ScrollView {
                 if filteredProducts.isEmpty {
                     if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         ProductListEmptyState(onAdd: onAdd)
@@ -132,8 +134,6 @@ struct ProductListView: View {
                 }
             }
             .accessibilityIdentifier("ProductList")
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
             .background(Color.appBackground)
         }
     }
@@ -169,9 +169,6 @@ struct ProductListView: View {
                         .frame(height: 20)
                 }
             }
-            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.appBackground)
         }
     }
 
@@ -179,8 +176,6 @@ struct ProductListView: View {
         let onAdd: () -> Void
         var body: some View {
             EmptyProductListView(onAddProduct: onAdd)
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
                 .accessibilityIdentifier("product_list_empty_state")
         }
     }
@@ -188,8 +183,6 @@ struct ProductListView: View {
     private struct ProductListNoResultsState: View {
         var body: some View {
             ViewHelper.emptyState(Color.clear, message: "No results found".localized())
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
                 .accessibilityIdentifier("product_list_no_results_state")
         }
     }

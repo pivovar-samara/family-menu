@@ -114,7 +114,9 @@ struct DishListView: View {
         let onEdit: (Dish) -> Void
         let onDelete: (Dish) -> Void
         var body: some View {
-            List {
+            // A plain ScrollView, not a List: a LazyVGrid inside a single List row left a blank slot
+            // where a newly inserted card should be, because the row's grid did not render the inserted item.
+            ScrollView {
                 if filteredDishes.isEmpty {
                     if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         DishListEmptyState(onAdd: onAdd)
@@ -128,8 +130,6 @@ struct DishListView: View {
                     DishListRows(dishes: filteredDishes, onEdit: onEdit, onDelete: onDelete)
                 }
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
             .background(Color.appBackground)
         }
     }
@@ -164,9 +164,6 @@ struct DishListView: View {
                         .frame(height: 20)
                 }
             }
-            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.appBackground)
         }
     }
 
@@ -174,8 +171,6 @@ struct DishListView: View {
         let onAdd: () -> Void
         var body: some View {
             EmptyDishListView(onAddDish: onAdd)
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
                 .accessibilityIdentifier("dish_list_empty_state")
         }
     }
@@ -183,8 +178,6 @@ struct DishListView: View {
     private struct DishListNoResultsState: View {
         var body: some View {
             ViewHelper.emptyState(Color.clear, message: "No results found".localized())
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
                 .accessibilityIdentifier("dish_list_no_results_state")
         }
     }

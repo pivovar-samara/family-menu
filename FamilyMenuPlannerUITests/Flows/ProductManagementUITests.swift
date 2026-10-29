@@ -44,15 +44,7 @@ final class ProductManagementUITests: XCTestCase {
         navigateToProductList()
         
         // Wait for the product list to load
-        // Try different element types since SwiftUI List can render as table, collection view, or other types
-        var productList: XCUIElement?
-        if app.collectionViews["ProductList"].waitToExist(timeout: 2) {
-            productList = app.collectionViews["ProductList"]
-        } else {
-            productList = app.otherElements["ProductList"]
-        }
-        
-        XCTAssertTrue(productList?.waitToExist(timeout: 3) ?? false, "Product list should exist")
+        XCTAssertTrue(waitForProductList(timeout: 5), "Product list should exist")
         
         // Find and tap any visible "Add Product" entry point: floating button or empty state CTA
         let addProductButton = app.buttons["add_product_button"]
@@ -139,18 +131,34 @@ final class ProductManagementUITests: XCTestCase {
         let secondCreatedProduct = list.staticTexts["Second Test Product"]
         XCTAssertTrue(secondCreatedProduct.waitToExist(timeout: 3), "Second product should also appear in the list")
     }
-    
+
+    /// Regression: a card inserted into an already populated grid used to render as a blank slot.
+    func testNewProductCardRendersAtTopOfPopulatedList() throws {
+        navigateToProductList()
+        XCTAssertTrue(waitForProductList(timeout: 5), "Product list should exist")
+
+        let addProductButton = app.buttons["add_product_button"]
+        XCTAssertTrue(addProductButton.waitToExist(timeout: 3), "Add Product button should exist")
+        addProductButton.tap()
+
+        let productNameField = app.textFields["product_name_field"]
+        XCTAssertTrue(productNameField.waitToExist(timeout: 3), "Product Name field should exist in the add form")
+        productNameField.tap()
+        productNameField.typeText("Aaa First Product")
+        app.toolbarButton("Save").tap()
+
+        XCTAssertTrue(app.navigationBars["Products"].waitToExist(timeout: 5), "Should return to Products list after saving")
+        // Sorted A-Z the new product is the first card, so it must be visible without scrolling
+        let createdProduct = productListContainer().staticTexts["Aaa First Product"]
+        XCTAssertTrue(createdProduct.waitToExist(timeout: 3), "New product card should be rendered in the list")
+        XCTAssertTrue(createdProduct.isHittable, "New product card should be visible at the top of the list")
+    }
+
     func testCreateProductValidation() throws {
         navigateToProductList()
 
         // Wait for the product list to load
-        var productList: XCUIElement?
-        if app.collectionViews["ProductList"].waitToExist(timeout: 4) {
-            productList = app.collectionViews["ProductList"]
-        } else {
-            productList = app.otherElements["ProductList"]
-        }
-        XCTAssertTrue(productList?.waitToExist(timeout: 4) ?? false, "Product list should exist")
+        XCTAssertTrue(waitForProductList(timeout: 8), "Product list should exist")
 
         // Find and tap the floating "Add Product" button
         let addProductButton = app.buttons["add_product_button"]
@@ -305,9 +313,9 @@ final class ProductManagementUITests: XCTestCase {
         var productToDeleteName = ""
         
         // Use the proven working pattern from dish management test
-        // Look for actual product cells by scanning through app.cells
+        // Look for product cards by their accessibility identifier
         var actualProductCells: [XCUIElement] = []
-        let allCells = app.cells
+        let allCells = app.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH %@", "product_list_item_"))
         let knownProducts = ["Beef", "Butter", "Carrot", "Chicken", "Egg", "Milk", "Onion"]
         
         print("🔍 Scanning cells for products...")
@@ -459,9 +467,9 @@ final class ProductManagementUITests: XCTestCase {
         // Open sort dialog
         openSortDialogAndSelect(optionLabel: "Name A-Z")
 
-        // Wait for the table to finish updating by ensuring a cell exists inside the product list container
+        // Wait for the list to finish updating by ensuring a product card exists inside the product list container
         let list = productListContainer()
-        let firstProductCellAsc = list.cells.firstMatch
+        let firstProductCellAsc = list.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH %@", "product_list_item_")).firstMatch
         XCTAssertTrue(firstProductCellAsc.waitToExist(timeout: 5), "Sorting did not complete in time")
 
         let names = fetchVisibleProductNames(maxCount: 5)
@@ -476,7 +484,7 @@ final class ProductManagementUITests: XCTestCase {
         openSortDialogAndSelect(optionLabel: "Name Z-A")
 
         let list = productListContainer()
-        let firstProductCellDesc = list.cells.firstMatch
+        let firstProductCellDesc = list.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH %@", "product_list_item_")).firstMatch
         XCTAssertTrue(firstProductCellDesc.waitToExist(timeout: 5), "Sorting did not complete in time")
 
         let names = fetchVisibleProductNames(maxCount: 5)
@@ -489,7 +497,7 @@ final class ProductManagementUITests: XCTestCase {
 
         openSortDialogAndSelect(optionLabel: "Unit")
         let list = productListContainer()
-        let firstProductCellUnit = list.cells.firstMatch
+        let firstProductCellUnit = list.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH %@", "product_list_item_")).firstMatch
         XCTAssertTrue(firstProductCellUnit.waitToExist(timeout: 5), "Sorting did not complete in time")
 
         // Collect a broader window of unit labels by scrolling through the list
@@ -550,10 +558,15 @@ final class ProductManagementUITests: XCTestCase {
     }
     
     // MARK: - Helpers
-    
+
+    private func waitForProductList(timeout: TimeInterval) -> Bool {
+        app.descendants(matching: .any)["ProductList"].waitToExist(timeout: timeout)
+    }
+
     /// Returns the most specific container for the product list.
-    /// Checks collectionViews["ProductList"], tables["ProductList"], otherElements["ProductList"], then fallback containers.
+    /// Checks scrollViews["ProductList"], collectionViews["ProductList"], tables["ProductList"], otherElements["ProductList"], then fallback containers.
     private func productListContainer() -> XCUIElement {
+        if app.scrollViews["ProductList"].exists { return app.scrollViews["ProductList"] }
         if app.collectionViews["ProductList"].exists { return app.collectionViews["ProductList"] }
         if app.tables["ProductList"].exists { return app.tables["ProductList"] }
         if app.otherElements["ProductList"].exists { return app.otherElements["ProductList"] }

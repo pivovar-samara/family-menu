@@ -158,6 +158,59 @@ final class DishManagementUITests: XCTestCase {
         
         // Final check is already covered by findDishInList. No further assertions needed here.
     }
+
+    /// Regression: a card inserted into an already populated grid used to render as a blank slot.
+    func testNewDishCardRendersAtTopOfPopulatedList() throws {
+        navigateToDishList()
+
+        let addDishButton = app.buttons["add_dish_button"]
+        XCTAssertTrue(addDishButton.waitToExist(timeout: 3), "Add Dish button should exist")
+        addDishButton.tap()
+
+        XCTAssertTrue(waitForStepScreen(stepTitle: "Basic Information"), "Should be in Basic Information step")
+        let dishNameField = app.textFields["Enter dish name"]
+        XCTAssertTrue(dishNameField.waitToExist(timeout: 5), "Should find dish name field in Basic Info step")
+        dishNameField.tap()
+        dishNameField.typeText("Aaa First Dish")
+
+        let nextButton = app.buttons["Next"]
+        nextButton.tap()
+
+        XCTAssertTrue(waitForStepScreen(stepTitle: "Meal Types"), "Should be in Meal Types step")
+        let breakfastMealType = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Breakfast'")).firstMatch
+        if breakfastMealType.waitToExist(timeout: 3) {
+            breakfastMealType.tap()
+        }
+        nextButton.tap()
+
+        XCTAssertTrue(waitForStepScreen(stepTitle: "Ingredients"), "Should be in Ingredients step")
+        if !nextButton.isEnabled {
+            let selectProductButton = app.buttons["Select Product"]
+            XCTAssertTrue(selectProductButton.waitToExist(timeout: 3), "Select Product button should exist")
+            selectProductButton.tap()
+            XCTAssertTrue(handleProductSelection(), "Should successfully select a product")
+        }
+        _ = nextButton.waitAndScrollToElement(timeout: 5.0)
+        nextButton.tap()
+
+        XCTAssertTrue(waitForStepScreen(stepTitle: "Review"), "Should be in Review step")
+        let saveButton = app.buttons["Save"]
+        var saveAppeared = saveButton.waitToExist(timeout: 3)
+        var scrollAttempts = 0
+        while !saveAppeared && scrollAttempts < 5 {
+            app.swipeUp()
+            saveAppeared = saveButton.waitToExist(timeout: 1)
+            scrollAttempts += 1
+        }
+        XCTAssertTrue(saveAppeared, "Save button should exist on the Review step")
+        saveButton.tap()
+
+        XCTAssertTrue(app.navigationBars["Dishes"].waitToExist(timeout: 5), "Should return to dish list after saving")
+        // Sorted A-Z the new dish is the first card, so it must be visible without scrolling
+        let createdDishName = app.staticTexts["Aaa First Dish"]
+        XCTAssertTrue(createdDishName.waitToExist(timeout: 3), "New dish card should be rendered in the list")
+        XCTAssertTrue(createdDishName.isHittable, "New dish card should be visible at the top of the list")
+    }
     
     // MARK: - Test Dish Editing
     
