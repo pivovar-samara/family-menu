@@ -35,6 +35,11 @@ struct FamilyMenuPlannerApp: App {
             // For other tests, use in-memory database to avoid interference
             self.persistenceController = PersistenceController(inMemory: true)
         } else {
+            #if DEBUG
+            // Must finish before the CloudKit container is created
+            CloudKitSchemaInitializer.runIfRequested()
+            #endif
+
             // For production, use the shared instance
             self.persistenceController = PersistenceController.shared
             

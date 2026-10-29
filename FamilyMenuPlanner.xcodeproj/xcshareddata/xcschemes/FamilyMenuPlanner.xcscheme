@@ -64,6 +64,10 @@
             argument = "-com.apple.CoreData.Logging.stderr"
             isEnabled = "YES">
          </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-initCloudKitSchema"
+            isEnabled = "NO">
+         </CommandLineArgument>
       </CommandLineArguments>
       <EnvironmentVariables>
          <EnvironmentVariable
